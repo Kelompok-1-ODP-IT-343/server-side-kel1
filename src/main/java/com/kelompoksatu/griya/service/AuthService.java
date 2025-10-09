@@ -1,0 +1,256 @@
+package com.kelompoksatu.griya.service;
+
+import com.kelompoksatu.griya.dto.AuthResponse;
+import com.kelompoksatu.griya.dto.LoginRequest;
+import com.kelompoksatu.griya.dto.RegisterRequest;
+import com.kelompoksatu.griya.dto.UserResponse;
+import com.kelompoksatu.griya.entity.Role;
+import com.kelompoksatu.griya.entity.User;
+import com.kelompoksatu.griya.entity.UserSession;
+import com.kelompoksatu.griya.repository.RoleRepository;
+import com.kelompoksatu.griya.repository.UserSessionRepository;
+import com.kelompoksatu.griya.util.JwtUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Service class for authentication operations
+ */
+@Service
+@Transactional
+public class AuthService {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private RoleRepository roleRepository;
+
+    @Autowired
+    private UserSessionRepository userSessionRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    /**
+     * Register a new user
+     */
+    public AuthResponse register(RegisterRequest request) {
+        try {
+            logger.info("Processing registration for username: {}", request.getUsername());
+
+            // Validate password confirmation
+            if (!request.getPassword().equals(request.getConfirmPassword())) {
+                throw new RuntimeException("Password dan konfirmasi password tidak cocok");
+            }
+
+            // Register user through UserService
+            User user = userService.registerUser(request);
+
+            // Get user role
+            Role role = roleRepository.findById(user.getRoleId())
+                    .orElseThrow(() -> new RuntimeException("Role tidak ditemukan"));
+
+            // Generate JWT token
+            String token = jwtUtil.generateTokenWithUserInfo(
+                    user.getUsername(),
+                    user.getId(),
+                    role.getName()
+            );
+
+            // Create user response
+            UserResponse userResponse = createUserResponse(user, role);
+
+            logger.info("User registered successfully: {}", user.getUsername());
+            return new AuthResponse(token, userResponse, "Registrasi berhasil");
+
+        } catch (Exception e) {
+            logger.error("Registration failed: {}", e.getMessage());
+            throw new RuntimeException("Registrasi gagal: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Authenticate user login
+     */
+    public AuthResponse login(LoginRequest request, String ipAddress, String userAgent) {
+        try {
+            logger.info("Processing login for identifier: {}", request.getIdentifier());
+
+            // Find user by username or email
+            User user = userService.findByUsernameOrEmail(request.getIdentifier())
+                    .orElseThrow(() -> new RuntimeException("Username atau email tidak ditemukan"));
+
+            // Check if account is locked
+            if (userService.isAccountLocked(user)) {
+                throw new RuntimeException("Akun terkunci karena terlalu banyak percobaan login yang gagal");
+            }
+
+            // Verify password
+            if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+                userService.incrementFailedLoginAttempts(user.getId());
+                throw new RuntimeException("Password salah");
+            }
+
+            // Check if account is active
+            if (!userService.isAccountActive(user)) {
+                throw new RuntimeException("Akun belum aktif atau telah dinonaktifkan");
+            }
+
+            // Reset failed login attempts on successful login
+            userService.resetFailedLoginAttempts(user.getId());
+
+            // Update last login time
+            userService.updateLastLogin(user.getId());
+
+            // Get user role
+            Role role = roleRepository.findById(user.getRoleId())
+                    .orElseThrow(() -> new RuntimeException("Role tidak ditemukan"));
+
+            // Generate JWT token
+            String token = jwtUtil.generateTokenWithUserInfo(
+                    user.getUsername(),
+                    user.getId(),
+                    role.getName()
+            );
+
+            // Create user session
+            createUserSession(user.getId(), ipAddress, userAgent, token);
+
+            // Create user response
+            UserResponse userResponse = createUserResponse(user, role);
+
+            logger.info("User logged in successfully: {}", user.getUsername());
+            return new AuthResponse(token, userResponse, "Login berhasil");
+
+        } catch (Exception e) {
+            logger.error("Login failed for identifier {}: {}", request.getIdentifier(), e.getMessage());
+            throw new RuntimeException("Login gagal: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get user profile by token
+     */
+    public UserResponse getProfile(String token) {
+        try {
+            // Extract username from token
+            String username = jwtUtil.extractUsername(token);
+            Integer userId = jwtUtil.extractUserId(token);
+
+            // Get user profile
+            return userService.getUserProfile(userId);
+
+        } catch (Exception e) {
+            logger.error("Failed to get user profile: {}", e.getMessage());
+            throw new RuntimeException("Gagal mengambil profil user: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Logout user and invalidate session
+     */
+    public void logout(String token) {
+        try {
+            Integer userId = jwtUtil.extractUserId(token);
+
+            // Delete user sessions (optional: you might want to keep sessions for audit)
+            // userSessionRepository.deleteByUserId(userId);
+
+            logger.info("User logged out successfully, userId: {}", userId);
+
+        } catch (Exception e) {
+            logger.error("Logout failed: {}", e.getMessage());
+            throw new RuntimeException("Logout gagal: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Validate JWT token
+     */
+    public boolean validateToken(String token) {
+        try {
+            return jwtUtil.validateToken(token);
+        } catch (Exception e) {
+            logger.error("Token validation failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Create user session record
+     */
+    private void createUserSession(Integer userId, String ipAddress, String userAgent, String token) {
+        try {
+            UserSession session = new UserSession();
+            session.setId(UUID.randomUUID().toString());
+            session.setUserId(userId);
+            session.setIpAddress(ipAddress);
+            session.setUserAgent(userAgent);
+
+            // Create session payload with basic info
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("loginTime", LocalDateTime.now().toString());
+            payload.put("tokenHash", token.substring(0, Math.min(20, token.length()))); // Store partial token for reference
+            session.setPayload(payload.toString());
+
+            session.setLastActivity(LocalDateTime.now());
+            session.setCreatedAt(LocalDateTime.now());
+
+            userSessionRepository.save(session);
+            logger.info("User session created for userId: {}", userId);
+
+        } catch (Exception e) {
+            logger.error("Failed to create user session: {}", e.getMessage());
+            // Don't throw exception here as it's not critical for login process
+        }
+    }
+
+    /**
+     * Create UserResponse from User and Role entities
+     */
+    private UserResponse createUserResponse(User user, Role role) {
+        UserResponse response = new UserResponse();
+        response.setId(user.getId());
+        response.setUsername(user.getUsername());
+        response.setEmail(user.getEmail());
+        response.setPhone(user.getPhone());
+        response.setRoleId(user.getRoleId());
+        response.setRoleName(role.getName());
+        response.setStatus(user.getStatus());
+        response.setEmailVerified(user.getEmailVerifiedAt() != null);
+        response.setPhoneVerified(user.getPhoneVerifiedAt() != null);
+        response.setLastLoginAt(user.getLastLoginAt());
+        response.setCreatedAt(user.getCreatedAt());
+        response.setUpdatedAt(user.getUpdatedAt());
+
+        return response;
+    }
+
+    /**
+     * Clean up expired sessions
+     */
+    public void cleanupExpiredSessions() {
+        try {
+            LocalDateTime expiredBefore = LocalDateTime.now().minusDays(30); // Sessions older than 30 days
+            userSessionRepository.deleteExpiredSessions(expiredBefore);
+            logger.info("Expired sessions cleaned up");
+        } catch (Exception e) {
+            logger.error("Failed to cleanup expired sessions: {}", e.getMessage());
+        }
+    }
+}
