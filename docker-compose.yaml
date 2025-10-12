@@ -11,5 +11,10 @@ services:
       - "15432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+  memory_db:
+    image: redis:7.0-alpine
+    container_name: redis
+    ports:
+      - "16379:6379"
 volumes:
   pg_data:
