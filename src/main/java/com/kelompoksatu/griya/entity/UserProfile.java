@@ -2,7 +2,9 @@ package com.kelompoksatu.griya.entity;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -38,11 +40,13 @@ public class UserProfile {
     private String birthPlace;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "gender", nullable = false)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "gender", columnDefinition = "gender", nullable = false)
     private Gender gender;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "marital_status", nullable = false)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "marital_status", columnDefinition = "marital_status", nullable = false)
     private MaritalStatus maritalStatus;
 
     @Column(name = "address", columnDefinition = "TEXT", nullable = false)

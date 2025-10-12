@@ -2,7 +2,9 @@ package com.kelompoksatu.griya.entity;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 import java.time.LocalDateTime;
 
@@ -33,7 +35,8 @@ public class User {
     private Integer roleId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "status", columnDefinition = "user_status", nullable = false)
     private UserStatus status = UserStatus.PENDING_VERIFICATION;
 
     @Column(name = "email_verified_at")
