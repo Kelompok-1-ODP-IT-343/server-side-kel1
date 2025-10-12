@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.Random;
+import java.util.random.RandomGenerator;
 
 /**
  * Service class for user management operations
@@ -39,6 +41,12 @@ public class UserService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private AuthService authService;
 
     /**
      * Register a new user with comprehensive profile information
@@ -73,7 +81,7 @@ public class UserService {
 
         // Check if NPWP already exists (if provided)
         if (request.getNpwp() != null && !request.getNpwp().trim().isEmpty()
-            && userProfileRepository.existsByNpwp(request.getNpwp())) {
+                && userProfileRepository.existsByNpwp(request.getNpwp())) {
             throw new RuntimeException("NPWP sudah terdaftar dalam sistem");
         }
 
@@ -116,6 +124,7 @@ public class UserService {
         userProfile.setWorkExperience(request.getWorkExperience());
 
         UserProfile savedProfile = userProfileRepository.save(userProfile);
+        sendEmailVerification(savedUser);
         logger.info("User profile created successfully for user ID: {}", savedUser.getId());
 
         return savedUser;
@@ -225,21 +234,6 @@ public class UserService {
     }
 
     /**
-     * Verify user email
-     */
-    public void verifyEmail(Integer userId) {
-        userRepository.verifyEmail(userId, LocalDateTime.now());
-        logger.info("Email verified for user ID: {}", userId);
-
-        // If both email and phone are verified, activate the account
-        User user = userRepository.findById(userId).orElse(null);
-        if (user != null && user.getEmailVerifiedAt() != null && user.getPhoneVerifiedAt() != null) {
-            user.setStatus(UserStatus.ACTIVE);
-            userRepository.save(user);
-        }
-    }
-
-    /**
      * Verify user phone
      */
     public void verifyPhone(Integer userId) {
@@ -253,4 +247,9 @@ public class UserService {
             userRepository.save(user);
         }
     }
+
+    public void sendEmailVerification(User user) {
+        emailService.sendEmailVerification(user.getEmail(), authService.generateEmailVerificationToken(user.getId()));
+    }
 }
+

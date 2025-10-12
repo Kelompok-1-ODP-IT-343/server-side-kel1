@@ -1,15 +1,13 @@
 package com.kelompoksatu.griya.service;
 
-import com.kelompoksatu.griya.dto.AuthResponse;
-import com.kelompoksatu.griya.dto.LoginRequest;
-import com.kelompoksatu.griya.dto.RegisterRequest;
-import com.kelompoksatu.griya.dto.UserResponse;
-import com.kelompoksatu.griya.entity.Role;
-import com.kelompoksatu.griya.entity.User;
-import com.kelompoksatu.griya.entity.UserSession;
+import com.kelompoksatu.griya.dto.*;
+import com.kelompoksatu.griya.entity.*;
 import com.kelompoksatu.griya.repository.RoleRepository;
+import com.kelompoksatu.griya.repository.UserRepository;
 import com.kelompoksatu.griya.repository.UserSessionRepository;
+import com.kelompoksatu.griya.repository.VerificationTokenRepository;
 import com.kelompoksatu.griya.util.JwtUtil;
+import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,8 +15,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 
@@ -45,6 +49,12 @@ public class AuthService {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private UserRepository userRepo;
+
+    @Autowired
+    private VerificationTokenRepository tokenRepo;
 
     /**
      * Register a new user
@@ -252,5 +262,54 @@ public class AuthService {
         } catch (Exception e) {
             logger.error("Failed to cleanup expired sessions: {}", e.getMessage());
         }
+    }
+    @SneakyThrows
+    @Transactional
+    public String generateEmailVerificationToken(Integer userId) {
+        User user = userRepo.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        String token = UUID.randomUUID().toString().replace("-", ""); // 32 char
+        VerificationToken vt = new VerificationToken();
+        vt.setToken(hashToken(token));
+        vt.setUser(user);
+        vt.setExpiresAt(Instant.now().plus(24, ChronoUnit.HOURS));
+
+        tokenRepo.save(vt);
+        return token;
+    }
+
+    /** Verifikasi token dari link email */
+    @SneakyThrows
+    @Transactional
+    public VerifyEmailResponse verifyEmail(String token) {
+        String hashedToken = hashToken(token);
+        VerificationToken vt = tokenRepo.findByToken(hashedToken)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid token"));
+
+        if (vt.isUsed()) {
+            return new VerifyEmailResponse(true, "Email already verified", vt.getUser().getEmail());
+        }
+        if (vt.isExpired()) {
+            throw new IllegalStateException("Token expired");
+        }
+
+        User user = vt.getUser();
+        if (!user.isEmailVerified()) {
+            user.setEmailVerifiedAt(LocalDateTime.now());
+            user.setStatus(UserStatus.ACTIVE);
+            userRepo.save(user);
+        }
+
+        vt.setUsedAt(Instant.now());
+        tokenRepo.save(vt);
+
+        return new VerifyEmailResponse(true, "Email verified successfully", user.getEmail());
+    }
+
+    private static String hashToken(String token) throws NoSuchAlgorithmException {
+        String hashedToken = HexFormat.of()
+                .formatHex(MessageDigest.getInstance("SHA-256")
+                        .digest(token.getBytes(StandardCharsets.UTF_8)));
+        return hashedToken;
     }
 }

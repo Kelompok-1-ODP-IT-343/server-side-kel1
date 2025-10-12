@@ -1,9 +1,6 @@
 package com.kelompoksatu.griya.controller;
 
-import com.kelompoksatu.griya.dto.ApiResponse;
-import com.kelompoksatu.griya.dto.AuthResponse;
-import com.kelompoksatu.griya.dto.LoginRequest;
-import com.kelompoksatu.griya.dto.RegisterRequest;
+import com.kelompoksatu.griya.dto.*;
 import com.kelompoksatu.griya.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -166,6 +163,18 @@ public class AuthController {
             );
 
             return ResponseEntity.ok(response);
+        }
+    }
+
+    @GetMapping("/verify")
+    public ResponseEntity<?> verifyEmail(@RequestParam("token") String token) {
+        try {
+            VerifyEmailResponse res = authService.verifyEmail(token);
+            return ResponseEntity.ok(res);
+        } catch (IllegalArgumentException e) { // invalid
+            return ResponseEntity.badRequest().body(new VerifyEmailResponse(false, e.getMessage(), null));
+        } catch (IllegalStateException e) { // expired
+            return ResponseEntity.status(410).body(new VerifyEmailResponse(false, e.getMessage(), null));
         }
     }
 
