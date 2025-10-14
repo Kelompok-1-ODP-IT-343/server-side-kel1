@@ -35,7 +35,7 @@ public class EmailService {
                   <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px;">
                     <table width="100%%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
                       <tr>
-                        <td style="background-color: #4CAF50; padding: 16px; text-align: center;">
+                        <td style="background-color: #FF6040; padding: 16px; text-align: center;">
                           <h1 style="color: #ffffff; margin: 0;">Verify Your Email</h1>
                         </td>
                       </tr>
@@ -47,17 +47,11 @@ public class EmailService {
                             please confirm your email address by clicking the button below:
                           </p>
                           <p style="text-align: center; margin: 32px 0;">
-                            <a href="%s" 
-                               style="background-color: #4CAF50; color: #fff; text-decoration: none; 
+                            <a href="%s"
+                               style="background-color: #FF6040; color: #fff; text-decoration: none;\s
                                       padding: 12px 24px; border-radius: 6px; font-size: 16px; display: inline-block;">
                               Verify Email
                             </a>
-                          </p>
-                          <p style="font-size: 14px; color: #555;">
-                            If the button doesn’t work, copy and paste this URL into your browser:
-                          </p>
-                          <p style="font-size: 14px; color: #007BFF; word-break: break-all;">
-                            <a href="%s" style="color:#007BFF;">%s</a>
                           </p>
                           <p style="font-size: 13px; color: #999; margin-top: 24px;">
                             If you did not sign up for this account, you can safely ignore this email.
@@ -72,13 +66,11 @@ public class EmailService {
                     </table>
                   </body>
                 </html>
-                """;
+               \s""";
         String bodyFormatted = String.format(
                 body,
                 to,                      // %s = username
                 verificationUrl,         // %s = link button
-                verificationUrl,         // %s = link text
-                verificationUrl,         // %s = link raw fallback
                 java.time.Year.now().getValue() // %d = year
         );
 
