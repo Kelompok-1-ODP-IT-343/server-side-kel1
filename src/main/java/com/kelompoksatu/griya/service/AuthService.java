@@ -7,10 +7,10 @@ import com.kelompoksatu.griya.repository.UserRepository;
 import com.kelompoksatu.griya.repository.UserSessionRepository;
 import com.kelompoksatu.griya.repository.VerificationTokenRepository;
 import com.kelompoksatu.griya.util.JwtUtil;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,30 +31,24 @@ import java.util.UUID;
  */
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class AuthService {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
 
-    @Autowired
-    private RoleRepository roleRepository;
+    private final RoleRepository roleRepository;
 
-    @Autowired
-    private UserSessionRepository userSessionRepository;
+    private final UserSessionRepository userSessionRepository;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private JwtUtil jwtUtil;
+    private final JwtUtil jwtUtil;
 
-    @Autowired
-    private UserRepository userRepo;
+    private final UserRepository userRepo;
 
-    @Autowired
-    private VerificationTokenRepository tokenRepo;
+    private final VerificationTokenRepository tokenRepo;
 
     /**
      * Register a new user
@@ -82,11 +76,8 @@ public class AuthService {
                     role.getName()
             );
 
-            // Create user response
-            UserResponse userResponse = createUserResponse(user, role);
-
             logger.info("User registered successfully: {}", user.getUsername());
-            return new AuthResponse(token, userResponse, "Registrasi berhasil");
+            return new AuthResponse(token, "Registrasi berhasil");
 
         } catch (Exception e) {
             logger.error("Registration failed: {}", e.getMessage());
@@ -141,11 +132,8 @@ public class AuthService {
             // Create user session
             createUserSession(user.getId(), ipAddress, userAgent, token);
 
-            // Create user response
-            UserResponse userResponse = createUserResponse(user, role);
-
             logger.info("User logged in successfully: {}", user.getUsername());
-            return new AuthResponse(token, userResponse, "Login berhasil");
+            return new AuthResponse(token, "Login berhasil");
 
         } catch (Exception e) {
             logger.error("Login failed for identifier {}: {}", request.getIdentifier(), e.getMessage());
@@ -231,27 +219,6 @@ public class AuthService {
     }
 
     /**
-     * Create UserResponse from User and Role entities
-     */
-    private UserResponse createUserResponse(User user, Role role) {
-        UserResponse response = new UserResponse();
-        response.setId(user.getId());
-        response.setUsername(user.getUsername());
-        response.setEmail(user.getEmail());
-        response.setPhone(user.getPhone());
-        response.setRoleId(user.getRoleId());
-        response.setRoleName(role.getName());
-        response.setStatus(user.getStatus());
-        response.setEmailVerified(user.getEmailVerifiedAt() != null);
-        response.setPhoneVerified(user.getPhoneVerifiedAt() != null);
-        response.setLastLoginAt(user.getLastLoginAt());
-        response.setCreatedAt(user.getCreatedAt());
-        response.setUpdatedAt(user.getUpdatedAt());
-
-        return response;
-    }
-
-    /**
      * Clean up expired sessions
      */
     public void cleanupExpiredSessions() {
@@ -263,6 +230,7 @@ public class AuthService {
             logger.error("Failed to cleanup expired sessions: {}", e.getMessage());
         }
     }
+
     @SneakyThrows
     @Transactional
     public String generateEmailVerificationToken(Integer userId) {
@@ -278,7 +246,9 @@ public class AuthService {
         return token;
     }
 
-    /** Verifikasi token dari link email */
+    /**
+     * Verifikasi token dari link email
+     */
     @SneakyThrows
     @Transactional
     public VerifyEmailResponse verifyEmail(String token) {
@@ -307,9 +277,8 @@ public class AuthService {
     }
 
     private static String hashToken(String token) throws NoSuchAlgorithmException {
-        String hashedToken = HexFormat.of()
+        return HexFormat.of()
                 .formatHex(MessageDigest.getInstance("SHA-256")
                         .digest(token.getBytes(StandardCharsets.UTF_8)));
-        return hashedToken;
     }
 }
