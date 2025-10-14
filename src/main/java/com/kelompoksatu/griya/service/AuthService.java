@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.util.Pair;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,7 +54,7 @@ public class AuthService {
     /**
      * Register a new user
      */
-    public AuthResponse register(RegisterRequest request) {
+    public RegisterResponse register(RegisterRequest request) {
         try {
             logger.info("Processing registration for username: {}", request.getUsername());
 
@@ -63,21 +64,14 @@ public class AuthService {
             }
 
             // Register user through UserService
-            User user = userService.registerUser(request);
+            Pair<User, Role> result = userService.registerUser(request);
+            User user = result.getFirst();
+            Role role = result.getSecond();
 
-            // Get user role
-            Role role = roleRepository.findById(user.getRoleId())
-                    .orElseThrow(() -> new RuntimeException("Role tidak ditemukan"));
-
-            // Generate JWT token
-            String token = jwtUtil.generateTokenWithUserInfo(
-                    user.getUsername(),
-                    user.getId(),
-                    role.getName()
-            );
+            UserResponse userResponse = userService.convertToUserResponse(user, role);
 
             logger.info("User registered successfully: {}", user.getUsername());
-            return new AuthResponse(token, "Registrasi berhasil");
+            return new RegisterResponse(userResponse);
 
         } catch (Exception e) {
             logger.error("Registration failed: {}", e.getMessage());
@@ -133,7 +127,7 @@ public class AuthService {
             createUserSession(user.getId(), ipAddress, userAgent, token);
 
             logger.info("User logged in successfully: {}", user.getUsername());
-            return new AuthResponse(token, "Login berhasil");
+            return new AuthResponse(token);
 
         } catch (Exception e) {
             logger.error("Login failed for identifier {}: {}", request.getIdentifier(), e.getMessage());

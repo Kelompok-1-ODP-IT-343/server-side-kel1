@@ -8,11 +8,7 @@ import lombok.*;
 @Getter
 @Setter
 @NoArgsConstructor
-@RequiredArgsConstructor
-public class AuthResponse {
-
-    @NonNull
-    private String token;
-
-    private String type = "Bearer";
+@AllArgsConstructor
+public class RegisterResponse {
+    private UserResponse user;
 }

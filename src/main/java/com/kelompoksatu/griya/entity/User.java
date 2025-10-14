@@ -13,7 +13,11 @@ import java.time.LocalDateTime;
  * Core user table with enhanced security features
  */
 @Entity
-@Table(name = "users")
+@Table(name = "users", uniqueConstraints = {
+        @UniqueConstraint(columnNames = "username"),
+        @UniqueConstraint(columnNames = "email"),
+        @UniqueConstraint(columnNames = "phone")
+})
 @Data
 public class User {
 

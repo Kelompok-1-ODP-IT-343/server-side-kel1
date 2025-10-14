@@ -30,16 +30,16 @@ public class AuthController {
      * POST /api/v1/auth/register
      */
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> register(
+    public ResponseEntity<ApiResponse<RegisterResponse>> register(
             @Valid @RequestBody RegisterRequest request,
             HttpServletRequest httpRequest) {
 
         try {
             logger.info("Registration attempt for username: {}", request.getUsername());
 
-            AuthResponse authResponse = authService.register(request);
+            RegisterResponse authResponse = authService.register(request);
 
-            ApiResponse<AuthResponse> response = ApiResponse.success(
+            ApiResponse<RegisterResponse> response = ApiResponse.success(
                     authResponse,
                     "Registrasi berhasil",
                     httpRequest.getRequestURI()
@@ -50,7 +50,7 @@ public class AuthController {
         } catch (Exception e) {
             logger.error("Registration failed for username {}: {}", request.getUsername(), e.getMessage());
 
-            ApiResponse<AuthResponse> response = ApiResponse.error(
+            ApiResponse<RegisterResponse> response = ApiResponse.error(
                     e.getMessage(),
                     httpRequest.getRequestURI()
             );

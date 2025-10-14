@@ -9,17 +9,18 @@ import com.kelompoksatu.griya.entity.UserStatus;
 import com.kelompoksatu.griya.repository.RoleRepository;
 import com.kelompoksatu.griya.repository.UserProfileRepository;
 import com.kelompoksatu.griya.repository.UserRepository;
+import jakarta.validation.ValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.util.Pair;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
-import java.util.Random;
-import java.util.random.RandomGenerator;
 
 /**
  * Service class for user management operations
@@ -51,41 +52,13 @@ public class UserService {
     /**
      * Register a new user with comprehensive profile information
      */
-    public User registerUser(RegisterRequest request) {
+    public Pair<User, Role> registerUser(RegisterRequest request) {
         logger.info("Attempting to register user: {}", request.getUsername());
 
-        // Validate password confirmation
         if (!request.isPasswordMatching()) {
-            throw new RuntimeException("Password dan konfirmasi password tidak cocok");
+            throw new ValidationException("Password dan konfirmasi password tidak cocok");
         }
 
-        // Check if username already exists
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Username sudah digunakan");
-        }
-
-        // Check if email already exists
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email sudah digunakan");
-        }
-
-        // Check if phone already exists
-        if (userRepository.existsByPhone(request.getPhone())) {
-            throw new RuntimeException("Nomor telepon sudah digunakan");
-        }
-
-        // Check if NIK already exists
-        if (userProfileRepository.existsByNik(request.getNik())) {
-            throw new RuntimeException("NIK sudah terdaftar dalam sistem");
-        }
-
-        // Check if NPWP already exists (if provided)
-        if (request.getNpwp() != null && !request.getNpwp().trim().isEmpty()
-                && userProfileRepository.existsByNpwp(request.getNpwp())) {
-            throw new RuntimeException("NPWP sudah terdaftar dalam sistem");
-        }
-
-        // Assign default role (USER)
         Role userRole = roleRepository.findByName("USER")
                 .orElseThrow(() -> new RuntimeException("Default role 'USER' not found"));
 
@@ -100,34 +73,37 @@ public class UserService {
         user.setFailedLoginAttempts(0);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
+        try {
+            User savedUser = userRepository.save(user);
+            logger.info("User registered successfully with ID: {}", savedUser.getId());
 
-        User savedUser = userRepository.save(user);
-        logger.info("User registered successfully with ID: {}", savedUser.getId());
+            // Create user profile
+            UserProfile userProfile = new UserProfile();
+            userProfile.setUserId(savedUser.getId());
+            userProfile.setFullName(request.getFullName());
+            userProfile.setNik(request.getNik());
+            userProfile.setNpwp(request.getNpwp());
+            userProfile.setBirthDate(request.getBirthDate());
+            userProfile.setBirthPlace(request.getBirthPlace());
+            userProfile.setGender(request.getGender());
+            userProfile.setMaritalStatus(request.getMaritalStatus());
+            userProfile.setAddress(request.getAddress());
+            userProfile.setCity(request.getCity());
+            userProfile.setProvince(request.getProvince());
+            userProfile.setPostalCode(request.getPostalCode());
+            userProfile.setOccupation(request.getOccupation());
+            userProfile.setCompanyName(request.getCompanyName());
+            userProfile.setMonthlyIncome(request.getMonthlyIncome());
+            userProfile.setWorkExperience(request.getWorkExperience());
 
-        // Create user profile
-        UserProfile userProfile = new UserProfile();
-        userProfile.setUserId(savedUser.getId());
-        userProfile.setFullName(request.getFullName());
-        userProfile.setNik(request.getNik());
-        userProfile.setNpwp(request.getNpwp());
-        userProfile.setBirthDate(request.getBirthDate());
-        userProfile.setBirthPlace(request.getBirthPlace());
-        userProfile.setGender(request.getGender());
-        userProfile.setMaritalStatus(request.getMaritalStatus());
-        userProfile.setAddress(request.getAddress());
-        userProfile.setCity(request.getCity());
-        userProfile.setProvince(request.getProvince());
-        userProfile.setPostalCode(request.getPostalCode());
-        userProfile.setOccupation(request.getOccupation());
-        userProfile.setCompanyName(request.getCompanyName());
-        userProfile.setMonthlyIncome(request.getMonthlyIncome());
-        userProfile.setWorkExperience(request.getWorkExperience());
+            UserProfile savedProfile = userProfileRepository.save(userProfile);
+            sendEmailVerification(savedUser);
+            logger.info("User profile created successfully for user ID: {}", savedUser.getId());
 
-        UserProfile savedProfile = userProfileRepository.save(userProfile);
-        sendEmailVerification(savedUser);
-        logger.info("User profile created successfully for user ID: {}", savedUser.getId());
-
-        return savedUser;
+            return Pair.of(savedUser, userRole);
+        } catch (DataIntegrityViolationException ex) {
+            throw ex;
+        }
     }
 
     /**
@@ -215,7 +191,7 @@ public class UserService {
     /**
      * Convert User entity to UserResponse DTO
      */
-    private UserResponse convertToUserResponse(User user, Role role) {
+    public UserResponse convertToUserResponse(User user, Role role) {
         UserResponse response = new UserResponse();
         response.setId(user.getId());
         response.setUsername(user.getUsername());
