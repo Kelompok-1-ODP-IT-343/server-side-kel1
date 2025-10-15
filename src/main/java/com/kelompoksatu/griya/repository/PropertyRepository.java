@@ -144,9 +144,9 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
      * Find properties within geographic bounds
      */
     @Query("SELECT p FROM Property p WHERE p.latitude BETWEEN :minLat AND :maxLat AND p.longitude BETWEEN :minLng AND :maxLng")
-    List<Property> findWithinGeographicBounds(@Param("minLat") BigDecimal minLatitude, 
+    List<Property> findWithinGeographicBounds(@Param("minLat") BigDecimal minLatitude,
                                             @Param("maxLat") BigDecimal maxLatitude,
-                                            @Param("minLng") BigDecimal minLongitude, 
+                                            @Param("minLng") BigDecimal minLongitude,
                                             @Param("maxLng") BigDecimal maxLongitude);
 
     /**
@@ -189,4 +189,15 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
                                  @Param("maxPrice") BigDecimal maxPrice,
                                  @Param("bedrooms") Integer bedrooms,
                                  @Param("status") Property.PropertyStatus status);
+    @Query(value = """
+    SELECT * FROM properties
+    WHERE (:city IS NULL OR city = :city)
+      AND (:minPrice IS NULL OR price >= :minPrice)
+      AND (:maxPrice IS NULL OR price <= :maxPrice)
+""", nativeQuery = true)
+    List<Property> findPropertiesWithFilter(
+            @Param("city") String city,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("maxPrice") BigDecimal maxPrice
+    );
 }

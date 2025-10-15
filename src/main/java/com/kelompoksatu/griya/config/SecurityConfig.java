@@ -121,6 +121,7 @@ public class SecurityConfig {
                     "/api/v1/auth/login",
                     "/api/v1/auth/validate",
                     "/api/v1/auth/verify",
+                    "/api/v1/properties/**",
                     "/actuator/health",
                     "/actuator/health/liveness",
                     "/actuator/health/readiness",

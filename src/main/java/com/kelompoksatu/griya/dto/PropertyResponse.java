@@ -12,6 +12,23 @@ import java.time.LocalDateTime;
 public class PropertyResponse {
 
     private Integer id;
+
+    public Boolean getFeatured() {
+        return isFeatured;
+    }
+
+    public void setFeatured(Boolean featured) {
+        isFeatured = featured;
+    }
+
+    public Boolean getKprEligible() {
+        return isKprEligible;
+    }
+
+    public void setKprEligible(Boolean kprEligible) {
+        isKprEligible = kprEligible;
+    }
+
     private String propertyCode;
     private Integer developerId;
     private Property.PropertyType propertyType;

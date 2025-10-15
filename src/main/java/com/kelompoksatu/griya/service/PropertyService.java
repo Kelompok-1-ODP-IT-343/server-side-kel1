@@ -408,4 +408,19 @@ public class PropertyService {
     public boolean existsBySlug(String slug) {
         return propertyRepository.existsBySlug(slug);
     }
+    @Transactional(readOnly = true)
+    public List<PropertyResponse> getPropertiesWithFilter(
+            String city,
+            BigDecimal minPrice,
+            BigDecimal maxPrice
+    ) {
+        return propertyRepository.findPropertiesWithFilter(
+                        city,
+                        minPrice,
+                        maxPrice
+                ).stream()
+                .map(PropertyResponse::new)
+                .collect(Collectors.toList());
+    }
+
 }

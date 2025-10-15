@@ -12,17 +12,21 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
+
 
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+
+
 /**
  * REST Controller for Property operations
  */
 @RestController
-@RequestMapping("/api/properties")
+@RequestMapping("/api/v1/properties")
 @Validated
 public class PropertyController {
 
@@ -64,12 +68,19 @@ public class PropertyController {
     }
 
     /**
-     * Get all properties
+     * Get all properties, optionally filtered by query parameters
+     * Example:
+     * /api/properties?city=Jakarta&status=AVAILABLE&minPrice=500000000&maxPrice=2000000000
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<PropertyResponse>>> getAllProperties() {
+    public ResponseEntity<ApiResponse<List<PropertyResponse>>> getAllProperties(
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            HttpServletRequest httpServletRequest
+    ) {
         try {
-            List<PropertyResponse> properties = propertyService.getAllProperties();
+            List<PropertyResponse> properties = propertyService.getPropertiesWithFilter(city,  minPrice, maxPrice);
             ApiResponse<List<PropertyResponse>> response = new ApiResponse<>(
                     true,
                     "Properties retrieved successfully",
@@ -85,6 +96,7 @@ public class PropertyController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
+
 
     /**
      * Get property by ID
@@ -394,7 +406,36 @@ public class PropertyController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
-
+    /**
+     * Get properties with optional filters (city, status, minPrice, maxPrice)
+     * Example:
+     * /api/properties/filter?city=Jakarta&status=AVAILABLE&minPrice=500000000&maxPrice=2000000000
+     */
+    @GetMapping("/filter")
+    public ResponseEntity<ApiResponse<List<PropertyResponse>>> getPropertiesWithFilter(
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) Property.PropertyStatus status,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            HttpServletRequest httpServletRequest
+    ) {
+        try {
+            List<PropertyResponse> properties = propertyService.getPropertiesWithFilter(city, minPrice, maxPrice);
+            ApiResponse<List<PropertyResponse>> response = new ApiResponse<>(
+                    true,
+                    "Filtered properties retrieved successfully",
+                    properties
+            );
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            ApiResponse<List<PropertyResponse>> response = new ApiResponse<>(
+                    false,
+                    "Failed to retrieve filtered properties: " + e.getMessage(),
+                    null
+            );
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
     /**
      * Get properties by area range
      */
