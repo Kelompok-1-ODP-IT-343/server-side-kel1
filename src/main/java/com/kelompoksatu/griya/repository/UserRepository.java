@@ -93,4 +93,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     @Modifying
     @Query("UPDATE User u SET u.phoneVerifiedAt = :verificationTime WHERE u.id = :userId")
     void verifyPhone(@Param("userId") Integer userId, @Param("verificationTime") LocalDateTime verificationTime);
+
+    @Query("SELECT u FROM User u JOIN FETCH u.role WHERE u.username = :username")
+    Optional<User> findByUsernameWithRole(@Param("username") String username);
 }

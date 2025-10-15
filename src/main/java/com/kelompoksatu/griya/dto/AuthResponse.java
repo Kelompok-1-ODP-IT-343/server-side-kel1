@@ -16,6 +16,9 @@ public class AuthResponse {
     @NonNull
     private String token;
 
+    @NonNull
+    private String refreshToken;
+
     private String type = "Bearer";
 
     @NotBlank(message = "Username is required")

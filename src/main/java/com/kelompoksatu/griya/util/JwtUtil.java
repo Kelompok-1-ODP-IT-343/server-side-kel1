@@ -27,6 +27,9 @@ public class JwtUtil {
     
     @Value("${jwt.expiration}")
     private Long expiration;
+
+    @Value("${jwt.access.expiration}")
+    private Long accessTokenExpirationMs;
     
     /**
      * Generate secret key from the configured secret
@@ -111,6 +114,22 @@ public class JwtUtil {
                 .signWith(getSigningKey())
                 .compact();
     }
+
+    /**
+     * Create JWT token with claims and subject
+     */
+    private String createAccessToken(Map<String, Object> claims, String subject) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + accessTokenExpirationMs);
+
+        return Jwts.builder()
+                .claims(claims)
+                .subject(subject)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
     
     /**
      * Validate JWT token against user details
@@ -163,12 +182,22 @@ public class JwtUtil {
     }
     
     /**
-     * Generate token with user ID and role
+     * Generate refresh token with user ID and role
      */
-    public String generateTokenWithUserInfo(String username, Integer userId, String role) {
+    public String generateRefreshToken(String username, Integer userId, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("role", role);
         return createToken(claims, username);
+    }
+
+    /**
+     * Generate access token with user ID and role
+     */
+    public String generateAccessToken(String username, Integer userId, String role) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
+        claims.put("role", role);
+        return createAccessToken(claims, username);
     }
 }

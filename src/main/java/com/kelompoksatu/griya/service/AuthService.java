@@ -112,17 +112,23 @@ public class AuthService {
                     .orElseThrow(() -> new RuntimeException("Role tidak ditemukan"));
 
             // Generate JWT token
-            String token = jwtUtil.generateTokenWithUserInfo(
+            String refreshToken = jwtUtil.generateRefreshToken(
+                    user.getUsername(),
+                    user.getId(),
+                    role.getName()
+            );
+            // Generate JWT token
+            String accessToken = jwtUtil.generateAccessToken(
                     user.getUsername(),
                     user.getId(),
                     role.getName()
             );
 
             // Create user session
-            createUserSession(user.getId(), ipAddress, userAgent, token);
+            createUserSession(user.getId(), ipAddress, userAgent, refreshToken);
 
             logger.info("User logged in successfully: {}", user.getUsername());
-            return new AuthResponse(token);
+            return new AuthResponse(accessToken, refreshToken);
 
         } catch (Exception e) {
             logger.error("Login failed for identifier {}: {}", request.getIdentifier(), e.getMessage());
@@ -156,7 +162,7 @@ public class AuthService {
             Integer userId = jwtUtil.extractUserId(token);
 
             // Delete user sessions (optional: you might want to keep sessions for audit)
-            // userSessionRepository.deleteByUserId(userId);
+            userSessionRepository.deleteByUserId(userId);
 
             logger.info("User logged out successfully, userId: {}", userId);
 
@@ -269,5 +275,38 @@ public class AuthService {
         return HexFormat.of()
                 .formatHex(MessageDigest.getInstance("SHA-256")
                         .digest(token.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    public AuthResponse refreshToken(TokenRefreshRequest request) {
+        String oldRefreshToken = request.getRefreshToken();
+
+        // Validate refresh token
+        if (!jwtUtil.validateToken(oldRefreshToken)) {
+            logger.warn("Invalid refresh token: {}", oldRefreshToken);
+            throw new RuntimeException("Invalid refresh token");
+        }
+
+        // Extract username
+        String username = jwtUtil.extractUsername(oldRefreshToken);
+        User user = userRepo.findByUsernameWithRole(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Optionally verify against DB stored refresh token
+        if (user.getRefreshToken() == null || !user.getRefreshToken().equals(oldRefreshToken)) {
+            log.warn("Refresh token mismatch for user: {}", username);
+            throw new RuntimeException("Refresh token mismatch");
+        }
+
+        // Generate new tokens
+        String newAccessToken = jwtUtil.generateAccessToken(user);
+        String newRefreshToken = jwtUtil.generateRefreshToken(user);
+
+        // Rotate refresh token
+        user.setRefreshToken(newRefreshToken);
+        userRepository.save(user);
+
+        log.info("Token refreshed for user: {}", username);
+
+        return new AuthResponse(newAccessToken, newRefreshToken);
     }
 }
