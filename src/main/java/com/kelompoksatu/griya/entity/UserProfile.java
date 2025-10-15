@@ -39,7 +39,7 @@ public class UserProfile {
     @Column(name = "nik", length = 16, unique = true, nullable = false)
     private String nik; // NIK (Nomor Induk Kependudukan)
 
-    @Column(name = "npwp", length = 15, unique = true)
+    @Column(name = "npwp", length = 16, unique = true)
     private String npwp; // NPWP (Nomor Pokok Wajib Pajak)
 
     @Column(name = "birth_date", nullable = false)

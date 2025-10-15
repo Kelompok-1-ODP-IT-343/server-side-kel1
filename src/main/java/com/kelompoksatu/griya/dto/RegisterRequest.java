@@ -54,7 +54,7 @@ public class RegisterRequest {
     @Pattern(regexp = "^[0-9]{16}$", message = "NIK must be exactly 16 digits")
     private String nik;
 
-    @Pattern(regexp = "^[0-9]{15}$", message = "NPWP must be exactly 15 digits")
+    @Pattern(regexp = "^[0-9]{16}$", message = "NPWP must be exactly 16 digits")
     private String npwp;
 
     @NotNull(message = "Birth date is required")
