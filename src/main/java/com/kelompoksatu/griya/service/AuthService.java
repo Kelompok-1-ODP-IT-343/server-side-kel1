@@ -55,28 +55,23 @@ public class AuthService {
      * Register a new user
      */
     public RegisterResponse register(RegisterRequest request) {
-        try {
-            logger.info("Processing registration for username: {}", request.getUsername());
 
-            // Validate password confirmation
-            if (!request.getPassword().equals(request.getConfirmPassword())) {
-                throw new RuntimeException("Password dan konfirmasi password tidak cocok");
-            }
+        logger.info("Processing registration for username: {}", request.getUsername());
 
-            // Register user through UserService
-            Pair<User, Role> result = userService.registerUser(request);
-            User user = result.getFirst();
-            Role role = result.getSecond();
-
-            UserResponse userResponse = userService.convertToUserResponse(user, role);
-
-            logger.info("User registered successfully: {}", user.getUsername());
-            return new RegisterResponse(userResponse);
-
-        } catch (Exception e) {
-            logger.error("Registration failed: {}", e.getMessage());
-            throw new RuntimeException("Registrasi gagal: " + e.getMessage());
+        // Validate password confirmation
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new RuntimeException("Password dan konfirmasi password tidak cocok");
         }
+
+        // Register user through UserService
+        Pair<User, Role> result = userService.registerUser(request);
+        User user = result.getFirst();
+        Role role = result.getSecond();
+
+        UserResponse userResponse = userService.convertToUserResponse(user, role);
+
+        logger.info("User registered successfully: {}", user.getUsername());
+        return new RegisterResponse(userResponse);
     }
 
     /**

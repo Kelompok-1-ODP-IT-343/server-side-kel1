@@ -34,29 +34,17 @@ public class AuthController {
             @Valid @RequestBody RegisterRequest request,
             HttpServletRequest httpRequest) {
 
-        try {
-            logger.info("Registration attempt for username: {}", request.getUsername());
+        logger.info("Registration attempt for username: {}", request.getUsername());
 
-            RegisterResponse authResponse = authService.register(request);
+        RegisterResponse authResponse = authService.register(request);
 
-            ApiResponse<RegisterResponse> response = ApiResponse.success(
-                    authResponse,
-                    "Registrasi berhasil",
-                    httpRequest.getRequestURI()
-            );
+        ApiResponse<RegisterResponse> response = ApiResponse.success(
+                authResponse,
+                "Registrasi berhasil",
+                httpRequest.getRequestURI()
+        );
 
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-
-        } catch (Exception e) {
-            logger.error("Registration failed for username {}: {}", request.getUsername(), e.getMessage());
-
-            ApiResponse<RegisterResponse> response = ApiResponse.error(
-                    e.getMessage(),
-                    httpRequest.getRequestURI()
-            );
-
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**

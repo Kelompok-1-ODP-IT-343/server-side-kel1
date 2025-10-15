@@ -1,45 +1,135 @@
 package com.kelompoksatu.griya.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ValidationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.BindException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
-        String message = "Data already exists";
+    private ResponseEntity<Map<String, Object>> apiError(HttpStatus status, String message, WebRequest req, Object data) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("success", false);
+        body.put("message", message);
+        body.put("data", data);
+        body.put("timestamp", OffsetDateTime.now());
+        body.put("path", req != null ? req.getDescription(false).replace("uri=", "") : null);
+        return ResponseEntity.status(status).body(body);
+    }
 
-        if (ex.getMessage().contains("users_username_key")) {
+    /* ========== VALIDATION ========== */
+
+    // @Valid @RequestBody
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodArgumentNotValid(MethodArgumentNotValidException ex, WebRequest req) {
+        Map<String, String> fieldErrors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .collect(Collectors.toMap(
+                        FieldError::getField,
+                        FieldError::getDefaultMessage,
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
+        return apiError(HttpStatus.BAD_REQUEST, "Validation failed", req, fieldErrors);
+    }
+
+    // @ModelAttribute / form-data
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<Map<String, Object>> handleBindException(BindException ex, WebRequest req) {
+        Map<String, String> fieldErrors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .collect(Collectors.toMap(
+                        FieldError::getField,
+                        FieldError::getDefaultMessage,
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
+        return apiError(HttpStatus.BAD_REQUEST, "Validation failed", req, fieldErrors);
+    }
+
+    // @RequestParam / @PathVariable (aktifkan @Validated di controller/class)
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleConstraintViolation(ConstraintViolationException ex, WebRequest req) {
+        Map<String, String> violations = ex.getConstraintViolations().stream()
+                .collect(Collectors.toMap(
+                        v -> v.getPropertyPath().toString(),
+                        v -> v.getMessage(),
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
+        return apiError(HttpStatus.BAD_REQUEST, "Validation failed", req, violations);
+    }
+
+    // Body kosong / JSON invalid
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleUnreadable(HttpMessageNotReadableException ex, WebRequest req) {
+        return apiError(HttpStatus.BAD_REQUEST, "Malformed JSON request", req, null);
+    }
+
+    /* ========== DUPLICATE / DB CONSTRAINT ========== */
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException ex, WebRequest req) {
+        String message = "Data sudah ada";
+        String constraint = null;
+
+
+        // Fallback dari message
+        String errorMessage = ex.getMessage() != null ? ex.getMessage() : "";
+
+        if (errorMessage.contains("users_username_key")) {
             message = "Username sudah digunakan";
-        } else if (ex.getMessage().contains("users.email")) {
+        } else if (errorMessage.contains("users_email_key")) {
             message = "Email sudah digunakan";
-        } else if (ex.getMessage().contains("users.phone")) {
+        } else if (errorMessage.contains("users_phone_key")) {
             message = "Nomor telepon sudah digunakan";
-        } else if (ex.getMessage().contains("user_profiles.nik")) {
+        } else if (errorMessage.contains("user_profiles_nik_key")) {
             message = "NIK sudah terdaftar";
-        } else if (ex.getMessage().contains("user_profiles.npwp")) {
+        } else if (errorMessage.contains("user_profiles_npwp_key")) {
             message = "NPWP sudah terdaftar";
         }
 
-        return ResponseEntity.badRequest().body(Map.of("error", message));
+        // 409 CONFLICT untuk duplicate
+        return apiError(HttpStatus.CONFLICT, message, req, null);
     }
+
+    /* ========== SERVICE THROWS STATUS ========== */
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException ex, WebRequest req) {
+        HttpStatus status = (HttpStatus) ex.getStatusCode();
+        String message = ex.getReason() != null ? ex.getReason() : status.getReasonPhrase();
+        return apiError(status, message, req, null);
+    }
+
+    /* ========== VALIDATION EXCEPTION LEGACY ========== */
 
     @ExceptionHandler(ValidationException.class)
-    public ResponseEntity<Map<String, String>> handleValidation(ValidationException ex) {
-        return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+    public ResponseEntity<Map<String, Object>> handleValidation(ValidationException ex, WebRequest req) {
+        return apiError(HttpStatus.BAD_REQUEST, ex.getMessage(), req, null);
     }
+
+    /* ========== FALLBACK ========== */
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, String>> handleGeneric(Exception ex) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Unexpected error: " + ex.getMessage()));
+    public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex, WebRequest req) {
+        return apiError(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", req, null);
     }
 }
-
