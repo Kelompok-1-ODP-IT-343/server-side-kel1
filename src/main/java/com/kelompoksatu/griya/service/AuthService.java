@@ -187,7 +187,7 @@ public class AuthService {
     /**
      * Create user session record
      */
-    private void createUserSession(Integer userId, String ipAddress, String userAgent, String token) {
+    private void createUserSession(Integer userId, String ipAddress, String userAgent, String refreshToken) {
         try {
             UserSession session = new UserSession();
             session.setId(UUID.randomUUID().toString());
@@ -198,12 +198,13 @@ public class AuthService {
             // Create session payload with basic info
             Map<String, Object> payload = new HashMap<>();
             payload.put("loginTime", LocalDateTime.now().toString());
-            payload.put("tokenHash", token.substring(0, Math.min(20, token.length()))); // Store partial token for reference
             session.setPayload(payload.toString());
 
             session.setLastActivity(LocalDateTime.now());
             session.setCreatedAt(LocalDateTime.now());
 
+            session.setRefreshToken(jwtUtil.hashToken(refreshToken));
+            session.setStatus(SessionStatus.ACTIVE);
             userSessionRepository.save(session);
             logger.info("User session created for userId: {}", userId);
 
@@ -277,36 +278,43 @@ public class AuthService {
                         .digest(token.getBytes(StandardCharsets.UTF_8)));
     }
 
+    @Transactional
     public AuthResponse refreshToken(TokenRefreshRequest request) {
         String oldRefreshToken = request.getRefreshToken();
 
-        // Validate refresh token
+        // Validate JWT structure and expiration
         if (!jwtUtil.validateToken(oldRefreshToken)) {
-            logger.warn("Invalid refresh token: {}", oldRefreshToken);
-            throw new RuntimeException("Invalid refresh token");
+            throw new RuntimeException("Invalid or expired refresh token");
         }
 
-        // Extract username
+        // Find active session in DB
+        UserSession session = userSessionRepository.findActiveByRefreshToken(oldRefreshToken)
+                .orElseThrow(() -> new RuntimeException("Refresh token not found or revoked"));
+
         String username = jwtUtil.extractUsername(oldRefreshToken);
+
         User user = userRepo.findByUsernameWithRole(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Optionally verify against DB stored refresh token
-        if (user.getRefreshToken() == null || !user.getRefreshToken().equals(oldRefreshToken)) {
-            log.warn("Refresh token mismatch for user: {}", username);
-            throw new RuntimeException("Refresh token mismatch");
-        }
+        // Revoke old session
+        session.setStatus(SessionStatus.REVOKED);
+        session.setLastActivity(LocalDateTime.now());
+        userSessionRepository.save(session);
 
         // Generate new tokens
-        String newAccessToken = jwtUtil.generateAccessToken(user);
-        String newRefreshToken = jwtUtil.generateRefreshToken(user);
+        String newAccessToken = jwtUtil.generateAccessToken(user.getUsername(), user.getId(), user.getRole().getName());
+        String newRefreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getId(), user.getRole().getName());
 
-        // Rotate refresh token
-        user.setRefreshToken(newRefreshToken);
-        userRepository.save(user);
+        // Save new session
+        UserSession newSession = new UserSession();
+        newSession.setUserId(user.getId());
+        newSession.setRefreshToken(jwtUtil.hashToken(newRefreshToken));
+        newSession.setStatus(SessionStatus.ACTIVE);
+        userSessionRepository.save(newSession);
 
-        log.info("Token refreshed for user: {}", username);
+        logger.info("Access token refreshed for user: {}", username);
 
         return new AuthResponse(newAccessToken, newRefreshToken);
     }
+
 }

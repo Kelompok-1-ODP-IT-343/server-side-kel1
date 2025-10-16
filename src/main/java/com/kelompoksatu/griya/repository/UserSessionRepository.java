@@ -8,25 +8,13 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Optional;
 
 /**
  * Repository interface for UserSession entity
  */
 @Repository
 public interface UserSessionRepository extends JpaRepository<UserSession, String> {
-
-    /**
-     * Find all sessions by user ID
-     */
-    List<UserSession> findByUserId(Integer userId);
-
-    /**
-     * Find active sessions by user ID (within last 24 hours)
-     */
-    @Query("SELECT s FROM UserSession s WHERE s.userId = :userId AND s.lastActivity > :cutoffTime")
-    List<UserSession> findActiveSessionsByUserId(@Param("userId") Integer userId,
-                                                @Param("cutoffTime") LocalDateTime cutoffTime);
 
     /**
      * Delete expired sessions
@@ -48,5 +36,13 @@ public interface UserSessionRepository extends JpaRepository<UserSession, String
     @Modifying
     @Query("UPDATE UserSession s SET s.lastActivity = :lastActivity WHERE s.id = :sessionId")
     void updateLastActivity(@Param("sessionId") String sessionId,
-                           @Param("lastActivity") LocalDateTime lastActivity);
+                            @Param("lastActivity") LocalDateTime lastActivity);
+
+    @Query("SELECT COUNT(us) > 0 FROM UserSession us " +
+            "WHERE us.refreshToken = :refreshToken AND us.status = 'ACTIVE'")
+    boolean existsActiveRefreshToken(String refreshToken);
+
+    @Query("SELECT us FROM UserSession us WHERE us.refreshToken = :refreshToken AND us.status = 'ACTIVE'")
+    Optional<UserSession> findActiveByRefreshToken(String refreshToken);
+
 }
