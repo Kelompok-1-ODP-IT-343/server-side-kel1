@@ -20,10 +20,4 @@ public class AuthResponse {
     private String refreshToken;
 
     private String type = "Bearer";
-
-    @NotBlank(message = "Username is required")
-    private String username;
-
-    @NotBlank(message = "Password is required")
-    private String password;
 }

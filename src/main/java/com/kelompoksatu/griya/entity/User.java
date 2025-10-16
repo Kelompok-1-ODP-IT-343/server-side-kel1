@@ -1,7 +1,9 @@
 package com.kelompoksatu.griya.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -19,6 +21,8 @@ import java.time.LocalDateTime;
         @UniqueConstraint(columnNames = "phone")
 })
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class User {
 
     @Id
@@ -36,9 +40,6 @@ public class User {
 
     @Column(name = "password_hash", length = 255, nullable = false)
     private String passwordHash;
-
-    @Column(name = "role_id", nullable = false)
-    private Integer roleId;
 
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
@@ -71,18 +72,6 @@ public class User {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
-
-    // Default constructor
-    public User() {}
-
-    // Constructor with essential parameters
-    public User(String username, String email, String phone, String passwordHash, Integer roleId) {
-        this.username = username;
-        this.email = email;
-        this.phone = phone;
-        this.passwordHash = passwordHash;
-        this.roleId = roleId;
-    }
 
     // Utility methods
     public boolean isAccountLocked() {

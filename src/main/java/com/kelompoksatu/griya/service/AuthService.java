@@ -12,10 +12,13 @@ import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.util.Pair;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.security.sasl.AuthenticationException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -107,21 +110,17 @@ public class AuthService {
             // Update last login time
             userService.updateLastLogin(user.getId());
 
-            // Get user role
-            Role role = roleRepository.findById(user.getRoleId())
-                    .orElseThrow(() -> new RuntimeException("Role tidak ditemukan"));
-
             // Generate JWT token
             String refreshToken = jwtUtil.generateRefreshToken(
                     user.getUsername(),
                     user.getId(),
-                    role.getName()
+                    user.getRole().getName()
             );
             // Generate JWT token
             String accessToken = jwtUtil.generateAccessToken(
                     user.getUsername(),
                     user.getId(),
-                    role.getName()
+                    user.getRole().getName()
             );
 
             // Create user session
@@ -159,7 +158,7 @@ public class AuthService {
      */
     public void logout(String refreshToken) {
         try {
-            userSessionRepository.findActiveByRefreshToken(refreshToken)
+            userSessionRepository.findActiveByRefreshToken(jwtUtil.hashToken(refreshToken))
                     .ifPresent(session -> {
                         session.setStatus(SessionStatus.REVOKED);
                         session.setLastActivity(LocalDateTime.now());
@@ -283,18 +282,16 @@ public class AuthService {
         String oldRefreshToken = request.getRefreshToken();
 
         // Validate JWT structure and expiration
-        if (!jwtUtil.validateToken(oldRefreshToken)) {
-            throw new RuntimeException("Invalid or expired refresh token");
-        }
+        jwtUtil.validateToken(oldRefreshToken);
 
         // Find active session in DB
         UserSession session = userSessionRepository.findActiveByRefreshToken(oldRefreshToken)
-                .orElseThrow(() -> new RuntimeException("Refresh token not found or revoked"));
+                .orElseThrow(() -> new AuthenticationCredentialsNotFoundException("Refresh token not found or revoked"));
 
         String username = jwtUtil.extractUsername(oldRefreshToken);
 
         User user = userRepo.findByUsernameWithRole(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         // Revoke old session
         session.setStatus(SessionStatus.REVOKED);
