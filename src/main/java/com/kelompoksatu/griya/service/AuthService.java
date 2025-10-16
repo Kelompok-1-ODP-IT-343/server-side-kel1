@@ -157,15 +157,15 @@ public class AuthService {
     /**
      * Logout user and invalidate session
      */
-    public void logout(String token) {
+    public void logout(String refreshToken) {
         try {
-            Integer userId = jwtUtil.extractUserId(token);
-
-            // Delete user sessions (optional: you might want to keep sessions for audit)
-            userSessionRepository.deleteByUserId(userId);
-
-            logger.info("User logged out successfully, userId: {}", userId);
-
+            userSessionRepository.findActiveByRefreshToken(refreshToken)
+                    .ifPresent(session -> {
+                        session.setStatus(SessionStatus.REVOKED);
+                        session.setLastActivity(LocalDateTime.now());
+                        userSessionRepository.save(session);
+                        logger.info("User session revoked for token: {}", refreshToken);
+                    });
         } catch (Exception e) {
             logger.error("Logout failed: {}", e.getMessage());
             throw new RuntimeException("Logout gagal: " + e.getMessage());
