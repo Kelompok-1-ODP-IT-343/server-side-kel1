@@ -68,7 +68,7 @@ public class UserService {
         user.setEmail(request.getEmail());
         user.setPhone(request.getPhone());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setRoleId(userRole.getId());
+        user.setRole(userRole);
         user.setStatus(UserStatus.PENDING_VERIFICATION);
         user.setFailedLoginAttempts(0);
         user.setCreatedAt(LocalDateTime.now());
@@ -134,10 +134,7 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
 
-        Role role = roleRepository.findById(user.getRoleId())
-                .orElseThrow(() -> new RuntimeException("Role tidak ditemukan"));
-
-        return convertToUserResponse(user, role);
+        return convertToUserResponse(user, user.getRole());
     }
 
     /**
@@ -197,7 +194,7 @@ public class UserService {
         response.setUsername(user.getUsername());
         response.setEmail(user.getEmail());
         response.setPhone(user.getPhone());
-        response.setRoleId(user.getRoleId());
+        response.setRoleId(role.getId());
         response.setRoleName(role.getName());
         response.setStatus(user.getStatus());
         response.setEmailVerified(user.getEmailVerifiedAt() != null);

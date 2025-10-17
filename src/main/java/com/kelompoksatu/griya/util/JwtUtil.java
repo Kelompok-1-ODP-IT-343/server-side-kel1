@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import org.apache.commons.codec.digest.DigestUtils;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -19,36 +20,39 @@ import java.util.function.Function;
  */
 @Component
 public class JwtUtil {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
-    
+
     @Value("${jwt.secret}")
     private String secret;
-    
+
     @Value("${jwt.expiration}")
     private Long expiration;
-    
+
+    @Value("${jwt.access.expiration}")
+    private Long accessTokenExpirationMs;
+
     /**
      * Generate secret key from the configured secret
      */
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
-    
+
     /**
      * Extract username from JWT token
      */
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
-    
+
     /**
      * Extract expiration date from JWT token
      */
     public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
-    
+
     /**
      * Extract specific claim from JWT token
      */
@@ -56,7 +60,7 @@ public class JwtUtil {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
-    
+
     /**
      * Extract all claims from JWT token
      */
@@ -72,14 +76,14 @@ public class JwtUtil {
             throw e;
         }
     }
-    
+
     /**
      * Check if JWT token is expired
      */
     private Boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
-    
+
     /**
      * Generate JWT token for user
      */
@@ -87,7 +91,7 @@ public class JwtUtil {
         Map<String, Object> claims = new HashMap<>();
         return createToken(claims, userDetails.getUsername());
     }
-    
+
     /**
      * Generate JWT token with custom claims
      */
@@ -95,14 +99,14 @@ public class JwtUtil {
         Map<String, Object> claims = new HashMap<>(extraClaims);
         return createToken(claims, userDetails.getUsername());
     }
-    
+
     /**
      * Create JWT token with claims and subject
      */
     private String createToken(Map<String, Object> claims, String subject) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
-        
+
         return Jwts.builder()
                 .claims(claims)
                 .subject(subject)
@@ -111,7 +115,23 @@ public class JwtUtil {
                 .signWith(getSigningKey())
                 .compact();
     }
-    
+
+    /**
+     * Create JWT token with claims and subject
+     */
+    private String createAccessToken(Map<String, Object> claims, String subject) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + accessTokenExpirationMs);
+
+        return Jwts.builder()
+                .claims(claims)
+                .subject(subject)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
+
     /**
      * Validate JWT token against user details
      */
@@ -124,7 +144,7 @@ public class JwtUtil {
             return false;
         }
     }
-    
+
     /**
      * Validate JWT token format and expiration
      */
@@ -137,7 +157,7 @@ public class JwtUtil {
             return false;
         }
     }
-    
+
     /**
      * Get remaining time until token expiration in milliseconds
      */
@@ -145,7 +165,7 @@ public class JwtUtil {
         Date expiration = extractExpiration(token);
         return expiration.getTime() - System.currentTimeMillis();
     }
-    
+
     /**
      * Extract user ID from token claims
      */
@@ -153,7 +173,7 @@ public class JwtUtil {
         Claims claims = extractAllClaims(token);
         return claims.get("userId", Integer.class);
     }
-    
+
     /**
      * Extract user role from token claims
      */
@@ -161,14 +181,28 @@ public class JwtUtil {
         Claims claims = extractAllClaims(token);
         return claims.get("role", String.class);
     }
-    
+
     /**
-     * Generate token with user ID and role
+     * Generate refresh token with user ID and role
      */
-    public String generateTokenWithUserInfo(String username, Integer userId, String role) {
+    public String generateRefreshToken(String username, Integer userId, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("role", role);
         return createToken(claims, username);
+    }
+
+    /**
+     * Generate access token with user ID and role
+     */
+    public String generateAccessToken(String username, Integer userId, String role) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
+        claims.put("role", role);
+        return createAccessToken(claims, username);
+    }
+
+    public String hashToken(String token) {
+        return DigestUtils.sha256Hex(token + secret);
     }
 }

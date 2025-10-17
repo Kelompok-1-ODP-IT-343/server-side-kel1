@@ -12,10 +12,13 @@ import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.util.Pair;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.security.sasl.AuthenticationException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -107,22 +110,24 @@ public class AuthService {
             // Update last login time
             userService.updateLastLogin(user.getId());
 
-            // Get user role
-            Role role = roleRepository.findById(user.getRoleId())
-                    .orElseThrow(() -> new RuntimeException("Role tidak ditemukan"));
-
             // Generate JWT token
-            String token = jwtUtil.generateTokenWithUserInfo(
+            String refreshToken = jwtUtil.generateRefreshToken(
                     user.getUsername(),
                     user.getId(),
-                    role.getName()
+                    user.getRole().getName()
+            );
+            // Generate JWT token
+            String accessToken = jwtUtil.generateAccessToken(
+                    user.getUsername(),
+                    user.getId(),
+                    user.getRole().getName()
             );
 
             // Create user session
-            createUserSession(user.getId(), ipAddress, userAgent, token);
+            createUserSession(user.getId(), ipAddress, userAgent, refreshToken);
 
             logger.info("User logged in successfully: {}", user.getUsername());
-            return new AuthResponse(token);
+            return new AuthResponse(accessToken, refreshToken);
 
         } catch (Exception e) {
             logger.error("Login failed for identifier {}: {}", request.getIdentifier(), e.getMessage());
@@ -151,15 +156,15 @@ public class AuthService {
     /**
      * Logout user and invalidate session
      */
-    public void logout(String token) {
+    public void logout(String refreshToken) {
         try {
-            Integer userId = jwtUtil.extractUserId(token);
-
-            // Delete user sessions (optional: you might want to keep sessions for audit)
-            // userSessionRepository.deleteByUserId(userId);
-
-            logger.info("User logged out successfully, userId: {}", userId);
-
+            userSessionRepository.findActiveByRefreshToken(jwtUtil.hashToken(refreshToken))
+                    .ifPresent(session -> {
+                        session.setStatus(SessionStatus.REVOKED);
+                        session.setLastActivity(LocalDateTime.now());
+                        userSessionRepository.save(session);
+                        logger.info("User session revoked for token: {}", refreshToken);
+                    });
         } catch (Exception e) {
             logger.error("Logout failed: {}", e.getMessage());
             throw new RuntimeException("Logout gagal: " + e.getMessage());
@@ -181,7 +186,7 @@ public class AuthService {
     /**
      * Create user session record
      */
-    private void createUserSession(Integer userId, String ipAddress, String userAgent, String token) {
+    private void createUserSession(Integer userId, String ipAddress, String userAgent, String refreshToken) {
         try {
             UserSession session = new UserSession();
             session.setId(UUID.randomUUID().toString());
@@ -192,12 +197,13 @@ public class AuthService {
             // Create session payload with basic info
             Map<String, Object> payload = new HashMap<>();
             payload.put("loginTime", LocalDateTime.now().toString());
-            payload.put("tokenHash", token.substring(0, Math.min(20, token.length()))); // Store partial token for reference
             session.setPayload(payload.toString());
 
             session.setLastActivity(LocalDateTime.now());
             session.setCreatedAt(LocalDateTime.now());
 
+            session.setRefreshToken(jwtUtil.hashToken(refreshToken));
+            session.setStatus(SessionStatus.ACTIVE);
             userSessionRepository.save(session);
             logger.info("User session created for userId: {}", userId);
 
@@ -270,4 +276,42 @@ public class AuthService {
                 .formatHex(MessageDigest.getInstance("SHA-256")
                         .digest(token.getBytes(StandardCharsets.UTF_8)));
     }
+
+    @Transactional
+    public AuthResponse refreshToken(TokenRefreshRequest request) {
+        String oldRefreshToken = request.getRefreshToken();
+
+        // Validate JWT structure and expiration
+        jwtUtil.validateToken(oldRefreshToken);
+
+        // Find active session in DB
+        UserSession session = userSessionRepository.findActiveByRefreshToken(oldRefreshToken)
+                .orElseThrow(() -> new AuthenticationCredentialsNotFoundException("Refresh token not found or revoked"));
+
+        String username = jwtUtil.extractUsername(oldRefreshToken);
+
+        User user = userRepo.findByUsernameWithRole(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        // Revoke old session
+        session.setStatus(SessionStatus.REVOKED);
+        session.setLastActivity(LocalDateTime.now());
+        userSessionRepository.save(session);
+
+        // Generate new tokens
+        String newAccessToken = jwtUtil.generateAccessToken(user.getUsername(), user.getId(), user.getRole().getName());
+        String newRefreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getId(), user.getRole().getName());
+
+        // Save new session
+        UserSession newSession = new UserSession();
+        newSession.setUserId(user.getId());
+        newSession.setRefreshToken(jwtUtil.hashToken(newRefreshToken));
+        newSession.setStatus(SessionStatus.ACTIVE);
+        userSessionRepository.save(newSession);
+
+        logger.info("Access token refreshed for user: {}", username);
+
+        return new AuthResponse(newAccessToken, newRefreshToken);
+    }
+
 }
