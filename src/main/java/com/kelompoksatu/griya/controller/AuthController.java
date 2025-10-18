@@ -174,6 +174,19 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<?>> forgotPassword(@Valid @RequestBody() ForgotPasswordRequest  request){
+        authService.forgotPassword(request);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Email lupa password berhasil terkirim", null));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok("Password has been reset successfully.");
+    }
+
+
     /**
      * Extract client IP address from request
      */

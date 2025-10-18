@@ -7,10 +7,12 @@ import com.kelompoksatu.griya.repository.UserRepository;
 import com.kelompoksatu.griya.repository.UserSessionRepository;
 import com.kelompoksatu.griya.repository.VerificationTokenRepository;
 import com.kelompoksatu.griya.util.JwtUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -18,7 +20,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.security.sasl.AuthenticationException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -40,6 +41,9 @@ public class AuthService {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
 
+    @Value("${app.mail.verification.forgotPasswordExpiredTime}")
+    private Long forgotPasswordExpiredTime;
+
     private final UserService userService;
 
     private final RoleRepository roleRepository;
@@ -53,6 +57,9 @@ public class AuthService {
     private final UserRepository userRepo;
 
     private final VerificationTokenRepository tokenRepo;
+
+    private final EmailService emailService;
+
 
     /**
      * Register a new user
@@ -228,14 +235,14 @@ public class AuthService {
 
     @SneakyThrows
     @Transactional
-    public String generateEmailVerificationToken(Integer userId) {
+    public String generateEmailVerificationToken(Integer userId, long durationInMinutes) {
         User user = userRepo.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         String token = UUID.randomUUID().toString().replace("-", ""); // 32 char
         VerificationToken vt = new VerificationToken();
         vt.setToken(hashToken(token));
         vt.setUser(user);
-        vt.setExpiresAt(Instant.now().plus(24, ChronoUnit.HOURS));
+        vt.setExpiresAt(Instant.now().plus(durationInMinutes, ChronoUnit.MINUTES));
 
         tokenRepo.save(vt);
         return token;
@@ -250,24 +257,13 @@ public class AuthService {
         String hashedToken = hashToken(token);
         VerificationToken vt = tokenRepo.findByToken(hashedToken)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid token"));
-
-        if (vt.isUsed()) {
-            return new VerifyEmailResponse(true, "Email already verified", vt.getUser().getEmail());
-        }
-        if (vt.isExpired()) {
-            throw new IllegalStateException("Token expired");
-        }
-
+        invalidateToken(vt);
         User user = vt.getUser();
         if (!user.isEmailVerified()) {
             user.setEmailVerifiedAt(LocalDateTime.now());
             user.setStatus(UserStatus.ACTIVE);
             userRepo.save(user);
         }
-
-        vt.setUsedAt(Instant.now());
-        tokenRepo.save(vt);
-
         return new VerifyEmailResponse(true, "Email verified successfully", user.getEmail());
     }
 
@@ -314,4 +310,33 @@ public class AuthService {
         return new AuthResponse(newAccessToken, newRefreshToken);
     }
 
+    public void forgotPassword(@Valid ForgotPasswordRequest request) {
+        User user = userRepo.findByEmail(request.getEmail()).orElseThrow(() -> new AuthenticationCredentialsNotFoundException("Email not found"));
+        emailService.sendEmailForgotPassword(request.getEmail(), generateEmailVerificationToken(user.getId(), forgotPasswordExpiredTime), forgotPasswordExpiredTime);
+    }
+
+    @SneakyThrows
+    @Transactional
+    public void resetPassword(String tokenValue, String newPassword) {
+        VerificationToken token = tokenRepo.findByToken(hashToken(tokenValue))
+                .orElseThrow(() -> new IllegalArgumentException("Invalid token"));
+        invalidateToken(token);
+        User user = token.getUser(); //TODO: checking same password and add internal server in global handler
+        if (user.getPasswordHash().equals(passwordEncoder.encode(newPassword))) {
+            throw new IllegalArgumentException("New password cannot be the same as old password");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepo.save(user);
+    }
+
+    private void invalidateToken(VerificationToken vt) {
+        if (vt.isExpired()) {
+            throw new IllegalStateException("Token expired");
+        }
+        if (vt.isUsed()) {
+            throw new IllegalStateException("Token used");
+        }
+        vt.setUsedAt(Instant.now());
+        tokenRepo.save(vt);
+    }
 }

@@ -13,6 +13,7 @@ import jakarta.validation.ValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.util.Pair;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +31,9 @@ import java.util.Optional;
 public class UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
+    @Value("${app.mail.verification.emailExpiredTime}")
+    private Long emailVerificationExpiredTime;
 
     @Autowired
     private UserRepository userRepository;
@@ -222,7 +226,7 @@ public class UserService {
     }
 
     public void sendEmailVerification(User user) {
-        emailService.sendEmailVerification(user.getEmail(), authService.generateEmailVerificationToken(user.getId()));
+        emailService.sendEmailVerification(user.getEmail(), authService.generateEmailVerificationToken(user.getId(), emailVerificationExpiredTime));
     }
 }
 
