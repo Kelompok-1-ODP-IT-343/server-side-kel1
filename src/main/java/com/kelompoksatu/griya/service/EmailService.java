@@ -2,6 +2,7 @@ package com.kelompoksatu.griya.service;
 
 import jakarta.mail.internet.MimeMessage;
 import jakarta.validation.constraints.NotEmpty;
+import java.time.Year;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,28 +10,27 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
-import java.time.Year;
-
 @Service
 public class EmailService {
-    private final JavaMailSender mailSender;
+  private final JavaMailSender mailSender;
 
-    @Value("${app.mail.verificationBaseUrl}")
-    private String baseUrl;
+  @Value("${app.mail.verificationBaseUrl}")
+  private String baseUrl;
 
-    @Value("${app.mail.resetPasswordUrl}")
-    private String resetPasswordUrl;
+  @Value("${app.mail.resetPasswordUrl}")
+  private String resetPasswordUrl;
 
-    @Autowired
-    public EmailService(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
-    }
+  @Autowired
+  public EmailService(JavaMailSender mailSender) {
+    this.mailSender = mailSender;
+  }
 
-    @SneakyThrows
-    public void sendEmailVerification(String to, String token) {
-        String subject = "Verify your email";
-        String verificationUrl = baseUrl + token;
-        String body = """
+  @SneakyThrows
+  public void sendEmailVerification(String to, String token) {
+    String subject = "Verify your email";
+    String verificationUrl = baseUrl + token;
+    String body =
+        """
                  <!DOCTYPE html>
                  <html>
                    <head>
@@ -72,27 +72,30 @@ public class EmailService {
                    </body>
                  </html>
                 \s""";
-        String bodyFormatted = String.format(
-                body,
-                to,                      // %s = username
-                verificationUrl,         // %s = link button
-                java.time.Year.now().getValue() // %d = year
-        );
+    String bodyFormatted =
+        String.format(
+            body,
+            to, // %s = username
+            verificationUrl, // %s = link button
+            java.time.Year.now().getValue() // %d = year
+            );
 
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-        helper.setTo(to);
-        helper.setSubject(subject);
-        helper.setText(bodyFormatted, true);
+    MimeMessage message = mailSender.createMimeMessage();
+    MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+    helper.setTo(to);
+    helper.setSubject(subject);
+    helper.setText(bodyFormatted, true);
 
-        mailSender.send(message);
-    }
+    mailSender.send(message);
+  }
 
-    @SneakyThrows
-    public void sendEmailForgotPassword(@NotEmpty(message = "Email is required") String email, String token, long expiresInMinutes) {
-        String forgotPasswordUrl = resetPasswordUrl + token;
-        String subject = "Reset Password";
-        String body = """
+  @SneakyThrows
+  public void sendEmailForgotPassword(
+      @NotEmpty(message = "Email is required") String email, String token, long expiresInMinutes) {
+    String forgotPasswordUrl = resetPasswordUrl + token;
+    String subject = "Reset Password";
+    String body =
+        """
                 <!DOCTYPE html>
                 <html lang="id">
                 <head>
@@ -103,43 +106,44 @@ public class EmailService {
                   <div style="max-width: 500px; margin:auto; background:#ffffff; padding:20px; border-radius:8px;">
                     <h2 style="color:#333;">Reset Password</h2>
                     <p>Kami menerima permintaan untuk mereset password akun Anda. Klik tombol di bawah untuk melanjutkan:</p>
-                
+
                     <p style="text-align:center; margin:30px 0;">
-                      <a href="%s" 
-                         style="background-color:#007bff; color:#ffffff; padding:12px 20px; 
+                      <a href="%s"
+                         style="background-color:#007bff; color:#ffffff; padding:12px 20px;
                                 border-radius:6px; text-decoration:none; display:inline-block;">
                         Reset Password
                       </a>
                     </p>
-                
+
                     <p>Jika tombol di atas tidak berfungsi, silakan salin dan tempel URL berikut di browser Anda:</p>
                     <p style="word-break:break-all; background:#f1f1f1; padding:10px; border-radius:5px;">
                       %s
                     </p>
-                
+
                     <p style="font-size:12px; color:#777;">
                       Tautan ini akan kedaluwarsa dalam %d menit. Jika Anda tidak meminta reset password, abaikan email ini.
                     </p>
-                
+
                     <p style="font-size:12px; color:#777;">© %d Satu Atap</p>
                   </div>
                 </body>
                 </html>
                 """;
-        String bodyFormatted = String.format(
-                body,
-                forgotPasswordUrl,// %s kedua → link tombol
-                forgotPasswordUrl,// %s ketiga → fallback URL
-                expiresInMinutes,// %d menit expired
-                Year.now().getValue() // %d tahun sekarang
-        );
+    String bodyFormatted =
+        String.format(
+            body,
+            forgotPasswordUrl, // %s kedua → link tombol
+            forgotPasswordUrl, // %s ketiga → fallback URL
+            expiresInMinutes, // %d menit expired
+            Year.now().getValue() // %d tahun sekarang
+            );
 
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-        helper.setTo(email);
-        helper.setSubject(subject);
-        helper.setText(bodyFormatted, true);
+    MimeMessage message = mailSender.createMimeMessage();
+    MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+    helper.setTo(email);
+    helper.setSubject(subject);
+    helper.setText(bodyFormatted, true);
 
-        mailSender.send(message);
-    }
+    mailSender.send(message);
+  }
 }

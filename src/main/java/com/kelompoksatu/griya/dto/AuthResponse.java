@@ -1,11 +1,8 @@
 package com.kelompoksatu.griya.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
-/**
- * DTO for authentication response
- */
+/** DTO for authentication response */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -13,11 +10,9 @@ import lombok.*;
 @Data
 public class AuthResponse {
 
-    @NonNull
-    private String token;
+  @NonNull private String token;
 
-    @NonNull
-    private String refreshToken;
+  @NonNull private String refreshToken;
 
-    private String type = "Bearer";
+  private String type = "Bearer";
 }

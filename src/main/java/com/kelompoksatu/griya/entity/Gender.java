@@ -1,9 +1,7 @@
 package com.kelompoksatu.griya.entity;
 
-/**
- * Enum for gender
- */
+/** Enum for gender */
 public enum Gender {
-    MALE,
-    FEMALE
+  MALE,
+  FEMALE
 }
