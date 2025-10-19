@@ -323,7 +323,7 @@ public class AuthService {
         User user = token.getUser();
         if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
             throw new IllegalArgumentException("New password cannot be the same as old password");
-        }//TODO: add to global exception handler
+        }
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepo.save(user);
     }
