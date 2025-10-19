@@ -2,27 +2,30 @@ package com.kelompoksatu.griya.service;
 
 import com.kelompoksatu.griya.dto.CreateDeveloperRequest;
 import com.kelompoksatu.griya.dto.DeveloperResponse;
+import com.kelompoksatu.griya.dto.PaginatedResponse;
+import com.kelompoksatu.griya.dto.PaginationRequest;
+import com.kelompoksatu.griya.dto.UpdateDeveloperRequest;
 import com.kelompoksatu.griya.entity.Developer;
+import com.kelompoksatu.griya.mapper.DeveloperMapper;
 import com.kelompoksatu.griya.repository.DeveloperRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Service class for Developer business logic */
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class DeveloperService {
 
   private final DeveloperRepository developerRepository;
-
-  @Autowired
-  public DeveloperService(DeveloperRepository developerRepository) {
-    this.developerRepository = developerRepository;
-  }
+  private final DeveloperMapper developerMapper;
 
   /** Create a new developer */
   public DeveloperResponse createDeveloper(CreateDeveloperRequest request) {
@@ -36,26 +39,8 @@ public class DeveloperService {
       throw new IllegalArgumentException("Email already exists: " + request.getEmail());
     }
 
-    // Create new developer entity
-    Developer developer = new Developer();
-    developer.setCompanyName(request.getCompanyName());
-    developer.setCompanyCode(request.getCompanyCode());
-    developer.setBusinessLicense(request.getBusinessLicense());
-    developer.setDeveloperLicense(request.getDeveloperLicense());
-    developer.setContactPerson(request.getContactPerson());
-    developer.setPhone(request.getPhone());
-    developer.setEmail(request.getEmail());
-    developer.setWebsite(request.getWebsite());
-    developer.setAddress(request.getAddress());
-    developer.setCity(request.getCity());
-    developer.setProvince(request.getProvince());
-    developer.setPostalCode(request.getPostalCode());
-    developer.setEstablishedYear(request.getEstablishedYear());
-    developer.setDescription(request.getDescription());
-    developer.setSpecialization(request.getSpecialization());
-    developer.setIsPartner(request.getIsPartner());
-    developer.setPartnershipLevel(request.getPartnershipLevel());
-    developer.setCommissionRate(request.getCommissionRate());
+    // Create new developer entity using MapStruct
+    Developer developer = developerMapper.toEntity(request);
 
     // Set default status as ACTIVE
     developer.setStatus(Developer.DeveloperStatus.ACTIVE);
@@ -63,51 +48,95 @@ public class DeveloperService {
     // Save the developer
     Developer savedDeveloper = developerRepository.save(developer);
 
-    return new DeveloperResponse(savedDeveloper);
+    return developerMapper.toResponse(savedDeveloper);
   }
 
   /** Get developer by ID */
   @Transactional(readOnly = true)
   public Optional<DeveloperResponse> getDeveloperById(Integer id) {
-    return developerRepository.findById(id).map(DeveloperResponse::new);
+    return developerRepository.findById(id).map(developerMapper::toResponse);
   }
 
   /** Get developer by company code */
   @Transactional(readOnly = true)
   public Optional<DeveloperResponse> getDeveloperByCompanyCode(String companyCode) {
-    return developerRepository.findByCompanyCode(companyCode).map(DeveloperResponse::new);
+    return developerRepository.findByCompanyCode(companyCode).map(developerMapper::toResponse);
   }
 
   /** Get all developers */
   @Transactional(readOnly = true)
   public List<DeveloperResponse> getAllDevelopers() {
     return developerRepository.findAll().stream()
-        .map(DeveloperResponse::new)
+        .map(developerMapper::toResponse)
         .collect(Collectors.toList());
+  }
+
+  /** Get all developers with pagination */
+  @Transactional(readOnly = true)
+  public PaginatedResponse<DeveloperResponse> getAllDevelopers(
+      PaginationRequest paginationRequest) {
+    Pageable pageable = paginationRequest.toPageable();
+    Page<Developer> developerPage = developerRepository.findAll(pageable);
+
+    Page<DeveloperResponse> responsePage = developerPage.map(developerMapper::toResponse);
+    return PaginatedResponse.of(responsePage);
   }
 
   /** Get active developers */
   @Transactional(readOnly = true)
   public List<DeveloperResponse> getActiveDevelopers() {
     return developerRepository.findActiveDevelopers().stream()
-        .map(DeveloperResponse::new)
+        .map(developerMapper::toResponse)
         .collect(Collectors.toList());
+  }
+
+  /** Get active developers with pagination */
+  @Transactional(readOnly = true)
+  public PaginatedResponse<DeveloperResponse> getActiveDevelopers(
+      PaginationRequest paginationRequest) {
+    Pageable pageable = paginationRequest.toPageable();
+    Page<Developer> developerPage = developerRepository.findActiveDevelopers(pageable);
+
+    Page<DeveloperResponse> responsePage = developerPage.map(developerMapper::toResponse);
+    return PaginatedResponse.of(responsePage);
   }
 
   /** Get developers by status */
   @Transactional(readOnly = true)
   public List<DeveloperResponse> getDevelopersByStatus(Developer.DeveloperStatus status) {
     return developerRepository.findByStatus(status).stream()
-        .map(DeveloperResponse::new)
+        .map(developerMapper::toResponse)
         .collect(Collectors.toList());
+  }
+
+  /** Get developers by status with pagination */
+  @Transactional(readOnly = true)
+  public PaginatedResponse<DeveloperResponse> getDevelopersByStatus(
+      Developer.DeveloperStatus status, PaginationRequest paginationRequest) {
+    Pageable pageable = paginationRequest.toPageable();
+    Page<Developer> developerPage = developerRepository.findByStatus(status, pageable);
+
+    Page<DeveloperResponse> responsePage = developerPage.map(developerMapper::toResponse);
+    return PaginatedResponse.of(responsePage);
   }
 
   /** Get partner developers */
   @Transactional(readOnly = true)
   public List<DeveloperResponse> getPartnerDevelopers() {
     return developerRepository.findByIsPartner(true).stream()
-        .map(DeveloperResponse::new)
+        .map(developerMapper::toResponse)
         .collect(Collectors.toList());
+  }
+
+  /** Get partner developers with pagination */
+  @Transactional(readOnly = true)
+  public PaginatedResponse<DeveloperResponse> getPartnerDevelopers(
+      PaginationRequest paginationRequest) {
+    Pageable pageable = paginationRequest.toPageable();
+    Page<Developer> developerPage = developerRepository.findByIsPartner(true, pageable);
+
+    Page<DeveloperResponse> responsePage = developerPage.map(developerMapper::toResponse);
+    return PaginatedResponse.of(responsePage);
   }
 
   /** Get developers by specialization */
@@ -115,7 +144,7 @@ public class DeveloperService {
   public List<DeveloperResponse> getDevelopersBySpecialization(
       Developer.Specialization specialization) {
     return developerRepository.findBySpecialization(specialization).stream()
-        .map(DeveloperResponse::new)
+        .map(developerMapper::toResponse)
         .collect(Collectors.toList());
   }
 
@@ -123,7 +152,7 @@ public class DeveloperService {
   @Transactional(readOnly = true)
   public List<DeveloperResponse> getDevelopersByCity(String city) {
     return developerRepository.findByCity(city).stream()
-        .map(DeveloperResponse::new)
+        .map(developerMapper::toResponse)
         .collect(Collectors.toList());
   }
 
@@ -131,7 +160,7 @@ public class DeveloperService {
   @Transactional(readOnly = true)
   public List<DeveloperResponse> getDevelopersByProvince(String province) {
     return developerRepository.findByProvince(province).stream()
-        .map(DeveloperResponse::new)
+        .map(developerMapper::toResponse)
         .collect(Collectors.toList());
   }
 
@@ -139,8 +168,19 @@ public class DeveloperService {
   @Transactional(readOnly = true)
   public List<DeveloperResponse> searchDevelopersByCompanyName(String companyName) {
     return developerRepository.searchByCompanyName(companyName).stream()
-        .map(DeveloperResponse::new)
+        .map(developerMapper::toResponse)
         .collect(Collectors.toList());
+  }
+
+  /** Search developers by company name with pagination */
+  @Transactional(readOnly = true)
+  public PaginatedResponse<DeveloperResponse> searchDevelopersByCompanyName(
+      String companyName, PaginationRequest paginationRequest) {
+    Pageable pageable = paginationRequest.toPageable();
+    Page<Developer> developerPage = developerRepository.searchByCompanyName(companyName, pageable);
+
+    Page<DeveloperResponse> responsePage = developerPage.map(developerMapper::toResponse);
+    return PaginatedResponse.of(responsePage);
   }
 
   /** Update developer status */
@@ -153,7 +193,7 @@ public class DeveloperService {
     developer.setStatus(status);
     Developer updatedDeveloper = developerRepository.save(developer);
 
-    return new DeveloperResponse(updatedDeveloper);
+    return developerMapper.toResponse(updatedDeveloper);
   }
 
   /** Verify developer */
@@ -167,7 +207,7 @@ public class DeveloperService {
     developer.setVerifiedBy(verifiedBy);
     Developer updatedDeveloper = developerRepository.save(developer);
 
-    return new DeveloperResponse(updatedDeveloper);
+    return developerMapper.toResponse(updatedDeveloper);
   }
 
   /** Update partnership status */
@@ -182,7 +222,7 @@ public class DeveloperService {
     developer.setPartnershipLevel(partnershipLevel);
     Developer updatedDeveloper = developerRepository.save(developer);
 
-    return new DeveloperResponse(updatedDeveloper);
+    return developerMapper.toResponse(updatedDeveloper);
   }
 
   /** Delete developer */
@@ -203,5 +243,19 @@ public class DeveloperService {
   @Transactional(readOnly = true)
   public boolean existsByEmail(String email) {
     return developerRepository.existsByEmail(email);
+  }
+
+  /** Update developer information (admin only) */
+  public DeveloperResponse updateDeveloper(Integer id, UpdateDeveloperRequest request) {
+    Developer developer =
+        developerRepository
+            .findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Developer not found with id: " + id));
+
+    // Update fields using MapStruct - only non-null fields will be updated
+    developerMapper.updateDeveloperFromRequest(request, developer);
+
+    Developer updatedDeveloper = developerRepository.save(developer);
+    return developerMapper.toResponse(updatedDeveloper);
   }
 }
