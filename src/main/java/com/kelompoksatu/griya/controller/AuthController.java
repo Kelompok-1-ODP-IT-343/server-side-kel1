@@ -2,6 +2,11 @@ package com.kelompoksatu.griya.controller;
 
 import com.kelompoksatu.griya.dto.*;
 import com.kelompoksatu.griya.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /** REST Controller for authentication operations API Version: v1 */
+@Tag(name = "Authentication", description = "Authentication and user management operations")
 @RestController
 @RequestMapping("/api/v1/auth")
 @CrossOrigin(origins = "*", maxAge = 3600)
@@ -38,9 +44,45 @@ public class AuthController {
   }
 
   /** Register a new developer (admin only) POST /api/v1/auth/register/developer */
+  @Operation(
+      summary = "Register a new developer",
+      description = "Register a new developer with both user account and developer profile information. This endpoint is intended for admin use only.")
+  @ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "201",
+            description = "Developer registered successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400",
+            description = "Bad request - validation errors or duplicate data",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class)))
+      })
   @PostMapping("/register/developer")
   public ResponseEntity<ApiResponse<RegisterDeveloperResponse>> registerDeveloper(
-      @Valid @RequestBody RegisterDeveloperRequest request, HttpServletRequest httpRequest) {
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(
+              description = "Developer registration request containing user account and developer profile information",
+              content =
+                  @Content(
+                      mediaType = "application/json",
+                      schema = @Schema(implementation = RegisterDeveloperRequest.class)))
+          @Valid
+          @RequestBody
+          RegisterDeveloperRequest request,
+      HttpServletRequest httpRequest) {
 
     logger.info("Developer registration attempt for username: {}", request.getUsername());
 
