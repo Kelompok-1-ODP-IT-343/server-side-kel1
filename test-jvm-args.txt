@@ -1,0 +1,11 @@
+# Test configuration to suppress ByteBuddy warnings
+# Add these JVM arguments to your test runner
+
+# Suppress ByteBuddy agent warnings
+-Djdk.instrument.traceUsage=false
+-XX:+EnableDynamicAgentLoading
+
+# Alternative: More comprehensive suppression
+-Djdk.instrument.traceUsage=false
+-XX:+EnableDynamicAgentLoading
+-Djdk.attach.allowAttachSelf=true
