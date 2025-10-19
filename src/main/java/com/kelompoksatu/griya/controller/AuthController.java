@@ -37,6 +37,35 @@ public class AuthController {
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
+  /** Register a new developer (admin only) POST /api/v1/auth/register/developer */
+  @PostMapping("/register/developer")
+  public ResponseEntity<ApiResponse<RegisterDeveloperResponse>> registerDeveloper(
+      @Valid @RequestBody RegisterDeveloperRequest request, HttpServletRequest httpRequest) {
+
+    logger.info("Developer registration attempt for username: {}", request.getUsername());
+
+    try {
+      RegisterDeveloperResponse developerResponse = authService.registerDeveloper(request);
+
+      ApiResponse<RegisterDeveloperResponse> response =
+          ApiResponse.success(
+              developerResponse, "Developer registered successfully", httpRequest.getRequestURI());
+
+      return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    } catch (IllegalArgumentException e) {
+      logger.error("Validation error during developer registration: {}", e.getMessage());
+      ApiResponse<RegisterDeveloperResponse> response =
+          ApiResponse.error(e.getMessage(), httpRequest.getRequestURI());
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    } catch (Exception e) {
+      logger.error("Failed to register developer: {}", e.getMessage());
+      ApiResponse<RegisterDeveloperResponse> response =
+          ApiResponse.error(
+              "Failed to register developer: " + e.getMessage(), httpRequest.getRequestURI());
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
   /** User login POST /api/v1/auth/login */
   @PostMapping("/login")
   public ResponseEntity<ApiResponse<AuthResponse>> login(

@@ -43,6 +43,8 @@ public class AuthService {
 
   private final UserService userService;
 
+  private final DeveloperService developerService;
+
   private final RoleRepository roleRepository;
 
   private final UserSessionRepository userSessionRepository;
@@ -76,6 +78,91 @@ public class AuthService {
 
     logger.info("User registered successfully: {}", user.getUsername());
     return new RegisterResponse(userResponse);
+  }
+
+  /** Register a new developer (admin only) */
+  public RegisterDeveloperResponse registerDeveloper(RegisterDeveloperRequest request) {
+    logger.info("Processing developer registration for username: {}", request.getUsername());
+
+    try {
+      // Validate password
+      if (!request.isPasswordMatching()) {
+        throw new IllegalArgumentException("Password validation failed");
+      }
+
+      // Check if username already exists
+      if (userRepo.existsByUsername(request.getUsername())) {
+        throw new IllegalArgumentException("Username already exists: " + request.getUsername());
+      }
+
+      // Check if email already exists
+      if (userRepo.existsByEmail(request.getEmail())) {
+        throw new IllegalArgumentException("Email already exists: " + request.getEmail());
+      }
+
+      // Check if phone already exists
+      if (userRepo.existsByPhone(request.getPhone())) {
+        throw new IllegalArgumentException("Phone number already exists: " + request.getPhone());
+      }
+
+      // Get DEVELOPER role
+      Role developerRole =
+          roleRepository
+              .findByName("DEVELOPER")
+              .orElseThrow(() -> new RuntimeException("DEVELOPER role not found"));
+
+      // Create user account first
+      User user = new User();
+      user.setUsername(request.getUsername());
+      user.setEmail(request.getEmail());
+      user.setPhone(request.getPhone());
+      user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+      user.setRole(developerRole);
+      user.setStatus(UserStatus.ACTIVE); // Admin registration - set as active
+      user.setFailedLoginAttempts(0);
+      user.setCreatedAt(LocalDateTime.now());
+      user.setUpdatedAt(LocalDateTime.now());
+      user.setConsentAt(request.getConsentAt());
+
+      User savedUser = userRepo.save(user);
+      logger.info("Developer user account created successfully with ID: {}", savedUser.getId());
+
+      // Create developer profile
+      CreateDeveloperRequest developerRequest = new CreateDeveloperRequest();
+      developerRequest.setCompanyName(request.getCompanyName());
+      developerRequest.setCompanyCode(request.getCompanyCode());
+      developerRequest.setBusinessLicense(request.getBusinessLicense());
+      developerRequest.setDeveloperLicense(request.getDeveloperLicense());
+      developerRequest.setContactPerson(request.getContactPerson());
+      developerRequest.setPhone(request.getPhone());
+      developerRequest.setEmail(request.getEmail());
+      developerRequest.setWebsite(request.getWebsite());
+      developerRequest.setAddress(request.getAddress());
+      developerRequest.setCity(request.getCity());
+      developerRequest.setProvince(request.getProvince());
+      developerRequest.setPostalCode(request.getPostalCode());
+      developerRequest.setEstablishedYear(request.getEstablishedYear());
+      developerRequest.setDescription(request.getDescription());
+      developerRequest.setSpecialization(request.getSpecialization());
+      developerRequest.setIsPartner(request.getIsPartner());
+      developerRequest.setPartnershipLevel(request.getPartnershipLevel());
+      developerRequest.setCommissionRate(request.getCommissionRate());
+
+      DeveloperResponse developerResponse = developerService.createDeveloper(developerRequest);
+
+      // Convert to UserResponse for consistency
+      UserResponse userResponse = userService.convertToUserResponse(savedUser, developerRole);
+
+      logger.info("Developer registered successfully: {}", savedUser.getUsername());
+      return new RegisterDeveloperResponse(userResponse, developerResponse);
+
+    } catch (IllegalArgumentException e) {
+      logger.error("Validation error during developer registration: {}", e.getMessage());
+      throw e; // Re-throw validation errors as-is
+    } catch (Exception e) {
+      logger.error("Failed to register developer: {}", e.getMessage());
+      throw new RuntimeException("Failed to register developer: " + e.getMessage());
+    }
   }
 
   /** Authenticate user login */
