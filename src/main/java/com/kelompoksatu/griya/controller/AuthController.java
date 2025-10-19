@@ -140,7 +140,13 @@ public class AuthController {
   }
 
   @PostMapping("/refresh")
-  public ResponseEntity<?> refreshToken(@RequestBody TokenRefreshRequest request) {
+  public ResponseEntity<?> refreshToken(
+      @RequestBody TokenRefreshRequest request, HttpServletRequest httpRequest) {
+    // Get client IP address
+    String ipAddress = getClientIpAddress(httpRequest);
+    String userAgent = httpRequest.getHeader("User-Agent");
+    request.setIpAddress(ipAddress);
+    request.setUserAgent(userAgent);
     AuthResponse response = authService.refreshToken(request);
 
     return ResponseEntity.ok(response);

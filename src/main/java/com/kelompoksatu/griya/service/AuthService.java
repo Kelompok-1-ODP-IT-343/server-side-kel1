@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -352,7 +351,7 @@ public class AuthService {
     // Find active session in DB
     UserSession session =
         userSessionRepository
-            .findActiveByRefreshToken(oldRefreshToken)
+            .findActiveByRefreshToken(jwtUtil.hashToken(oldRefreshToken))
             .orElseThrow(
                 () ->
                     new AuthenticationCredentialsNotFoundException(
@@ -360,15 +359,7 @@ public class AuthService {
 
     String username = jwtUtil.extractUsername(oldRefreshToken);
 
-    User user =
-        userRepo
-            .findByUsernameWithRole(username)
-            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
-    // Revoke old session
-    session.setStatus(SessionStatus.REVOKED);
-    session.setLastActivity(LocalDateTime.now());
-    userSessionRepository.save(session);
+    User user = session.getUser();
 
     // Generate new tokens
     String newAccessToken =
@@ -376,12 +367,13 @@ public class AuthService {
     String newRefreshToken =
         jwtUtil.generateRefreshToken(user.getUsername(), user.getId(), user.getRole().getName());
 
-    // Save new session
-    UserSession newSession = new UserSession();
-    newSession.setUserId(user.getId());
-    newSession.setRefreshToken(jwtUtil.hashToken(newRefreshToken));
-    newSession.setStatus(SessionStatus.ACTIVE);
-    userSessionRepository.save(newSession);
+    session.setUserId(user.getId());
+    session.setRefreshToken(jwtUtil.hashToken(newRefreshToken));
+    session.setIpAddress(request.getIpAddress());
+    session.setUserAgent(request.getUserAgent());
+    session.setLastActivity(LocalDateTime.now());
+    session.setStatus(SessionStatus.ACTIVE);
+    userSessionRepository.save(session);
 
     logger.info("Access token refreshed for user: {}", username);
 
