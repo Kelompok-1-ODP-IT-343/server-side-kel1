@@ -8,28 +8,26 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-
 /**
- * Request DTO for updating user account and profile information.
- * All fields are optional for partial updates.
+ * Request DTO for updating user account and profile information. All fields are optional for
+ * partial updates.
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "Request object for updating user account and profile information with optional fields")
+@Schema(
+    description =
+        "Request object for updating user account and profile information with optional fields")
 public class UpdateUserRequest {
 
   // User Account Information
-  @Schema(
-      description = "Username for the user account",
-      example = "john_doe",
-      maxLength = 50)
+  @Schema(description = "Username for the user account", example = "john_doe", maxLength = 50)
   @Size(max = 50, message = "Username must not exceed 50 characters")
   @Pattern(
       regexp = "^[a-zA-Z0-9_]+$",
@@ -44,14 +42,12 @@ public class UpdateUserRequest {
   @Size(max = 100, message = "Email must not exceed 100 characters")
   private String email;
 
-  @Schema(
-      description = "Phone number of the user",
-      example = "+6281234567890",
-      maxLength = 20)
+  @Schema(description = "Phone number of the user", example = "+6281234567890", maxLength = 20)
   @Size(max = 20, message = "Phone number must not exceed 20 characters")
   @Pattern(
       regexp = "^[+]?[0-9\\s\\-()]+$",
-      message = "Phone number can only contain numbers, spaces, hyphens, parentheses, and optional plus sign")
+      message =
+          "Phone number can only contain numbers, spaces, hyphens, parentheses, and optional plus sign")
   private String phone;
 
   @Schema(
@@ -61,10 +57,7 @@ public class UpdateUserRequest {
   private String status;
 
   // User Profile Information
-  @Schema(
-      description = "Full name of the user",
-      example = "John Doe",
-      maxLength = 100)
+  @Schema(description = "Full name of the user", example = "John Doe", maxLength = 100)
   @Size(max = 100, message = "Full name must not exceed 100 characters")
   private String fullName;
 
@@ -73,9 +66,7 @@ public class UpdateUserRequest {
       example = "1234567890123456",
       maxLength = 16)
   @Size(max = 16, message = "NIK must not exceed 16 characters")
-  @Pattern(
-      regexp = "^[0-9]{16}$",
-      message = "NIK must be exactly 16 digits")
+  @Pattern(regexp = "^[0-9]{16}$", message = "NIK must be exactly 16 digits")
   private String nik;
 
   @Schema(
@@ -83,20 +74,13 @@ public class UpdateUserRequest {
       example = "1234567890123456",
       maxLength = 16)
   @Size(max = 16, message = "NPWP must not exceed 16 characters")
-  @Pattern(
-      regexp = "^[0-9]{16}$",
-      message = "NPWP must be exactly 16 digits")
+  @Pattern(regexp = "^[0-9]{16}$", message = "NPWP must be exactly 16 digits")
   private String npwp;
 
-  @Schema(
-      description = "Birth date of the user",
-      example = "1990-01-15")
+  @Schema(description = "Birth date of the user", example = "1990-01-15")
   private LocalDate birthDate;
 
-  @Schema(
-      description = "Birth place of the user",
-      example = "Jakarta",
-      maxLength = 100)
+  @Schema(description = "Birth place of the user", example = "Jakarta", maxLength = 100)
   @Size(max = 100, message = "Birth place must not exceed 100 characters")
   private String birthPlace;
 
@@ -112,40 +96,24 @@ public class UpdateUserRequest {
       allowableValues = {"SINGLE", "MARRIED", "DIVORCED", "WIDOWED"})
   private String maritalStatus;
 
-  @Schema(
-      description = "Address of the user",
-      example = "Jl. Sudirman No. 123, Jakarta Selatan")
+  @Schema(description = "Address of the user", example = "Jl. Sudirman No. 123, Jakarta Selatan")
   @Size(max = 1000, message = "Address must not exceed 1000 characters")
   private String address;
 
-  @Schema(
-      description = "City where the user lives",
-      example = "Jakarta Selatan",
-      maxLength = 100)
+  @Schema(description = "City where the user lives", example = "Jakarta Selatan", maxLength = 100)
   @Size(max = 100, message = "City must not exceed 100 characters")
   private String city;
 
-  @Schema(
-      description = "Province where the user lives",
-      example = "DKI Jakarta",
-      maxLength = 100)
+  @Schema(description = "Province where the user lives", example = "DKI Jakarta", maxLength = 100)
   @Size(max = 100, message = "Province must not exceed 100 characters")
   private String province;
 
-  @Schema(
-      description = "Postal code of the user's address",
-      example = "12190",
-      maxLength = 10)
+  @Schema(description = "Postal code of the user's address", example = "12190", maxLength = 10)
   @Size(max = 10, message = "Postal code must not exceed 10 characters")
-  @Pattern(
-      regexp = "^[0-9]{5,10}$",
-      message = "Postal code must be 5-10 digits")
+  @Pattern(regexp = "^[0-9]{5,10}$", message = "Postal code must be 5-10 digits")
   private String postalCode;
 
-  @Schema(
-      description = "Occupation of the user",
-      example = "Software Engineer",
-      maxLength = 100)
+  @Schema(description = "Occupation of the user", example = "Software Engineer", maxLength = 100)
   @Size(max = 100, message = "Occupation must not exceed 100 characters")
   private String occupation;
 
@@ -156,21 +124,17 @@ public class UpdateUserRequest {
   @Size(max = 100, message = "Company name must not exceed 100 characters")
   private String companyName;
 
-  @Schema(
-      description = "Monthly income of the user",
-      example = "15000000.00")
+  @Schema(description = "Monthly income of the user", example = "15000000.00")
   @DecimalMin(value = "0.0", message = "Monthly income must be positive")
   private BigDecimal monthlyIncome;
 
-  @Schema(
-      description = "Work experience in years",
-      example = "5")
+  @Schema(description = "Work experience in years", example = "5")
   @Min(value = 0, message = "Work experience must be non-negative")
   private Integer workExperience;
 
   /**
    * Convert string gender to Gender enum.
-   * 
+   *
    * @return Gender enum or null if gender is null/empty
    */
   public Gender getGenderEnum() {
@@ -186,7 +150,7 @@ public class UpdateUserRequest {
 
   /**
    * Convert string marital status to MaritalStatus enum.
-   * 
+   *
    * @return MaritalStatus enum or null if marital status is null/empty
    */
   public MaritalStatus getMaritalStatusEnum() {
@@ -202,7 +166,7 @@ public class UpdateUserRequest {
 
   /**
    * Convert string status to UserStatus enum.
-   * 
+   *
    * @return UserStatus enum or null if status is null/empty
    */
   public com.kelompoksatu.griya.entity.UserStatus getUserStatusEnum() {

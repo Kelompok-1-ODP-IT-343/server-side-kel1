@@ -132,7 +132,8 @@ public class UserService {
             .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
 
     // Check for unique constraints if updating username, email, or phone
-    if (request.getUsername() != null && !request.getUsername().equals(existingUser.getUsername())) {
+    if (request.getUsername() != null
+        && !request.getUsername().equals(existingUser.getUsername())) {
       if (userRepository.existsByUsername(request.getUsername())) {
         throw new ValidationException("Username already exists: " + request.getUsername());
       }
@@ -169,7 +170,8 @@ public class UserService {
     UserProfile existingProfile =
         userProfileRepository
             .findByUserId(userId)
-            .orElseThrow(() -> new RuntimeException("User profile not found for user ID: " + userId));
+            .orElseThrow(
+                () -> new RuntimeException("User profile not found for user ID: " + userId));
 
     // Check for unique constraints if updating NIK or NPWP
     if (request.getNik() != null && !request.getNik().equals(existingProfile.getNik())) {
@@ -186,14 +188,22 @@ public class UserService {
 
     // Update profile fields using MapStruct
     userMapper.updateUserProfileFromRequest(request, existingProfile);
+    if (request.getMaritalStatusEnum() != null) {
+      existingProfile.setMaritalStatus(request.getMaritalStatusEnum());
+    }
+    if (request.getGenderEnum() != null) {
+      existingProfile.setGender(request.getGenderEnum());
+    }
 
     // Save updated profile
     UserProfile updatedProfile = userProfileRepository.save(existingProfile);
     logger.info("User profile updated successfully for user ID: {}", userId);
 
     // Get user to return complete response
-    User user = userRepository.findById(userId)
-        .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
 
     // Convert to response using MapStruct
     return userMapper.toResponse(user);
@@ -217,8 +227,10 @@ public class UserService {
 
     // If no fields are provided, return current user info
     if (result == null) {
-      User user = userRepository.findById(userId)
-          .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+      User user =
+          userRepository
+              .findById(userId)
+              .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
       result = userMapper.toResponse(user);
     }
 
@@ -228,29 +240,29 @@ public class UserService {
 
   /** Check if request has user account fields */
   private boolean hasUserAccountFields(UpdateUserRequest request) {
-    return request.getUsername() != null || 
-           request.getEmail() != null || 
-           request.getPhone() != null || 
-           request.getStatus() != null;
+    return request.getUsername() != null
+        || request.getEmail() != null
+        || request.getPhone() != null
+        || request.getStatus() != null;
   }
 
   /** Check if request has profile fields */
   private boolean hasProfileFields(UpdateUserRequest request) {
-    return request.getFullName() != null ||
-           request.getNik() != null ||
-           request.getNpwp() != null ||
-           request.getBirthDate() != null ||
-           request.getBirthPlace() != null ||
-           request.getGender() != null ||
-           request.getMaritalStatus() != null ||
-           request.getAddress() != null ||
-           request.getCity() != null ||
-           request.getProvince() != null ||
-           request.getPostalCode() != null ||
-           request.getOccupation() != null ||
-           request.getCompanyName() != null ||
-           request.getMonthlyIncome() != null ||
-           request.getWorkExperience() != null;
+    return request.getFullName() != null
+        || request.getNik() != null
+        || request.getNpwp() != null
+        || request.getBirthDate() != null
+        || request.getBirthPlace() != null
+        || request.getGender() != null
+        || request.getMaritalStatus() != null
+        || request.getAddress() != null
+        || request.getCity() != null
+        || request.getProvince() != null
+        || request.getPostalCode() != null
+        || request.getOccupation() != null
+        || request.getCompanyName() != null
+        || request.getMonthlyIncome() != null
+        || request.getWorkExperience() != null;
   }
 
   /** Get user profile by user ID */

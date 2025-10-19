@@ -107,7 +107,8 @@ public class UserController {
   /** Update user information PUT /api/v1/user/{id} */
   @Operation(
       summary = "Update user information",
-      description = "Update user account and profile information including username, email, phone, status, and profile details. Users can only update their own profile. Password updates are not allowed (use reset-password endpoint).")
+      description =
+          "Update user account and profile information including username, email, phone, status, and profile details. Users can only update their own profile. Password updates are not allowed (use reset-password endpoint).")
   @ApiResponses(
       value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -157,7 +158,8 @@ public class UserController {
   public ResponseEntity<ApiResponse<UserResponse>> updateUser(
       @Parameter(description = "User ID to update", example = "1") @PathVariable Integer id,
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
-              description = "User update request with optional user account and profile information",
+              description =
+                  "User update request with optional user account and profile information",
               content =
                   @Content(
                       mediaType = "application/json",
@@ -183,13 +185,12 @@ public class UserController {
 
       // Extract user ID from JWT token
       Integer tokenUserId = jwtUtil.extractUserId(token);
-      
+
       // Ensure user can only update their own profile
       if (!tokenUserId.equals(id)) {
         logger.warn("User {} attempted to update profile of user {}", tokenUserId, id);
         ApiResponse<UserResponse> response =
-            ApiResponse.error(
-                "You can only update your own profile", httpRequest.getRequestURI());
+            ApiResponse.error("You can only update your own profile", httpRequest.getRequestURI());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
       }
 
@@ -217,7 +218,8 @@ public class UserController {
       }
       logger.error("Failed to update user: {}", e.getMessage());
       ApiResponse<UserResponse> response =
-          ApiResponse.error("Failed to update user: " + e.getMessage(), httpRequest.getRequestURI());
+          ApiResponse.error(
+              "Failed to update user: " + e.getMessage(), httpRequest.getRequestURI());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     } catch (Exception e) {
       logger.error("Unexpected error during user update: {}", e.getMessage());

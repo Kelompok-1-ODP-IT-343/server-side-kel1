@@ -9,9 +9,9 @@ import org.mapstruct.*;
 
 /**
  * MapStruct mapper for User entity conversions.
- * 
- * <p>This mapper handles the conversion between: - UpdateUserRequest -> User (for updates) -
- * User -> UserResponse (for responses)
+ *
+ * <p>This mapper handles the conversion between: - UpdateUserRequest -> User (for updates) - User
+ * -> UserResponse (for responses)
  */
 @Mapper(
     componentModel = "spring",
@@ -38,10 +38,7 @@ public interface UserMapper {
   @Mapping(target = "updatedAt", ignore = true)
   @Mapping(target = "role", ignore = true)
   @Mapping(target = "consentAt", ignore = true)
-  @Mapping(
-      target = "status",
-      source = "request",
-      qualifiedByName = "requestToUserStatus")
+  @Mapping(target = "status", source = "request", qualifiedByName = "requestToUserStatus")
   void updateUserFromRequest(UpdateUserRequest request, @MappingTarget User existingUser);
 
   /**
@@ -59,8 +56,9 @@ public interface UserMapper {
   /**
    * Maps UpdateUserRequest to existing UserProfile entity for updates.
    *
-   * <p>This method updates only the non-null profile fields from the request, preserving existing values
-   * for null fields. Only profile fields are mapped, user account fields are handled separately.
+   * <p>This method updates only the non-null profile fields from the request, preserving existing
+   * values for null fields. Only profile fields are mapped, user account fields are handled
+   * separately.
    *
    * @param request The update request DTO
    * @param existingProfile The existing user profile entity to update
@@ -69,37 +67,10 @@ public interface UserMapper {
   @Mapping(target = "userId", ignore = true)
   @Mapping(target = "createdAt", ignore = true)
   @Mapping(target = "updatedAt", ignore = true)
-  @Mapping(
-      target = "gender",
-      source = "request",
-      qualifiedByName = "requestToGender")
-  @Mapping(
-      target = "maritalStatus",
-      source = "request",
-      qualifiedByName = "requestToMaritalStatus")
-  void updateUserProfileFromRequest(UpdateUserRequest request, @MappingTarget UserProfile existingProfile);
-
-  /**
-   * Convert UpdateUserRequest to Gender enum.
-   *
-   * @param request The update request
-   * @return Gender enum or null if gender is null/empty
-   */
-  @Named("requestToGender")
-  default com.kelompoksatu.griya.entity.Gender requestToGender(UpdateUserRequest request) {
-    return request.getGenderEnum();
-  }
-
-  /**
-   * Convert UpdateUserRequest to MaritalStatus enum.
-   *
-   * @param request The update request
-   * @return MaritalStatus enum or null if marital status is null/empty
-   */
-  @Named("requestToMaritalStatus")
-  default com.kelompoksatu.griya.entity.MaritalStatus requestToMaritalStatus(UpdateUserRequest request) {
-    return request.getMaritalStatusEnum();
-  }
+  @Mapping(target = "gender", ignore = true)
+  @Mapping(target = "maritalStatus", ignore = true)
+  void updateUserProfileFromRequest(
+      UpdateUserRequest request, @MappingTarget UserProfile existingProfile);
 
   /**
    * Convert UpdateUserRequest to UserStatus enum.
