@@ -1,11 +1,13 @@
 package com.kelompoksatu.griya.service;
 
 import com.kelompoksatu.griya.dto.RegisterRequest;
+import com.kelompoksatu.griya.dto.UpdateUserRequest;
 import com.kelompoksatu.griya.dto.UserResponse;
 import com.kelompoksatu.griya.entity.Role;
 import com.kelompoksatu.griya.entity.User;
 import com.kelompoksatu.griya.entity.UserProfile;
 import com.kelompoksatu.griya.entity.UserStatus;
+import com.kelompoksatu.griya.mapper.UserMapper;
 import com.kelompoksatu.griya.repository.RoleRepository;
 import com.kelompoksatu.griya.repository.UserProfileRepository;
 import com.kelompoksatu.griya.repository.UserRepository;
@@ -43,6 +45,8 @@ public class UserService {
   @Autowired private EmailService emailService;
 
   @Autowired private AuthService authService;
+
+  @Autowired private UserMapper userMapper;
 
   /** Register a new user with comprehensive profile information */
   public Pair<User, Role> registerUser(RegisterRequest request) {
@@ -115,6 +119,59 @@ public class UserService {
   /** Find user by username or email */
   public Optional<User> findByUsernameOrEmail(String identifier) {
     return userRepository.findByUsernameOrEmail(identifier);
+  }
+
+  /** Update user information */
+  public UserResponse updateUser(Integer userId, UpdateUserRequest request) {
+    logger.info("Attempting to update user with ID: {}", userId);
+
+    // Find existing user
+    User existingUser =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+    // Validate password if password update is requested
+    if (request.isPasswordUpdateRequested()) {
+      if (!request.isPasswordMatching()) {
+        throw new ValidationException("Password and confirmation password do not match");
+      }
+    }
+
+    // Check for unique constraints if updating username, email, or phone
+    if (request.getUsername() != null && !request.getUsername().equals(existingUser.getUsername())) {
+      if (userRepository.existsByUsername(request.getUsername())) {
+        throw new ValidationException("Username already exists: " + request.getUsername());
+      }
+    }
+
+    if (request.getEmail() != null && !request.getEmail().equals(existingUser.getEmail())) {
+      if (userRepository.existsByEmail(request.getEmail())) {
+        throw new ValidationException("Email already exists: " + request.getEmail());
+      }
+    }
+
+    if (request.getPhone() != null && !request.getPhone().equals(existingUser.getPhone())) {
+      if (userRepository.existsByPhone(request.getPhone())) {
+        throw new ValidationException("Phone number already exists: " + request.getPhone());
+      }
+    }
+
+    // Update user fields using MapStruct
+    userMapper.updateUserFromRequest(request, existingUser);
+
+    // Handle password update separately for security
+    if (request.isPasswordUpdateRequested()) {
+      existingUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+      logger.info("Password updated for user ID: {}", userId);
+    }
+
+    // Save updated user
+    User updatedUser = userRepository.save(existingUser);
+    logger.info("User updated successfully with ID: {}", userId);
+
+    // Convert to response using MapStruct
+    return userMapper.toResponse(updatedUser);
   }
 
   /** Get user profile by user ID */
