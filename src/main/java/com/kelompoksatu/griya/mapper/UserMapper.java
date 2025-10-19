@@ -38,21 +38,6 @@ public interface UserMapper {
   @Mapping(target = "updatedAt", ignore = true)
   @Mapping(target = "role", ignore = true)
   @Mapping(target = "consentAt", ignore = true)
-  @Mapping(target = "fullName", ignore = true) // Profile fields handled separately
-  @Mapping(target = "nik", ignore = true)
-  @Mapping(target = "npwp", ignore = true)
-  @Mapping(target = "birthDate", ignore = true)
-  @Mapping(target = "birthPlace", ignore = true)
-  @Mapping(target = "gender", ignore = true)
-  @Mapping(target = "maritalStatus", ignore = true)
-  @Mapping(target = "address", ignore = true)
-  @Mapping(target = "city", ignore = true)
-  @Mapping(target = "province", ignore = true)
-  @Mapping(target = "postalCode", ignore = true)
-  @Mapping(target = "occupation", ignore = true)
-  @Mapping(target = "companyName", ignore = true)
-  @Mapping(target = "monthlyIncome", ignore = true)
-  @Mapping(target = "workExperience", ignore = true)
   @Mapping(
       target = "status",
       source = "request",
@@ -84,10 +69,6 @@ public interface UserMapper {
   @Mapping(target = "userId", ignore = true)
   @Mapping(target = "createdAt", ignore = true)
   @Mapping(target = "updatedAt", ignore = true)
-  @Mapping(target = "username", ignore = true) // User account fields handled separately
-  @Mapping(target = "email", ignore = true)
-  @Mapping(target = "phone", ignore = true)
-  @Mapping(target = "status", ignore = true)
   @Mapping(
       target = "gender",
       source = "request",
