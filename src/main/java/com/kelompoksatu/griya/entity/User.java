@@ -72,6 +72,9 @@ public class User {
   @JoinColumn(name = "role_id", nullable = false)
   private Role role;
 
+  @Column(name = "consent_at", nullable = false)
+  private LocalDateTime consentAt;
+
   // Utility methods
   public boolean isAccountLocked() {
     return lockedUntil != null && lockedUntil.isAfter(LocalDateTime.now());

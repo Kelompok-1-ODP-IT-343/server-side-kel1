@@ -68,6 +68,7 @@ public class UserService {
     user.setFailedLoginAttempts(0);
     user.setCreatedAt(LocalDateTime.now());
     user.setUpdatedAt(LocalDateTime.now());
+    user.setConsentAt(request.getConsentAt());
     try {
       User savedUser = userRepository.save(user);
       logger.info("User registered successfully with ID: {}", savedUser.getId());

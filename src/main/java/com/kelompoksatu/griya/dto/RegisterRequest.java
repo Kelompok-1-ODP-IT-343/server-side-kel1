@@ -5,6 +5,7 @@ import com.kelompoksatu.griya.entity.MaritalStatus;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -105,6 +106,8 @@ public class RegisterRequest {
   private Integer workExperience;
 
   private String role;
+
+  @NotNull(message = "Consent at is required") private LocalDateTime consentAt;
 
   /** Utility method to check if passwords match */
   public boolean isPasswordMatching() {
