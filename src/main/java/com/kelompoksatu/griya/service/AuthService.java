@@ -235,8 +235,7 @@ public class AuthService {
 
     @SneakyThrows
     @Transactional
-    public String generateEmailVerificationToken(Integer userId, long durationInMinutes) {
-        User user = userRepo.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
+    public String generateEmailVerificationToken(User user, long durationInMinutes) {
 
         String token = UUID.randomUUID().toString().replace("-", ""); // 32 char
         VerificationToken vt = new VerificationToken();
@@ -312,7 +311,7 @@ public class AuthService {
 
     public void forgotPassword(@Valid ForgotPasswordRequest request) {
         User user = userRepo.findByEmail(request.getEmail()).orElseThrow(() -> new AuthenticationCredentialsNotFoundException("Email not found"));
-        emailService.sendEmailForgotPassword(request.getEmail(), generateEmailVerificationToken(user.getId(), forgotPasswordExpiredTime), forgotPasswordExpiredTime);
+        emailService.sendEmailForgotPassword(request.getEmail(), generateEmailVerificationToken(user, forgotPasswordExpiredTime), forgotPasswordExpiredTime);
     }
 
     @SneakyThrows
@@ -321,10 +320,10 @@ public class AuthService {
         VerificationToken token = tokenRepo.findByToken(hashToken(tokenValue))
                 .orElseThrow(() -> new IllegalArgumentException("Invalid token"));
         invalidateToken(token);
-        User user = token.getUser(); //TODO: checking same password and add internal server in global handler
-        if (user.getPasswordHash().equals(passwordEncoder.encode(newPassword))) {
+        User user = token.getUser();
+        if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
             throw new IllegalArgumentException("New password cannot be the same as old password");
-        }
+        }//TODO: add to global exception handler
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepo.save(user);
     }

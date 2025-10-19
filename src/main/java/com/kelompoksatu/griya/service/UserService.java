@@ -226,7 +226,7 @@ public class UserService {
     }
 
     public void sendEmailVerification(User user) {
-        emailService.sendEmailVerification(user.getEmail(), authService.generateEmailVerificationToken(user.getId(), emailVerificationExpiredTime));
+        emailService.sendEmailVerification(user.getEmail(), authService.generateEmailVerificationToken(user, emailVerificationExpiredTime));
     }
 }
 
