@@ -14,7 +14,9 @@ import lombok.Setter;
  * DTO for developer registration request by admin This combines user account creation with
  * developer profile information
  */
-@Schema(description = "Request object for registering a new developer with user account and profile information")
+@Schema(
+    description =
+        "Request object for registering a new developer with user account and profile information")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -22,9 +24,7 @@ import lombok.Setter;
 public class RegisterDeveloperRequest {
 
   // User Account Information (required for login)
-  @Schema(
-      description = "Unique username for the developer account",
-      example = "dev_company_001")
+  @Schema(description = "Unique username for the developer account", example = "dev_company_001")
   @NotBlank(message = "Username is required")
   @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
   @Pattern(
@@ -32,16 +32,15 @@ public class RegisterDeveloperRequest {
       message = "Username can only contain letters, numbers, and underscores")
   private String username;
 
-  @Schema(
-      description = "Email address for the developer account",
-      example = "admin@devcompany.com")
+  @Schema(description = "Email address for the developer account", example = "admin@devcompany.com")
   @NotBlank(message = "Email is required")
   @Email(message = "Please provide a valid email address")
   @Size(max = 100, message = "Email must not exceed 100 characters")
   private String email;
 
   @Schema(
-      description = "Password for the developer account (must contain uppercase, lowercase, number, and special character)",
+      description =
+          "Password for the developer account (must contain uppercase, lowercase, number, and special character)",
       example = "SecurePass123!")
   @NotBlank(message = "Password is required")
   @Size(min = 8, max = 100, message = "Password must be between 8 and 100 characters")
@@ -51,9 +50,7 @@ public class RegisterDeveloperRequest {
           "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character")
   private String password;
 
-  @Schema(
-      description = "Phone number in Indonesian format",
-      example = "+6281234567890")
+  @Schema(description = "Phone number in Indonesian format", example = "+6281234567890")
   @NotBlank(message = "Phone number is required")
   @Pattern(
       regexp = "^(\\+62|62|0)[0-9]{9,13}$",
@@ -68,9 +65,7 @@ public class RegisterDeveloperRequest {
   @Size(max = 255, message = "Company name must not exceed 255 characters")
   private String companyName;
 
-  @Schema(
-      description = "Unique company code identifier",
-      example = "DEV001")
+  @Schema(description = "Unique company code identifier", example = "DEV001")
   @NotBlank(message = "Company code is required")
   @Size(max = 20, message = "Company code must not exceed 20 characters")
   private String companyCode;
@@ -118,15 +113,11 @@ public class RegisterDeveloperRequest {
       description = "Company specialization area",
       example = "RESIDENTIAL",
       allowableValues = {"RESIDENTIAL", "COMMERCIAL", "MIXED", "INDUSTRIAL"})
-  @NotNull(message = "Specialization is required") 
-  private Developer.Specialization specialization;
+  @NotNull(message = "Specialization is required") private Developer.Specialization specialization;
 
   // Partnership
-  @Schema(
-      description = "Whether the company is a partner",
-      example = "true")
-  @NotNull(message = "Partnership status is required") 
-  private Boolean isPartner = false;
+  @Schema(description = "Whether the company is a partner", example = "true")
+  @NotNull(message = "Partnership status is required") private Boolean isPartner = false;
 
   private Developer.PartnershipLevel partnershipLevel;
 
@@ -141,8 +132,7 @@ public class RegisterDeveloperRequest {
   @Schema(
       description = "Timestamp when user consented to terms and conditions",
       example = "2024-01-20T10:00:00")
-  @NotNull(message = "Consent timestamp is required") 
-  private LocalDateTime consentAt;
+  @NotNull(message = "Consent timestamp is required") private LocalDateTime consentAt;
 
   // Utility method to check if password matches (for consistency with RegisterRequest)
   public boolean isPasswordMatching() {

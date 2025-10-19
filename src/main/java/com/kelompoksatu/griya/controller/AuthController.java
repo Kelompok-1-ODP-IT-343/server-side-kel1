@@ -46,7 +46,8 @@ public class AuthController {
   /** Register a new developer (admin only) POST /api/v1/auth/register/developer */
   @Operation(
       summary = "Register a new developer",
-      description = "Register a new developer with both user account and developer profile information. This endpoint is intended for admin use only.")
+      description =
+          "Register a new developer with both user account and developer profile information. This endpoint is intended for admin use only.")
   @ApiResponses(
       value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -74,7 +75,8 @@ public class AuthController {
   @PostMapping("/register/developer")
   public ResponseEntity<ApiResponse<RegisterDeveloperResponse>> registerDeveloper(
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
-              description = "Developer registration request containing user account and developer profile information",
+              description =
+                  "Developer registration request containing user account and developer profile information",
               content =
                   @Content(
                       mediaType = "application/json",

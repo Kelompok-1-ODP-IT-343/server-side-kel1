@@ -118,7 +118,14 @@ public class SecurityConfig {
                         "/actuator/health/liveness",
                         "/actuator/health/readiness",
                         "/error",
-                        "/favicon.ico")
+                        "/favicon.ico",
+                        // Swagger/OpenAPI documentation endpoints
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/v3/api-docs/**",
+                        "/v3/api-docs.yaml",
+                        "/swagger-resources/**",
+                        "/webjars/**")
                     .permitAll()
 
                     // Admin endpoints (require ADMIN role)

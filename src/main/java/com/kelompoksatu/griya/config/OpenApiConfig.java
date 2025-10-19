@@ -37,7 +37,21 @@ public class OpenApiConfig {
                     .url("http://localhost:8080")
                     .description("Development Server"),
                 new Server()
-                    .url("https://satuatap.my.id")
-                    .description("Production Server")));
+                    .url("https://api.griya.kelompoksatu.com")
+                    .description("Production Server")))
+        .tags(
+            List.of(
+                new Tag()
+                    .name("Authentication")
+                    .description("User authentication and registration operations"),
+                new Tag()
+                    .name("Developer Management")
+                    .description("Developer profile and management operations"),
+                new Tag()
+                    .name("Property Management")
+                    .description("Property listing and management operations"),
+                new Tag()
+                    .name("KPR Applications")
+                    .description("KPR application submission and processing operations")));
   }
 }
