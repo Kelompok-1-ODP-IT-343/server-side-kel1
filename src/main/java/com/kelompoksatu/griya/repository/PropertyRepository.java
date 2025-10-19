@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import java.util.Map;
+
 
 /** Repository interface for Property entity */
 @Repository
@@ -139,17 +141,40 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
       @Param("bedrooms") Integer bedrooms,
       @Param("status") Property.PropertyStatus status);
 
-  @Query(
-      value =
-          """
-    SELECT * FROM properties
-    WHERE (:city IS NULL OR city = :city)
-      AND (:minPrice IS NULL OR price >= :minPrice)
-      AND (:maxPrice IS NULL OR price <= :maxPrice)
-""",
-      nativeQuery = true)
-  List<Property> findPropertiesWithFilter(
-      @Param("city") String city,
-      @Param("minPrice") BigDecimal minPrice,
-      @Param("maxPrice") BigDecimal maxPrice);
+    @Query(value = """
+    SELECT 
+        p.id,
+        p.property_code,
+        p.title,
+        p.city,
+        p.price,
+        p.property_type,
+        p.listing_type,
+        COALESCE(
+            (SELECT pi.file_path FROM property_images pi 
+             WHERE pi.property_id = p.id AND pi.is_primary = TRUE 
+             LIMIT 1),
+            (SELECT pi.file_path FROM property_images pi 
+             WHERE pi.property_id = p.id LIMIT 1)
+        ) AS main_image,
+        STRING_AGG(DISTINCT pf.feature_name || ' : ' || pf.feature_value, ', ') AS features,
+        STRING_AGG(DISTINCT pl.poi_name || ' (' || pl.distance_km || ' km)', ', ') AS nearby_places
+    FROM properties p
+    LEFT JOIN property_features pf ON pf.property_id = p.id
+    LEFT JOIN property_locations pl ON pl.property_id = p.id
+    WHERE (:city IS NULL OR p.city ILIKE CONCAT('%', :city, '%'))
+      AND (:minPrice IS NULL OR p.price >= :minPrice)
+      AND (:maxPrice IS NULL OR p.price <= :maxPrice)
+      AND (:propertyType IS NULL OR LOWER(p.property_type::text) = LOWER(:propertyType))
+    GROUP BY p.id
+    ORDER BY p.id
+    LIMIT :limit OFFSET :offset
+    """, nativeQuery = true)
+    List<Map<String, Object>> findPropertiesWithFilter(
+            @Param("city") String city,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("maxPrice") BigDecimal maxPrice,
+            @Param("propertyType") String propertyType,
+            @Param("offset") int offset,
+            @Param("limit") int limit);
 }
