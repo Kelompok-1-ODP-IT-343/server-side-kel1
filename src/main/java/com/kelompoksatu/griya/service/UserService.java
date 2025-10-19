@@ -131,13 +131,6 @@ public class UserService {
             .findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
 
-    // Validate password if password update is requested
-    if (request.isPasswordUpdateRequested()) {
-      if (!request.isPasswordMatching()) {
-        throw new ValidationException("Password and confirmation password do not match");
-      }
-    }
-
     // Check for unique constraints if updating username, email, or phone
     if (request.getUsername() != null && !request.getUsername().equals(existingUser.getUsername())) {
       if (userRepository.existsByUsername(request.getUsername())) {
@@ -160,18 +153,104 @@ public class UserService {
     // Update user fields using MapStruct
     userMapper.updateUserFromRequest(request, existingUser);
 
-    // Handle password update separately for security
-    if (request.isPasswordUpdateRequested()) {
-      existingUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-      logger.info("Password updated for user ID: {}", userId);
-    }
-
     // Save updated user
     User updatedUser = userRepository.save(existingUser);
     logger.info("User updated successfully with ID: {}", userId);
 
     // Convert to response using MapStruct
     return userMapper.toResponse(updatedUser);
+  }
+
+  /** Update user profile information */
+  public UserResponse updateUserProfile(Integer userId, UpdateUserRequest request) {
+    logger.info("Attempting to update user profile with ID: {}", userId);
+
+    // Find existing user profile
+    UserProfile existingProfile =
+        userProfileRepository
+            .findByUserId(userId)
+            .orElseThrow(() -> new RuntimeException("User profile not found for user ID: " + userId));
+
+    // Check for unique constraints if updating NIK or NPWP
+    if (request.getNik() != null && !request.getNik().equals(existingProfile.getNik())) {
+      if (userProfileRepository.existsByNik(request.getNik())) {
+        throw new ValidationException("NIK already exists: " + request.getNik());
+      }
+    }
+
+    if (request.getNpwp() != null && !request.getNpwp().equals(existingProfile.getNpwp())) {
+      if (userProfileRepository.existsByNpwp(request.getNpwp())) {
+        throw new ValidationException("NPWP already exists: " + request.getNpwp());
+      }
+    }
+
+    // Update profile fields using MapStruct
+    userMapper.updateUserProfileFromRequest(request, existingProfile);
+
+    // Save updated profile
+    UserProfile updatedProfile = userProfileRepository.save(existingProfile);
+    logger.info("User profile updated successfully for user ID: {}", userId);
+
+    // Get user to return complete response
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+    // Convert to response using MapStruct
+    return userMapper.toResponse(user);
+  }
+
+  /** Update both user and profile information */
+  public UserResponse updateUserComplete(Integer userId, UpdateUserRequest request) {
+    logger.info("Attempting to update user and profile with ID: {}", userId);
+
+    UserResponse result = null;
+
+    // Update user information if any user account fields are provided
+    if (hasUserAccountFields(request)) {
+      result = updateUser(userId, request);
+    }
+
+    // Update profile information if any profile fields are provided
+    if (hasProfileFields(request)) {
+      result = updateUserProfile(userId, request);
+    }
+
+    // If no fields are provided, return current user info
+    if (result == null) {
+      User user = userRepository.findById(userId)
+          .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+      result = userMapper.toResponse(user);
+    }
+
+    logger.info("User and profile updated successfully with ID: {}", userId);
+    return result;
+  }
+
+  /** Check if request has user account fields */
+  private boolean hasUserAccountFields(UpdateUserRequest request) {
+    return request.getUsername() != null || 
+           request.getEmail() != null || 
+           request.getPhone() != null || 
+           request.getStatus() != null;
+  }
+
+  /** Check if request has profile fields */
+  private boolean hasProfileFields(UpdateUserRequest request) {
+    return request.getFullName() != null ||
+           request.getNik() != null ||
+           request.getNpwp() != null ||
+           request.getBirthDate() != null ||
+           request.getBirthPlace() != null ||
+           request.getGender() != null ||
+           request.getMaritalStatus() != null ||
+           request.getAddress() != null ||
+           request.getCity() != null ||
+           request.getProvince() != null ||
+           request.getPostalCode() != null ||
+           request.getOccupation() != null ||
+           request.getCompanyName() != null ||
+           request.getMonthlyIncome() != null ||
+           request.getWorkExperience() != null;
   }
 
   /** Get user profile by user ID */

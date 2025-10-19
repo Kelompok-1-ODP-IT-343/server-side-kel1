@@ -107,7 +107,7 @@ public class UserController {
   /** Update user information PUT /api/v1/user/{id} */
   @Operation(
       summary = "Update user information",
-      description = "Update user profile information including username, email, phone, password, and status. All fields are optional for partial updates.")
+      description = "Update user account and profile information including username, email, phone, status, and profile details. Users can only update their own profile. Password updates are not allowed (use reset-password endpoint).")
   @ApiResponses(
       value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -132,6 +132,13 @@ public class UserController {
                     mediaType = "application/json",
                     schema = @Schema(implementation = ApiResponse.class))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            description = "Forbidden - user can only update their own profile",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "404",
             description = "User not found",
             content =
@@ -150,7 +157,7 @@ public class UserController {
   public ResponseEntity<ApiResponse<UserResponse>> updateUser(
       @Parameter(description = "User ID to update", example = "1") @PathVariable Integer id,
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
-              description = "User update request with optional fields",
+              description = "User update request with optional user account and profile information",
               content =
                   @Content(
                       mediaType = "application/json",
@@ -174,8 +181,20 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
       }
 
-      // Update user
-      UserResponse updatedUser = userService.updateUser(id, request);
+      // Extract user ID from JWT token
+      Integer tokenUserId = jwtUtil.extractUserId(token);
+      
+      // Ensure user can only update their own profile
+      if (!tokenUserId.equals(id)) {
+        logger.warn("User {} attempted to update profile of user {}", tokenUserId, id);
+        ApiResponse<UserResponse> response =
+            ApiResponse.error(
+                "You can only update your own profile", httpRequest.getRequestURI());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+      }
+
+      // Update user and profile information
+      UserResponse updatedUser = userService.updateUserComplete(id, request);
 
       ApiResponse<UserResponse> response =
           ApiResponse.success(
