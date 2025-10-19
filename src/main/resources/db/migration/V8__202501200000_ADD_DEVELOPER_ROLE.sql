@@ -4,7 +4,7 @@ VALUES (
            'DEVELOPER',
            'Property developer role with access to manage properties and view applications',
            '{
-             "users": ["read","update"],
+             "users": ["read"],
              "properties": ["create","read","update","delete"],
              "kpr_applications": ["read"],
              "developers": ["read","update"]

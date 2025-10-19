@@ -5,6 +5,7 @@ import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.servers.Server;
+import io.swagger.v3.oas.models.tags.Tag;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,14 +29,10 @@ public class OpenApiConfig {
                         .email("dev@kelompoksatu.com")
                         .url("https://www.kelompoksatu.com"))
                 .license(
-                    new License()
-                        .name("MIT License")
-                        .url("https://opensource.org/licenses/MIT")))
+                    new License().name("MIT License").url("https://opensource.org/licenses/MIT")))
         .servers(
             List.of(
-                new Server()
-                    .url("http://localhost:8080")
-                    .description("Development Server"),
+                new Server().url("http://localhost:8080").description("Development Server"),
                 new Server()
                     .url("https://api.griya.kelompoksatu.com")
                     .description("Production Server")))

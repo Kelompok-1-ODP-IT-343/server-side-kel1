@@ -7,7 +7,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 /** Developer entity representing property developers and real estate companies */
 @Entity
@@ -67,6 +69,7 @@ public class Developer {
   private String description;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "specialization")
   private Specialization specialization;
 
@@ -75,6 +78,7 @@ public class Developer {
   private Boolean isPartner = false;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "partnership_level")
   private PartnershipLevel partnershipLevel;
 
@@ -83,6 +87,7 @@ public class Developer {
 
   // Status
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "status", nullable = false)
   private DeveloperStatus status = DeveloperStatus.ACTIVE;
 
