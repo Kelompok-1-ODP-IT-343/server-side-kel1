@@ -105,6 +105,11 @@ public class Developer {
   @Column(name = "updated_at", nullable = false)
   private LocalDateTime updatedAt;
 
+  /** 🔹 New: Relation to User */
+  @OneToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "user_id", nullable = false, unique = true)
+  private User user;
+
   // Enums
   public enum Specialization {
     RESIDENTIAL,

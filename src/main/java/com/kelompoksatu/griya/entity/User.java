@@ -75,6 +75,9 @@ public class User {
   @Column(name = "consent_at", nullable = false)
   private LocalDateTime consentAt;
 
+  @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private Developer developer;
+
   // Utility methods
   public boolean isAccountLocked() {
     return lockedUntil != null && lockedUntil.isAfter(LocalDateTime.now());
