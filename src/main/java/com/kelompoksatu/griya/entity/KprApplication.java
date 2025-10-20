@@ -55,6 +55,9 @@ public class KprApplication {
   @Column(name = "down_payment", precision = 15, scale = 2, nullable = false)
   private BigDecimal downPayment;
 
+  @Column(name = "ltv_ratio", precision = 5, scale = 4)
+  private BigDecimal ltvRatio; // Loan to Value ratio
+
   @Column(name = "property_address", columnDefinition = "TEXT", nullable = false)
   private String propertyAddress;
 

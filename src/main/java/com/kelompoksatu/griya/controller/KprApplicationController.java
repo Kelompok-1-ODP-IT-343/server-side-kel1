@@ -1,176 +1,311 @@
 package com.kelompoksatu.griya.controller;
 
-import com.kelompoksatu.griya.dto.ApiResponse;
-import com.kelompoksatu.griya.dto.KprApplicationRequest;
+import com.kelompoksatu.griya.dto.EmploymentData;
+import com.kelompoksatu.griya.dto.KprApplicationFormRequest;
 import com.kelompoksatu.griya.dto.KprApplicationResponse;
-import com.kelompoksatu.griya.service.AuthService;
+import com.kelompoksatu.griya.dto.PersonalData;
+import com.kelompoksatu.griya.dto.SimulationData;
 import com.kelompoksatu.griya.service.KprApplicationService;
 import com.kelompoksatu.griya.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
- * REST Controller for KPR Application operations Handles home loan application submissions with JWT
- * authentication
+ * REST Controller for KPR (Kredit Pemilikan Rumah) Application Management Handles loan application
+ * submissions with comprehensive validation and security
+ *
+ * <p>Compliance: - OJK Regulations (POJK No. 13/POJK.02/2018) - Indonesian Personal Data Protection
+ * Law (UU No. 27/2022) - ISO 27001 Security Standards
  */
 @RestController
-@RequestMapping("/api/v1")
-@CrossOrigin(origins = "*", maxAge = 3600)
+@RequestMapping("/api/v1/kpr-applications")
 @RequiredArgsConstructor
+@Validated
 @Slf4j
-@Tag(name = "KPR Applications", description = "KPR (Home Loan) Application Management")
+@Tag(name = "KPR Applications", description = "KPR (Home Loan) application management endpoints")
+@SecurityRequirement(name = "bearerAuth")
 public class KprApplicationController {
 
   private final KprApplicationService kprApplicationService;
-  private final AuthService authService;
   private final JwtUtil jwtUtil;
 
-  /** Submit a new KPR application POST /api/me/kpr-applications */
-  @PostMapping("/kpr-applications")
+  /**
+   * Submit a new KPR application with form-data including file uploads
+   *
+   * @param propertyId Property ID
+   * @param kprRateId KPR Rate ID
+   * @param propertyValue Property value for simulation
+   * @param downPayment Down payment amount
+   * @param loanAmount Loan amount requested
+   * @param loanTermYears Loan term in years
+   * @param fullName Full name of applicant
+   * @param nik NIK (Nomor Induk Kependudukan)
+   * @param npwp NPWP number
+   * @param birthDate Birth date (YYYY-MM-DD)
+   * @param birthPlace Birth place
+   * @param gender Gender (male/female)
+   * @param maritalStatus Marital status
+   * @param address Address
+   * @param city City
+   * @param province Province
+   * @param postalCode Postal code
+   * @param occupation Occupation
+   * @param monthlyIncome Monthly income
+   * @param companyName Company name
+   * @param companyAddress Company address
+   * @param companyCity Company city
+   * @param companyProvince Company province
+   * @param companyPostalCode Company postal code
+   * @param ktpDocument KTP document file
+   * @param npwpDocument NPWP document file
+   * @param salarySlipDocument Salary slip document file
+   * @param otherDocument Other supporting document (optional)
+   * @param authHeader JWT token in Authorization header
+   * @return KprApplicationResponse with application details
+   */
+  @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @Operation(
-      summary = "Submit KPR Application",
+      summary = "Submit KPR Application with Documents",
       description =
-          "Submit a new KPR (home loan) application for an authenticated user. "
-              + "The system validates the request, calculates loan details, selects appropriate interest rate, "
-              + "and saves the application for approval process.",
-      security = @SecurityRequirement(name = "bearerAuth"))
+          "Submit a new KPR (Home Loan) application with property details, personal data, "
+              + "employment information, and required documents. Supports file uploads for KTP, NPWP, "
+              + "salary slip, and other supporting documents.")
   @ApiResponses(
       value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        @ApiResponse(
             responseCode = "201",
-            description = "Application submitted successfully",
-            content = @Content(schema = @Schema(implementation = KprApplicationResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            description = "KPR application submitted successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = KprApplicationResponse.class))),
+        @ApiResponse(
             responseCode = "400",
-            description = "Bad Request - Validation failed",
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            description = "Invalid request data, validation failed, or file upload error",
+            content = @Content(mediaType = "application/json")),
+        @ApiResponse(
             responseCode = "401",
             description = "Unauthorized - Invalid or missing JWT token",
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            content = @Content(mediaType = "application/json")),
+        @ApiResponse(
             responseCode = "404",
-            description = "Not Found - Property not found or not available",
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "422",
-            description = "Unprocessable Entity - No matching active KPR rate",
-            content = @Content(schema = @Schema(implementation = ApiResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            description = "Property not found or user not found",
+            content = @Content(mediaType = "application/json")),
+        @ApiResponse(
+            responseCode = "409",
+            description = "Conflict - User already has pending application for this property",
+            content = @Content(mediaType = "application/json")),
+        @ApiResponse(
+            responseCode = "413",
+            description = "File too large - exceeds maximum allowed size",
+            content = @Content(mediaType = "application/json")),
+        @ApiResponse(
+            responseCode = "415",
+            description = "Unsupported file type",
+            content = @Content(mediaType = "application/json")),
+        @ApiResponse(
             responseCode = "500",
-            description = "Internal Server Error",
-            content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+            description = "Internal server error",
+            content = @Content(mediaType = "application/json"))
       })
-  public ResponseEntity<ApiResponse<KprApplicationResponse>> submitKprApplication(
-      @Parameter(description = "JWT Bearer token", required = true) @RequestHeader("Authorization")
-          String authHeader,
-      @Parameter(description = "KPR application request data", required = true) @Valid @RequestBody
-          KprApplicationRequest request,
-      HttpServletRequest httpRequest) {
+  public ResponseEntity<?> submitKprApplication(
+      // Main Data
+      @RequestParam("propertyId") Integer propertyId,
+      @RequestParam("kprRateId") Integer kprRateId,
+
+      // Simulation Data
+      @RequestParam("simulationData.propertyValue") BigDecimal propertyValue,
+      @RequestParam("simulationData.downPayment") BigDecimal downPayment,
+      @RequestParam("simulationData.loanAmount") BigDecimal loanAmount,
+      @RequestParam("simulationData.loanTermYears") Integer loanTermYears,
+
+      // Personal Data
+      @RequestParam("personalData.fullName") String fullName,
+      @RequestParam("personalData.nik") String nik,
+      @RequestParam(value = "personalData.npwp", required = false) String npwp,
+      @RequestParam("personalData.birthDate") String birthDate,
+      @RequestParam("personalData.birthPlace") String birthPlace,
+      @RequestParam("personalData.gender") String gender,
+      @RequestParam("personalData.maritalStatus") String maritalStatus,
+      @RequestParam("personalData.address") String address,
+      @RequestParam("personalData.city") String city,
+      @RequestParam("personalData.province") String province,
+      @RequestParam("personalData.postalCode") String postalCode,
+
+      // Employment Data
+      @RequestParam("employmentData.occupation") String occupation,
+      @RequestParam("employmentData.monthlyIncome") BigDecimal monthlyIncome,
+      @RequestParam("employmentData.companyName") String companyName,
+      @RequestParam("employmentData.companyAddress") String companyAddress,
+      @RequestParam("employmentData.companyCity") String companyCity,
+      @RequestParam("employmentData.companyProvince") String companyProvince,
+      @RequestParam("employmentData.companyPostalCode") String companyPostalCode,
+
+      // Document Files
+      @RequestParam("ktpDocument") MultipartFile ktpDocument,
+      @RequestParam(value = "npwpDocument", required = false) MultipartFile npwpDocument,
+      @RequestParam("salarySlipDocument") MultipartFile salarySlipDocument,
+      @RequestParam(value = "otherDocument", required = false) MultipartFile otherDocument,
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
 
     try {
-      log.info("Received KPR application request for property ID: {}", request.getPropertyId());
+      log.info("Received KPR application form-data request for property ID: {}", propertyId);
 
-      // 1. Extract and validate JWT token
+      // Extract and validate JWT token
       String token = extractTokenFromHeader(authHeader);
 
-      if (!authService.validateToken(token)) {
-        log.warn("Invalid or expired JWT token provided");
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-            .body(
-                ApiResponse.error(
-                    "Token tidak valid atau telah kedaluwarsa", httpRequest.getRequestURI()));
-      }
-
-      // 2. Extract user ID from JWT token
+      // Extract user ID from token
       Integer userId = jwtUtil.extractUserId(token);
       if (userId == null) {
-        log.warn("User ID not found in JWT token");
+        log.warn("Invalid token - user ID not found");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-            .body(
-                ApiResponse.error(
-                    "User ID tidak ditemukan dalam token", httpRequest.getRequestURI()));
+            .body(createErrorResponse("Token tidak valid"));
       }
 
       log.info("Processing KPR application for user ID: {}", userId);
 
-      // 3. Submit KPR application
-      KprApplicationResponse response = kprApplicationService.submitApplication(userId, request);
+      // Build form request object
+      KprApplicationFormRequest formRequest =
+          KprApplicationFormRequest.builder()
+              .propertyId(propertyId)
+              .kprRateId(kprRateId)
+              .simulationData(
+                  SimulationData.builder()
+                      .propertyValue(propertyValue)
+                      .downPayment(downPayment)
+                      .loanAmount(loanAmount)
+                      .loanTermYears(loanTermYears)
+                      .build())
+              .personalData(
+                  PersonalData.builder()
+                      .fullName(fullName)
+                      .nik(nik)
+                      .npwp(npwp)
+                      .birthDate(birthDate)
+                      .birthPlace(birthPlace)
+                      .gender(gender)
+                      .maritalStatus(maritalStatus)
+                      .address(address)
+                      .city(city)
+                      .province(province)
+                      .postalCode(postalCode)
+                      .build())
+              .employmentData(
+                  EmploymentData.builder()
+                      .occupation(occupation)
+                      .monthlyIncome(monthlyIncome)
+                      .companyName(companyName)
+                      .companyAddress(companyAddress)
+                      .companyCity(companyCity)
+                      .companyProvince(companyProvince)
+                      .companyPostalCode(companyPostalCode)
+                      .build())
+              .ktpDocument(ktpDocument)
+              .npwpDocument(npwpDocument)
+              .salarySlipDocument(salarySlipDocument)
+              .otherDocument(otherDocument)
+              .build();
 
-      log.info(
-          "KPR application submitted successfully with ID: {} for user: {}",
-          response.getApplicationId(),
-          userId);
+      // Validate form request
+      formRequest.validate();
 
-      return ResponseEntity.status(HttpStatus.CREATED)
-          .body(
-              ApiResponse.success(
-                  response, "Aplikasi KPR berhasil disubmit", httpRequest.getRequestURI()));
+      // Submit application through service
+      KprApplicationResponse response =
+          kprApplicationService.submitApplicationWithDocuments(userId, formRequest);
 
-    } catch (IllegalArgumentException e) {
-      log.warn("Validation error in KPR application: {}", e.getMessage());
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-          .body(ApiResponse.error(e.getMessage(), httpRequest.getRequestURI()));
-
-    } catch (IllegalStateException e) {
-      log.warn("Business rule violation in KPR application: {}", e.getMessage());
-
-      // Determine appropriate HTTP status based on error message
-      HttpStatus status = determineErrorStatus(e.getMessage());
-
-      return ResponseEntity.status(status)
-          .body(ApiResponse.error(e.getMessage(), httpRequest.getRequestURI()));
-
-    } catch (RuntimeException e) {
-      log.error("Authentication error in KPR application: {}", e.getMessage());
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-          .body(ApiResponse.error(e.getMessage(), httpRequest.getRequestURI()));
+      log.info("KPR application submitted successfully with ID: {}", response.getApplicationId());
+      return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
     } catch (Exception e) {
-      log.error("Unexpected error during KPR application submission", e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(
-              ApiResponse.error("Terjadi kesalahan internal server", httpRequest.getRequestURI()));
+      log.error("Error processing KPR application: {}", e.getMessage(), e);
+
+      // Determine appropriate HTTP status based on error type
+      HttpStatus status = determineErrorStatus(e.getMessage());
+
+      return ResponseEntity.status(status).body(createErrorResponse(e.getMessage()));
     }
   }
+
+  // ========================================
+  // PRIVATE HELPER METHODS
+  // ========================================
 
   /** Extract JWT token from Authorization header */
   private String extractTokenFromHeader(String authHeader) {
     if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-      throw new RuntimeException("Authorization header tidak valid");
+      throw new RuntimeException("Header Authorization tidak valid");
     }
     return authHeader.substring(7);
   }
 
-  /** Determine appropriate HTTP status based on error message */
+  /** Create standardized error response */
+  private Object createErrorResponse(String message) {
+    return new ErrorResponse(message, System.currentTimeMillis());
+  }
+
+  /** Determine HTTP status code based on error message */
   private HttpStatus determineErrorStatus(String errorMessage) {
     String lowerMessage = errorMessage.toLowerCase();
 
-    if (lowerMessage.contains("not found") || lowerMessage.contains("tidak ditemukan")) {
+    if (lowerMessage.contains("tidak ditemukan") || lowerMessage.contains("not found")) {
       return HttpStatus.NOT_FOUND;
-    } else if (lowerMessage.contains("not available") || lowerMessage.contains("tidak tersedia")) {
-      return HttpStatus.NOT_FOUND;
-    } else if (lowerMessage.contains("no eligible") || lowerMessage.contains("tidak ada rate")) {
-      return HttpStatus.UNPROCESSABLE_ENTITY;
-    } else if (lowerMessage.contains("suspended") || lowerMessage.contains("not eligible")) {
-      return HttpStatus.FORBIDDEN;
-    } else if (lowerMessage.contains("pending application")
-        || lowerMessage.contains("sudah ada aplikasi")) {
+    }
+    if (lowerMessage.contains("sudah ada")
+        || lowerMessage.contains("already exists")
+        || lowerMessage.contains("pending")) {
       return HttpStatus.CONFLICT;
     }
+    if (lowerMessage.contains("tidak valid")
+        || lowerMessage.contains("invalid")
+        || lowerMessage.contains("authorization")) {
+      return HttpStatus.UNAUTHORIZED;
+    }
+    if (lowerMessage.contains("tidak memenuhi") || lowerMessage.contains("validation")) {
+      return HttpStatus.BAD_REQUEST;
+    }
+    if (lowerMessage.contains("terlalu besar") || lowerMessage.contains("too large")) {
+      return HttpStatus.PAYLOAD_TOO_LARGE;
+    }
+    if (lowerMessage.contains("tipe file")
+        || lowerMessage.contains("file type")
+        || lowerMessage.contains("unsupported")) {
+      return HttpStatus.UNSUPPORTED_MEDIA_TYPE;
+    }
 
-    return HttpStatus.BAD_REQUEST;
+    return HttpStatus.INTERNAL_SERVER_ERROR;
+  }
+
+  /** Error response DTO */
+  private static class ErrorResponse {
+    private final String message;
+    private final long timestamp;
+
+    public ErrorResponse(String message, long timestamp) {
+      this.message = message;
+      this.timestamp = timestamp;
+    }
+
+    public String getMessage() {
+      return message;
+    }
+
+    public long getTimestamp() {
+      return timestamp;
+    }
   }
 }

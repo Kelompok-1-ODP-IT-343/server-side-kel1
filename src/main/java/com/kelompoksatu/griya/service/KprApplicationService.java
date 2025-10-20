@@ -1,7 +1,11 @@
 package com.kelompoksatu.griya.service;
 
+import com.kelompoksatu.griya.dto.EmploymentData;
+import com.kelompoksatu.griya.dto.KprApplicationFormRequest;
 import com.kelompoksatu.griya.dto.KprApplicationRequest;
 import com.kelompoksatu.griya.dto.KprApplicationResponse;
+import com.kelompoksatu.griya.dto.PersonalData;
+import com.kelompoksatu.griya.dto.SimulationData;
 import com.kelompoksatu.griya.entity.*;
 import com.kelompoksatu.griya.repository.*;
 import java.math.BigDecimal;
@@ -9,6 +13,9 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +36,94 @@ public class KprApplicationService {
   private final DeveloperRepository developerRepository;
   private final ApprovalLevelRepository approvalLevelRepository;
   private final ApprovalWorkflowRepository approvalWorkflowRepository;
+  private final ApplicationDocumentRepository applicationDocumentRepository;
+  private final FileStorageService fileStorageService;
+
+  /** Submit a new KPR application with documents (form-data) */
+  @Transactional
+  public KprApplicationResponse submitApplicationWithDocuments(
+      Integer userId, KprApplicationFormRequest formRequest) {
+    log.info(
+        "Processing KPR application with documents for user: {} and property: {}",
+        userId,
+        formRequest.getPropertyId());
+
+    try {
+      // 1. Authentication & Authorization
+      User user = validateUser(userId);
+
+      // 2. Data Validation (Properties)
+      Property property = validatePropertyForForm(formRequest);
+
+      // 3. Check for existing pending applications
+      if (kprApplicationRepository.existsPendingApplicationByUserAndProperty(
+          userId, formRequest.getPropertyId())) {
+        throw new IllegalStateException(
+            "Anda sudah memiliki aplikasi KPR yang sedang diproses untuk properti ini");
+      }
+
+      // 4. Update user profile with personal data
+      updateUserProfileFromForm(
+          userId, formRequest.getPersonalData(), formRequest.getEmploymentData());
+
+      // 5. Get KPR rate
+      KprRate selectedRate =
+          validateAndGetKprRate(formRequest.getKprRateId(), formRequest.getSimulationData());
+
+      // 6. Calculate loan details
+      BigDecimal monthlyInstallment =
+          calculateMonthlyInstallment(
+              formRequest.getSimulationData().getLoanAmount(),
+              selectedRate.getEffectiveRate(),
+              formRequest.getSimulationData().getLoanTermYears());
+
+      // 7. Determine approval level
+      Integer currentApprovalLevel =
+          determineInitialApprovalLevel(formRequest.getSimulationData().getLoanAmount());
+
+      // 8. Generate application number
+      String applicationNumber = generateApplicationNumber();
+
+      // 9. Create KPR application
+      KprApplication application =
+          createKprApplicationFromForm(
+              userId,
+              formRequest,
+              property,
+              selectedRate,
+              monthlyInstallment,
+              applicationNumber,
+              currentApprovalLevel);
+
+      // 10. Save application
+      KprApplication savedApplication = kprApplicationRepository.save(application);
+      log.info("KPR application saved with ID: {}", savedApplication.getId());
+
+      // 11. Store documents
+      List<ApplicationDocument> documents =
+          storeApplicationDocuments(savedApplication.getId(), formRequest);
+      log.info(
+          "Stored {} documents for application: {}", documents.size(), savedApplication.getId());
+
+      // 12. Create initial approval workflow
+      createInitialApprovalWorkflow(savedApplication.getId(), currentApprovalLevel);
+
+      // 13. Build response
+      return KprApplicationResponse.builder()
+          .applicationId(savedApplication.getId())
+          .applicationNumber(applicationNumber)
+          .status(savedApplication.getStatus())
+          .monthlyInstallment(monthlyInstallment)
+          .interestRate(selectedRate.getEffectiveRate())
+          .message(
+              "Aplikasi KPR berhasil disubmit dengan dokumen. Silakan tunggu proses verifikasi.")
+          .build();
+
+    } catch (Exception e) {
+      log.error("Error processing KPR application with documents: {}", e.getMessage(), e);
+      throw e;
+    }
+  }
 
   /** Submit a new KPR application */
   @Transactional
@@ -350,5 +445,251 @@ public class KprApplicationService {
     }
 
     approvalWorkflowRepository.save(workflow);
+  }
+
+  /** Validate property for form request */
+  private Property validatePropertyForForm(KprApplicationFormRequest formRequest) {
+    Optional<Property> propertyOpt = propertyRepository.findById(formRequest.getPropertyId());
+    if (propertyOpt.isEmpty()) {
+      throw new IllegalArgumentException("Properti tidak ditemukan");
+    }
+
+    Property property = propertyOpt.get();
+    if (property.getStatus() != Property.PropertyStatus.AVAILABLE) {
+      throw new IllegalArgumentException("Properti tidak tersedia untuk KPR");
+    }
+
+    // Validate loan amount against property price
+    BigDecimal maxLoanAmount =
+        property.getPrice().multiply(BigDecimal.valueOf(0.80)); // Max 80% LTV
+    if (formRequest.getSimulationData().getLoanAmount().compareTo(maxLoanAmount) > 0) {
+      throw new IllegalArgumentException("Jumlah pinjaman melebihi 80% dari harga properti");
+    }
+
+    // Validate down payment
+    BigDecimal minDownPayment =
+        property.getPrice().multiply(BigDecimal.valueOf(0.20)); // Min 20% DP
+    if (formRequest.getSimulationData().getDownPayment().compareTo(minDownPayment) < 0) {
+      throw new IllegalArgumentException("Uang muka minimal 20% dari harga properti");
+    }
+
+    return property;
+  }
+
+  /** Update user profile with form data */
+  private void updateUserProfileFromForm(
+      Integer userId, PersonalData personalData, EmploymentData employmentData) {
+    Optional<UserProfile> profileOpt = userProfileRepository.findByUserId(userId);
+    UserProfile profile;
+
+    if (profileOpt.isPresent()) {
+      profile = profileOpt.get();
+    } else {
+      profile = new UserProfile();
+      profile.setUserId(userId);
+      profile.setCreatedAt(LocalDateTime.now());
+    }
+
+    // Update personal data
+    profile.setFullName(personalData.getFullName());
+    profile.setNik(personalData.getNik());
+    profile.setNpwp(personalData.getNpwp());
+    profile.setBirthDate(
+        LocalDate.parse(personalData.getBirthDate(), DateTimeFormatter.ISO_LOCAL_DATE));
+    profile.setBirthPlace(personalData.getBirthPlace());
+    profile.setGender(personalData.getGenderEnum());
+    profile.setMaritalStatus(personalData.getMaritalStatusEnum());
+    profile.setAddress(personalData.getAddress());
+    profile.setCity(personalData.getCity());
+    profile.setProvince(personalData.getProvince());
+    profile.setPostalCode(personalData.getPostalCode());
+
+    // Update employment data
+    profile.setOccupation(employmentData.getOccupation());
+    profile.setMonthlyIncome(employmentData.getMonthlyIncome());
+    profile.setCompanyName(employmentData.getCompanyName());
+    // profile.setCompanyAddress(employmentData.getCompanyAddress());
+    // profile.setCompanyCity(employmentData.getCompanyCity());
+    // profile.setCompanyProvince(employmentData.getCompanyProvince());
+    // profile.setCompanyPostalCode(employmentData.getCompanyPostalCode());
+
+    profile.setUpdatedAt(LocalDateTime.now());
+    userProfileRepository.save(profile);
+
+    log.info("Updated user profile for user: {}", userId);
+  }
+
+  /** Validate and get KPR rate */
+  private KprRate validateAndGetKprRate(Integer kprRateId, SimulationData simulationData) {
+    Optional<KprRate> rateOpt = kprRateRepository.findById(kprRateId);
+    if (rateOpt.isEmpty()) {
+      throw new IllegalArgumentException("KPR rate tidak ditemukan");
+    }
+
+    KprRate rate = rateOpt.get();
+    if (!rate.getIsActive()) {
+      throw new IllegalArgumentException("KPR rate tidak aktif");
+    }
+
+    // Validate loan amount against rate limits
+    if (simulationData.getLoanAmount().compareTo(rate.getMinLoanAmount()) < 0
+        || simulationData.getLoanAmount().compareTo(rate.getMaxLoanAmount()) > 0) {
+      throw new IllegalArgumentException(
+          "Jumlah pinjaman tidak sesuai dengan ketentuan rate yang dipilih");
+    }
+
+    // Validate loan term
+    if (simulationData.getLoanTermYears() < rate.getMinTermYears()
+        || simulationData.getLoanTermYears() > rate.getMaxTermYears()) {
+      throw new IllegalArgumentException(
+          "Jangka waktu pinjaman tidak sesuai dengan ketentuan rate yang dipilih");
+    }
+
+    return rate;
+  }
+
+  /** Create KPR application from form data */
+  private KprApplication createKprApplicationFromForm(
+      Integer userId,
+      KprApplicationFormRequest formRequest,
+      Property property,
+      KprRate selectedRate,
+      BigDecimal monthlyInstallment,
+      String applicationNumber,
+      Integer currentApprovalLevel) {
+
+    KprApplication application = new KprApplication();
+
+    // Basic info
+    application.setUserId(userId);
+    application.setPropertyId(formRequest.getPropertyId());
+    application.setApplicationNumber(applicationNumber);
+    application.setStatus(KprApplication.ApplicationStatus.SUBMITTED);
+
+    // Loan details
+    application.setLoanAmount(formRequest.getSimulationData().getLoanAmount());
+    application.setDownPayment(formRequest.getSimulationData().getDownPayment());
+    application.setLoanTermYears(formRequest.getSimulationData().getLoanTermYears());
+    application.setInterestRate(selectedRate.getEffectiveRate());
+    application.setMonthlyInstallment(monthlyInstallment);
+    application.setKprRateId(selectedRate.getId());
+
+    // Property details
+    application.setPropertyValue(formRequest.getSimulationData().getPropertyValue());
+    application.setPropertyType(property.getPropertyType());
+    application.setPropertyAddress(
+        String.format(
+            "%s, %s, %s %s",
+            property.getAddress(),
+            property.getCity(),
+            property.getProvince(),
+            property.getPostalCode()));
+    application.setPropertyCertificateType(property.getCertificateType());
+
+    // Developer name if available
+    if (property.getDeveloperId() != null) {
+      String developerName =
+          developerRepository
+              .findById(property.getDeveloperId())
+              .map(Developer::getCompanyName)
+              .orElse(null);
+      application.setDeveloperName(developerName);
+    }
+
+    // Purpose
+    application.setPurpose(formRequest.getPurpose());
+
+    // LTV ratio calculation
+    application.setLtvRatio(calculateLtvRatio(formRequest));
+
+    // Approval details
+    application.setCurrentApprovalLevel(currentApprovalLevel);
+
+    // Timestamps
+    application.setSubmittedAt(LocalDateTime.now());
+    application.setCreatedAt(LocalDateTime.now());
+    application.setUpdatedAt(LocalDateTime.now());
+
+    return application;
+  }
+
+  /** Store application documents */
+  private List<ApplicationDocument> storeApplicationDocuments(
+      Integer applicationId, KprApplicationFormRequest formRequest) {
+    List<ApplicationDocument> documents = new ArrayList<>();
+
+    try {
+      // Store KTP document (required)
+      if (formRequest.getKtpDocument() != null && !formRequest.getKtpDocument().isEmpty()) {
+        ApplicationDocument ktpDoc =
+            fileStorageService.storeFile(
+                formRequest.getKtpDocument(), ApplicationDocument.DocumentType.KTP, applicationId);
+        documents.add(applicationDocumentRepository.save(ktpDoc));
+        log.info("Stored KTP document for application: {}", applicationId);
+      }
+
+      // Store NPWP document (optional)
+      if (formRequest.getNpwpDocument() != null && !formRequest.getNpwpDocument().isEmpty()) {
+        ApplicationDocument npwpDoc =
+            fileStorageService.storeFile(
+                formRequest.getNpwpDocument(),
+                ApplicationDocument.DocumentType.NPWP,
+                applicationId);
+        documents.add(applicationDocumentRepository.save(npwpDoc));
+        log.info("Stored NPWP document for application: {}", applicationId);
+      }
+
+      // Store salary slip document (required)
+      if (formRequest.getSalarySlipDocument() != null
+          && !formRequest.getSalarySlipDocument().isEmpty()) {
+        ApplicationDocument salaryDoc =
+            fileStorageService.storeFile(
+                formRequest.getSalarySlipDocument(),
+                ApplicationDocument.DocumentType.SLIP_GAJI,
+                applicationId);
+        documents.add(applicationDocumentRepository.save(salaryDoc));
+        log.info("Stored salary slip document for application: {}", applicationId);
+      }
+
+      // Store other document (optional)
+      if (formRequest.getOtherDocument() != null && !formRequest.getOtherDocument().isEmpty()) {
+        ApplicationDocument otherDoc =
+            fileStorageService.storeFile(
+                formRequest.getOtherDocument(),
+                ApplicationDocument.DocumentType.OTHER,
+                applicationId);
+        documents.add(applicationDocumentRepository.save(otherDoc));
+        log.info("Stored other document for application: {}", applicationId);
+      }
+
+    } catch (Exception e) {
+      log.error("Error storing documents for application: {}", applicationId, e);
+      // Clean up any stored files if there's an error
+      documents.forEach(
+          doc -> {
+            try {
+              fileStorageService.deleteFile(doc.getFilePath());
+              applicationDocumentRepository.delete(doc);
+            } catch (Exception cleanupError) {
+              log.error("Error cleaning up document: {}", doc.getFilePath(), cleanupError);
+            }
+          });
+      throw new RuntimeException("Gagal menyimpan dokumen: " + e.getMessage());
+    }
+
+    return documents;
+  }
+
+  /** Calculate LTV (Loan to Value) ratio */
+  private BigDecimal calculateLtvRatio(KprApplicationFormRequest formRequest) {
+    SimulationData simulationData = formRequest.getSimulationData();
+    BigDecimal loanAmount = simulationData.getLoanAmount();
+    BigDecimal propertyValue = simulationData.getPropertyValue();
+
+    if (propertyValue == null || propertyValue.compareTo(BigDecimal.ZERO) == 0) {
+      throw new IllegalArgumentException("Nilai properti tidak boleh kosong atau nol");
+    }
+
+    return loanAmount.divide(propertyValue, 4, RoundingMode.HALF_UP);
   }
 }

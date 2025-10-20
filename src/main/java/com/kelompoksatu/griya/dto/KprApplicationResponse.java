@@ -3,11 +3,13 @@ package com.kelompoksatu.griya.dto;
 import com.kelompoksatu.griya.entity.KprApplication;
 import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /** Response DTO for successful KPR application submission */
 @Data
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class KprApplicationResponse {
