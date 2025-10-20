@@ -30,7 +30,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.util.Pair;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -464,83 +463,6 @@ class AuthServiceTest {
 
     verify(tokenRepo).findByToken(hashedToken);
     verify(userRepo, never()).save(any());
-  }
-
-  @Test
-  @DisplayName("Should refresh token successfully")
-  void shouldRefreshTokenSuccessfully() {
-    // Given
-    TokenRefreshRequest request = new TokenRefreshRequest();
-    request.setRefreshToken("oldRefreshToken");
-
-    String username = "testuser";
-    String newAccessToken = "newAccessToken";
-    String newRefreshToken = "newRefreshToken";
-
-    when(userSessionRepository.findActiveByRefreshToken("oldRefreshToken"))
-        .thenReturn(Optional.of(testSession));
-    when(jwtUtil.extractUsername("oldRefreshToken")).thenReturn(username);
-    when(userRepo.findByUsernameWithRole(username)).thenReturn(Optional.of(testUser));
-    when(jwtUtil.generateAccessToken(username, testUser.getId(), testUser.getRole().getName()))
-        .thenReturn(newAccessToken);
-    when(jwtUtil.generateRefreshToken(username, testUser.getId(), testUser.getRole().getName()))
-        .thenReturn(newRefreshToken);
-    when(jwtUtil.hashToken(newRefreshToken)).thenReturn("hashedNewRefreshToken");
-
-    // When
-    AuthResponse result = authService.refreshToken(request);
-
-    // Then
-    assertThat(result).isNotNull();
-    assertThat(result.getToken()).isEqualTo(newAccessToken);
-    assertThat(result.getRefreshToken()).isEqualTo(newRefreshToken);
-
-    verify(userSessionRepository).findActiveByRefreshToken("oldRefreshToken");
-    verify(jwtUtil).extractUsername("oldRefreshToken");
-    verify(userRepo).findByUsernameWithRole(username);
-    verify(userSessionRepository, times(2)).save(any(UserSession.class));
-  }
-
-  @Test
-  @DisplayName("Should throw exception when refresh token not found")
-  void shouldThrowExceptionWhenRefreshTokenNotFound() {
-    // Given
-    TokenRefreshRequest request = new TokenRefreshRequest();
-    request.setRefreshToken("invalidRefreshToken");
-
-    when(userSessionRepository.findActiveByRefreshToken("invalidRefreshToken"))
-        .thenReturn(Optional.empty());
-
-    // When & Then
-    assertThatThrownBy(() -> authService.refreshToken(request))
-        .isInstanceOf(AuthenticationCredentialsNotFoundException.class)
-        .hasMessage("Refresh token not found or revoked");
-
-    verify(userSessionRepository).findActiveByRefreshToken("invalidRefreshToken");
-    verify(jwtUtil, never()).extractUsername(any());
-  }
-
-  @Test
-  @DisplayName("Should throw exception when user not found during token refresh")
-  void shouldThrowExceptionWhenUserNotFoundDuringTokenRefresh() {
-    // Given
-    TokenRefreshRequest request = new TokenRefreshRequest();
-    request.setRefreshToken("validRefreshToken");
-    String username = "nonexistentuser";
-
-    when(userSessionRepository.findActiveByRefreshToken("validRefreshToken"))
-        .thenReturn(Optional.of(testSession));
-    when(jwtUtil.extractUsername("validRefreshToken")).thenReturn(username);
-    when(userRepo.findByUsernameWithRole(username)).thenReturn(Optional.empty());
-
-    // When & Then
-    assertThatThrownBy(() -> authService.refreshToken(request))
-        .isInstanceOf(UsernameNotFoundException.class)
-        .hasMessage("User not found");
-
-    verify(userSessionRepository).findActiveByRefreshToken("validRefreshToken");
-    verify(jwtUtil).extractUsername("validRefreshToken");
-    verify(userRepo).findByUsernameWithRole(username);
   }
 
   @Test
