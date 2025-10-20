@@ -5,10 +5,10 @@ import com.kelompoksatu.griya.dto.CreatePropertyRequest;
 import com.kelompoksatu.griya.dto.PropertyResponse;
 import com.kelompoksatu.griya.entity.Property;
 import com.kelompoksatu.griya.service.PropertyService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -17,8 +17,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import java.util.Map;
-
 
 /** REST Controller for Property operations */
 @RestController
@@ -58,30 +56,30 @@ public class PropertyController {
    */
   @GetMapping
   public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAllProperties(
-          @RequestParam(required = false) String city,
-          @RequestParam(required = false) BigDecimal minPrice,
-          @RequestParam(required = false) BigDecimal maxPrice,
-          @RequestParam(required = false, name = "propertyType") String propertyType,
-          @RequestParam(defaultValue = "0") int offset,
-          @RequestParam(defaultValue = "10") int limit) {
+      @RequestParam(required = false) String city,
+      @RequestParam(required = false) BigDecimal minPrice,
+      @RequestParam(required = false) BigDecimal maxPrice,
+      @RequestParam(required = false, name = "propertyType") String propertyType,
+      @RequestParam(defaultValue = "0") int offset,
+      @RequestParam(defaultValue = "10") int limit) {
 
-      try {
-          List<Map<String, Object>> properties =
-                  propertyService.getPropertiesWithFilter(city, minPrice, maxPrice, propertyType, offset, limit);
+    try {
+      List<Map<String, Object>> properties =
+          propertyService.getPropertiesWithFilter(
+              city, minPrice, maxPrice, propertyType, offset, limit);
 
-          ApiResponse<List<Map<String, Object>>> response =
-                  new ApiResponse<>(true, "Properties retrieved successfully", properties);
+      ApiResponse<List<Map<String, Object>>> response =
+          new ApiResponse<>(true, "Properties retrieved successfully", properties);
 
-          return ResponseEntity.ok(response);
+      return ResponseEntity.ok(response);
 
-      } catch (Exception e) {
-          ApiResponse<List<Map<String, Object>>> response =
-                  new ApiResponse<>(false, "Failed to retrieve properties: " + e.getMessage(), null);
+    } catch (Exception e) {
+      ApiResponse<List<Map<String, Object>>> response =
+          new ApiResponse<>(false, "Failed to retrieve properties: " + e.getMessage(), null);
 
-          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-      }
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
   }
-
 
   /** Get property by ID */
   @GetMapping("/{id}")

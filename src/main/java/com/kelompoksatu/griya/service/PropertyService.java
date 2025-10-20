@@ -9,15 +9,13 @@ import com.kelompoksatu.griya.repository.PropertyRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.Map;
-
-
 
 /** Service class for Property business logic */
 @Service
@@ -363,10 +361,15 @@ public class PropertyService {
     return propertyRepository.existsBySlug(slug);
   }
 
-    @Transactional(readOnly = true)
-    public List<Map<String, Object>> getPropertiesWithFilter(
-            String city, BigDecimal minPrice, BigDecimal maxPrice, String propertyType, int offset, int limit) {
-        return propertyRepository.findPropertiesWithFilter(city, minPrice, maxPrice, propertyType, offset, limit);
-    }
-
+  @Transactional(readOnly = true)
+  public List<Map<String, Object>> getPropertiesWithFilter(
+      String city,
+      BigDecimal minPrice,
+      BigDecimal maxPrice,
+      String propertyType,
+      int offset,
+      int limit) {
+    return propertyRepository.findPropertiesWithFilter(
+        city, minPrice, maxPrice, propertyType, offset, limit);
+  }
 }

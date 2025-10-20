@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 /** REST Controller for Developer operations */
 @RestController
-@RequestMapping("/api/developers")
+@RequestMapping("/api/v1/developers")
 @Validated
 public class DeveloperController {
 

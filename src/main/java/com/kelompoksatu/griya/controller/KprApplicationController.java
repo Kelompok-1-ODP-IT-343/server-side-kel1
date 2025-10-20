@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
  * authentication
  */
 @RestController
-@RequestMapping("/api/me")
+@RequestMapping("/api/v1")
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RequiredArgsConstructor
 @Slf4j
