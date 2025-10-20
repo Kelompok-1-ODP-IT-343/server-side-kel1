@@ -179,4 +179,30 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
       @Param("propertyType") String propertyType,
       @Param("offset") int offset,
       @Param("limit") int limit);
+
+    @Query(value = """
+SELECT 
+    p.id,
+    p.property_code,
+    p.title,
+    p.city,
+    p.price,
+    p.property_type,
+    p.listing_type,
+    p.description,
+    COALESCE(
+        json_agg(DISTINCT pi.file_path) FILTER (WHERE pi.file_path IS NOT NULL),
+        '[]'
+    ) AS images,
+    json_agg(DISTINCT jsonb_build_object('featureName', pf.feature_name, 'featureValue', pf.feature_value)) AS features,
+    json_agg(DISTINCT jsonb_build_object('poiName', pl.poi_name, 'distanceKm', pl.distance_km)) AS locations
+FROM properties p
+LEFT JOIN property_images pi ON pi.property_id = p.id
+LEFT JOIN property_features pf ON pf.property_id = p.id
+LEFT JOIN property_locations pl ON pl.property_id = p.id
+WHERE p.id = :id
+GROUP BY p.id
+""", nativeQuery = true)
+    Map<String, Object> findPropertyDetailsById(@Param("id") Integer id);
+
 }

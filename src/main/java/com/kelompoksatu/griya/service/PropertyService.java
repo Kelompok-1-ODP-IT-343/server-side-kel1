@@ -372,4 +372,10 @@ public class PropertyService {
     return propertyRepository.findPropertiesWithFilter(
         city, minPrice, maxPrice, propertyType, offset, limit);
   }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getPropertyDetails(Integer id) {
+        return propertyRepository.findPropertyDetailsById(id);
+    }
+
 }
