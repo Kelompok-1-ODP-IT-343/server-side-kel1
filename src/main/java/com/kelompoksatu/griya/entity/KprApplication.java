@@ -7,7 +7,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 /** KPR Application entity representing home loan applications */
 @Entity
@@ -34,6 +36,7 @@ public class KprApplication {
   private Integer kprRateId;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "property_type", nullable = false)
   private Property.PropertyType propertyType;
 
@@ -62,6 +65,7 @@ public class KprApplication {
   private String propertyAddress;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "property_certificate_type", nullable = false)
   private Property.CertificateType propertyCertificateType;
 
@@ -69,10 +73,12 @@ public class KprApplication {
   private String developerName;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "purpose", nullable = false)
-  private ApplicationPurpose purpose;
+  private ApplicationPurpose purpose = ApplicationPurpose.PRIMARY_RESIDENCE;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "status", nullable = false)
   private ApplicationStatus status = ApplicationStatus.SUBMITTED;
 

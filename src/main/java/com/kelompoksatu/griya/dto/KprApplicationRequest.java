@@ -1,6 +1,5 @@
 package com.kelompoksatu.griya.dto;
 
-import com.kelompoksatu.griya.entity.KprApplication;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
@@ -22,6 +21,4 @@ public class KprApplicationRequest {
   @NotNull(message = "Loan term is required") @Min(value = 1, message = "Loan term must be at least 1 year")
   @Max(value = 30, message = "Loan term cannot exceed 30 years")
   private Integer loanTermYears;
-
-  @NotNull(message = "Purpose is required") private KprApplication.ApplicationPurpose purpose;
 }

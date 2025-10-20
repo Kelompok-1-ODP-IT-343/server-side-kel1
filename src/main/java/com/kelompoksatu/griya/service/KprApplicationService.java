@@ -19,10 +19,11 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Service for KPR Application business logic */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -38,12 +39,15 @@ public class KprApplicationService {
   private final ApprovalWorkflowRepository approvalWorkflowRepository;
   private final ApplicationDocumentRepository applicationDocumentRepository;
   private final FileStorageService fileStorageService;
+  private final LoanRepository loanRepository;
+
+  Logger logger = LoggerFactory.getLogger(KprApplicationService.class);
 
   /** Submit a new KPR application with documents (form-data) */
   @Transactional
   public KprApplicationResponse submitApplicationWithDocuments(
       Integer userId, KprApplicationFormRequest formRequest) {
-    log.info(
+    logger.info(
         "Processing KPR application with documents for user: {} and property: {}",
         userId,
         formRequest.getPropertyId());
@@ -97,7 +101,6 @@ public class KprApplicationService {
 
       // 10. Save application
       KprApplication savedApplication = kprApplicationRepository.save(application);
-      log.info("KPR application saved with ID: {}", savedApplication.getId());
 
       // 11. Store documents
       List<ApplicationDocument> documents =
@@ -108,7 +111,7 @@ public class KprApplicationService {
       // 12. Create initial approval workflow
       createInitialApprovalWorkflow(savedApplication.getId(), currentApprovalLevel);
 
-      // 13. Build response
+      // 14. Build response
       return KprApplicationResponse.builder()
           .applicationId(savedApplication.getId())
           .applicationNumber(applicationNumber)
@@ -401,6 +404,10 @@ public class KprApplicationService {
     }
 
     KprApplication application = new KprApplication();
+    logger.info("Creating KPR application with number: {}", applicationNumber);
+    logger.info(
+        "Selected KPR rate: {} with effective rate: {}%",
+        selectedRate.getCustomerSegment(), selectedRate.getEffectiveRate());
     application.setApplicationNumber(applicationNumber);
     application.setUserId(userId);
     application.setPropertyId(request.getPropertyId());
@@ -415,7 +422,10 @@ public class KprApplicationService {
     application.setPropertyAddress(propertyAddress);
     application.setPropertyCertificateType(property.getCertificateType());
     application.setDeveloperName(developerName);
-    application.setPurpose(request.getPurpose());
+
+    // Set purpose with fallback to default if null
+    application.setPurpose(KprApplication.ApplicationPurpose.PRIMARY_RESIDENCE);
+
     application.setStatus(KprApplication.ApplicationStatus.SUBMITTED);
     application.setCurrentApprovalLevel(currentApprovalLevel);
     application.setSubmittedAt(LocalDateTime.now());
@@ -596,8 +606,12 @@ public class KprApplicationService {
       application.setDeveloperName(developerName);
     }
 
-    // Purpose
-    application.setPurpose(formRequest.getPurpose());
+    // Purpose with null check
+    KprApplication.ApplicationPurpose purpose = formRequest.getPurpose();
+    if (purpose == null) {
+      purpose = KprApplication.ApplicationPurpose.PRIMARY_RESIDENCE;
+    }
+    application.setPurpose(purpose);
 
     // LTV ratio calculation
     application.setLtvRatio(calculateLtvRatio(formRequest));
@@ -682,14 +696,15 @@ public class KprApplicationService {
 
   /** Calculate LTV (Loan to Value) ratio */
   private BigDecimal calculateLtvRatio(KprApplicationFormRequest formRequest) {
-    SimulationData simulationData = formRequest.getSimulationData();
-    BigDecimal loanAmount = simulationData.getLoanAmount();
-    BigDecimal propertyValue = simulationData.getPropertyValue();
-
-    if (propertyValue == null || propertyValue.compareTo(BigDecimal.ZERO) == 0) {
-      throw new IllegalArgumentException("Nilai properti tidak boleh kosong atau nol");
-    }
-
+    BigDecimal propertyValue = formRequest.getSimulationData().getPropertyValue();
+    BigDecimal loanAmount = formRequest.getSimulationData().getLoanAmount();
     return loanAmount.divide(propertyValue, 4, RoundingMode.HALF_UP);
+  }
+
+  /** Generate unique loan number with format: LOAN-YYYY-XXXXXX */
+  private String generateLoanNumber() {
+    String year = String.valueOf(LocalDate.now().getYear());
+    String timestamp = String.valueOf(System.currentTimeMillis()).substring(7); // Last 6 digits
+    return String.format("LOAN-%s-%s", year, timestamp);
   }
 }

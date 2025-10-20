@@ -180,8 +180,10 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
       @Param("offset") int offset,
       @Param("limit") int limit);
 
-    @Query(value = """
-SELECT 
+  @Query(
+      value =
+          """
+SELECT
     p.id,
     p.property_code,
     p.title,
@@ -202,7 +204,7 @@ LEFT JOIN property_features pf ON pf.property_id = p.id
 LEFT JOIN property_locations pl ON pl.property_id = p.id
 WHERE p.id = :id
 GROUP BY p.id
-""", nativeQuery = true)
-    Map<String, Object> findPropertyDetailsById(@Param("id") Integer id);
-
+""",
+      nativeQuery = true)
+  Map<String, Object> findPropertyDetailsById(@Param("id") Integer id);
 }

@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 /**
  * Entity for storing KPR application document metadata Based on ERD specification for
@@ -25,6 +27,7 @@ public class ApplicationDocument {
   private Integer applicationId;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "document_type", nullable = false)
   private DocumentType documentType;
 
@@ -42,10 +45,6 @@ public class ApplicationDocument {
 
   @Column(name = "is_verified", nullable = false)
   private Boolean isVerified = false;
-
-  @Enumerated(EnumType.STRING)
-  @Column(name = "verification_status", nullable = false)
-  private VerificationStatus verificationStatus = VerificationStatus.PENDING;
 
   @Column(name = "verified_by")
   private Integer verifiedBy; // user_id of admin who verified
@@ -160,7 +159,6 @@ public class ApplicationDocument {
   /** Mark document as verified by admin */
   public void markAsVerified(Integer verifiedBy, String notes) {
     this.isVerified = true;
-    this.verificationStatus = VerificationStatus.VERIFIED;
     this.verifiedBy = verifiedBy;
     this.verifiedAt = LocalDateTime.now();
     this.verificationNotes = notes;
@@ -169,7 +167,6 @@ public class ApplicationDocument {
   /** Mark document as rejected by admin */
   public void markAsRejected(Integer verifiedBy, String notes) {
     this.isVerified = false;
-    this.verificationStatus = VerificationStatus.REJECTED;
     this.verifiedBy = verifiedBy;
     this.verifiedAt = LocalDateTime.now();
     this.verificationNotes = notes;

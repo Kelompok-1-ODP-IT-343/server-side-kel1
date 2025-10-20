@@ -18,6 +18,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -41,6 +43,7 @@ import org.springframework.web.multipart.MultipartFile;
 @SecurityRequirement(name = "bearerAuth")
 public class KprApplicationController {
 
+  private static final Logger logger = LoggerFactory.getLogger(KprApplicationController.class);
   private final KprApplicationService kprApplicationService;
   private final JwtUtil jwtUtil;
 
@@ -167,7 +170,7 @@ public class KprApplicationController {
       log.info("Received KPR application form-data request for property ID: {}", propertyId);
 
       // Extract and validate JWT token
-      String token = extractTokenFromHeader(authHeader);
+      var token = extractTokenFromHeader(authHeader);
 
       // Extract user ID from token
       Integer userId = jwtUtil.extractUserId(token);
@@ -180,7 +183,7 @@ public class KprApplicationController {
       log.info("Processing KPR application for user ID: {}", userId);
 
       // Build form request object
-      KprApplicationFormRequest formRequest =
+      var formRequest =
           KprApplicationFormRequest.builder()
               .propertyId(propertyId)
               .kprRateId(kprRateId)

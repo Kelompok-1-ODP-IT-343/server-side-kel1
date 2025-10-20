@@ -373,9 +373,8 @@ public class PropertyService {
         city, minPrice, maxPrice, propertyType, offset, limit);
   }
 
-    @Transactional(readOnly = true)
-    public Map<String, Object> getPropertyDetails(Integer id) {
-        return propertyRepository.findPropertyDetailsById(id);
-    }
-
+  @Transactional(readOnly = true)
+  public Map<String, Object> getPropertyDetails(Integer id) {
+    return propertyRepository.findPropertyDetailsById(id);
+  }
 }

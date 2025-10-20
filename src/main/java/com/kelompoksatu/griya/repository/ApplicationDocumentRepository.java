@@ -63,7 +63,7 @@ public interface ApplicationDocumentRepository extends JpaRepository<Application
    * @return List of unverified documents
    */
   @Query(
-      "SELECT ad FROM ApplicationDocument ad WHERE ad.verificationStatus = 'PENDING' ORDER BY ad.uploadedAt ASC")
+      "SELECT ad FROM ApplicationDocument ad WHERE ad.isVerified = false AND ad.verifiedAt IS NULL ORDER BY ad.uploadedAt ASC")
   List<ApplicationDocument> findDocumentsNeedingVerification();
 
   /**
@@ -73,7 +73,7 @@ public interface ApplicationDocumentRepository extends JpaRepository<Application
    * @return List of verified documents
    */
   @Query(
-      "SELECT ad FROM ApplicationDocument ad WHERE ad.applicationId = :applicationId AND ad.verificationStatus = 'VERIFIED' ORDER BY ad.documentType")
+      "SELECT ad FROM ApplicationDocument ad WHERE ad.applicationId = :applicationId AND ad.isVerified = true ORDER BY ad.documentType")
   List<ApplicationDocument> findVerifiedDocumentsByApplicationId(
       @Param("applicationId") Integer applicationId);
 
@@ -84,7 +84,7 @@ public interface ApplicationDocumentRepository extends JpaRepository<Application
    * @return List of rejected documents
    */
   @Query(
-      "SELECT ad FROM ApplicationDocument ad WHERE ad.applicationId = :applicationId AND ad.verificationStatus = 'REJECTED' ORDER BY ad.uploadedAt DESC")
+      "SELECT ad FROM ApplicationDocument ad WHERE ad.applicationId = :applicationId AND ad.isVerified = false AND ad.verifiedAt IS NOT NULL ORDER BY ad.uploadedAt DESC")
   List<ApplicationDocument> findRejectedDocumentsByApplicationId(
       @Param("applicationId") Integer applicationId);
 
@@ -96,7 +96,10 @@ public interface ApplicationDocumentRepository extends JpaRepository<Application
    * @return Count of documents
    */
   @Query(
-      "SELECT COUNT(ad) FROM ApplicationDocument ad WHERE ad.applicationId = :applicationId AND ad.verificationStatus = :verificationStatus")
+      "SELECT COUNT(ad) FROM ApplicationDocument ad WHERE ad.applicationId = :applicationId AND ("
+          + ":verificationStatus = com.kelompoksatu.griya.entity.ApplicationDocument$VerificationStatus.VERIFIED AND ad.isVerified = true AND ad.verifiedAt IS NOT NULL OR "
+          + ":verificationStatus = com.kelompoksatu.griya.entity.ApplicationDocument$VerificationStatus.REJECTED AND ad.isVerified = false AND ad.verifiedAt IS NOT NULL OR "
+          + ":verificationStatus = com.kelompoksatu.griya.entity.ApplicationDocument$VerificationStatus.PENDING AND ad.isVerified = false AND ad.verifiedAt IS NULL)")
   long countByApplicationIdAndVerificationStatus(
       @Param("applicationId") Integer applicationId,
       @Param("verificationStatus") ApplicationDocument.VerificationStatus verificationStatus);

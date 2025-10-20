@@ -120,9 +120,6 @@ public class KprRate {
   @Column(name = "updated_at", nullable = false)
   private LocalDateTime updatedAt;
 
-  @Column(name = "created_by", nullable = false)
-  private Integer createdBy;
-
   // Enums
   public enum RateType {
     FIXED,

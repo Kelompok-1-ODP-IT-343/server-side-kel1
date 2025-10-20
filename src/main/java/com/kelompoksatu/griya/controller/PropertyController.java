@@ -568,18 +568,19 @@ public class PropertyController {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
-    @GetMapping("/{id}/details")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getPropertyDetails(@PathVariable Integer id) {
-        try {
-            Map<String, Object> propertyDetail = propertyService.getPropertyDetails(id);
-            ApiResponse<Map<String, Object>> response =
-                    new ApiResponse<>(true, "Property detail retrieved successfully", propertyDetail);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ApiResponse<Map<String, Object>> response =
-                    new ApiResponse<>(false, "Failed to retrieve property detail: " + e.getMessage(), null);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
 
+  @GetMapping("/{id}/details")
+  public ResponseEntity<ApiResponse<Map<String, Object>>> getPropertyDetails(
+      @PathVariable Integer id) {
+    try {
+      Map<String, Object> propertyDetail = propertyService.getPropertyDetails(id);
+      ApiResponse<Map<String, Object>> response =
+          new ApiResponse<>(true, "Property detail retrieved successfully", propertyDetail);
+      return ResponseEntity.ok(response);
+    } catch (Exception e) {
+      ApiResponse<Map<String, Object>> response =
+          new ApiResponse<>(false, "Failed to retrieve property detail: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
 }
