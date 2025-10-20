@@ -147,7 +147,8 @@ public class AuthService {
       developerRequest.setPartnershipLevel(request.getPartnershipLevel());
       developerRequest.setCommissionRate(request.getCommissionRate());
 
-      DeveloperResponse developerResponse = developerService.createDeveloper(developerRequest);
+      DeveloperResponse developerResponse =
+          developerService.createDeveloper(developerRequest, savedUser);
 
       // Convert to UserResponse for consistency
       UserResponse userResponse = userService.convertToUserResponse(savedUser, developerRole);

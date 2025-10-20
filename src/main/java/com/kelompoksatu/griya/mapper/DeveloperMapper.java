@@ -29,6 +29,7 @@ public interface DeveloperMapper {
   @Mapping(target = "verifiedBy", ignore = true)
   @Mapping(target = "createdAt", ignore = true)
   @Mapping(target = "updatedAt", ignore = true)
+  @Mapping(target = "user", ignore = true)
   Developer toEntity(CreateDeveloperRequest request);
 
   /**

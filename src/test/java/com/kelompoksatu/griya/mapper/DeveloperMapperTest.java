@@ -68,6 +68,7 @@ class DeveloperMapperTest {
     assertNull(developer.getVerifiedBy());
     assertNull(developer.getCreatedAt());
     assertNull(developer.getUpdatedAt());
+    assertNull(developer.getUser()); // User relationship is set separately in service
   }
 
   @Test

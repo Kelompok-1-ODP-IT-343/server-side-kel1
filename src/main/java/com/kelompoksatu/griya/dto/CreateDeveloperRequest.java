@@ -3,8 +3,10 @@ package com.kelompoksatu.griya.dto;
 import com.kelompoksatu.griya.entity.Developer;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
+import lombok.Data;
 
 /** DTO for creating a new developer */
+@Data
 public class CreateDeveloperRequest {
 
   @NotBlank(message = "Company name is required")
@@ -74,151 +76,5 @@ public class CreateDeveloperRequest {
   @DecimalMax(value = "1.0000", message = "Commission rate must not exceed 100%")
   private BigDecimal commissionRate = new BigDecimal("0.0250"); // 2.5% default
 
-  // Default constructor
-  public CreateDeveloperRequest() {}
-
-  // Getters and Setters
-  public String getCompanyName() {
-    return companyName;
-  }
-
-  public void setCompanyName(String companyName) {
-    this.companyName = companyName;
-  }
-
-  public String getCompanyCode() {
-    return companyCode;
-  }
-
-  public void setCompanyCode(String companyCode) {
-    this.companyCode = companyCode;
-  }
-
-  public String getBusinessLicense() {
-    return businessLicense;
-  }
-
-  public void setBusinessLicense(String businessLicense) {
-    this.businessLicense = businessLicense;
-  }
-
-  public String getDeveloperLicense() {
-    return developerLicense;
-  }
-
-  public void setDeveloperLicense(String developerLicense) {
-    this.developerLicense = developerLicense;
-  }
-
-  public String getContactPerson() {
-    return contactPerson;
-  }
-
-  public void setContactPerson(String contactPerson) {
-    this.contactPerson = contactPerson;
-  }
-
-  public String getPhone() {
-    return phone;
-  }
-
-  public void setPhone(String phone) {
-    this.phone = phone;
-  }
-
-  public String getEmail() {
-    return email;
-  }
-
-  public void setEmail(String email) {
-    this.email = email;
-  }
-
-  public String getWebsite() {
-    return website;
-  }
-
-  public void setWebsite(String website) {
-    this.website = website;
-  }
-
-  public String getAddress() {
-    return address;
-  }
-
-  public void setAddress(String address) {
-    this.address = address;
-  }
-
-  public String getCity() {
-    return city;
-  }
-
-  public void setCity(String city) {
-    this.city = city;
-  }
-
-  public String getProvince() {
-    return province;
-  }
-
-  public void setProvince(String province) {
-    this.province = province;
-  }
-
-  public String getPostalCode() {
-    return postalCode;
-  }
-
-  public void setPostalCode(String postalCode) {
-    this.postalCode = postalCode;
-  }
-
-  public Integer getEstablishedYear() {
-    return establishedYear;
-  }
-
-  public void setEstablishedYear(Integer establishedYear) {
-    this.establishedYear = establishedYear;
-  }
-
-  public String getDescription() {
-    return description;
-  }
-
-  public void setDescription(String description) {
-    this.description = description;
-  }
-
-  public Developer.Specialization getSpecialization() {
-    return specialization;
-  }
-
-  public void setSpecialization(Developer.Specialization specialization) {
-    this.specialization = specialization;
-  }
-
-  public Boolean getIsPartner() {
-    return isPartner;
-  }
-
-  public void setIsPartner(Boolean isPartner) {
-    this.isPartner = isPartner;
-  }
-
-  public Developer.PartnershipLevel getPartnershipLevel() {
-    return partnershipLevel;
-  }
-
-  public void setPartnershipLevel(Developer.PartnershipLevel partnershipLevel) {
-    this.partnershipLevel = partnershipLevel;
-  }
-
-  public BigDecimal getCommissionRate() {
-    return commissionRate;
-  }
-
-  public void setCommissionRate(BigDecimal commissionRate) {
-    this.commissionRate = commissionRate;
-  }
+  private Integer userId;
 }

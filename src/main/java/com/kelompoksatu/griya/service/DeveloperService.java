@@ -6,6 +6,7 @@ import com.kelompoksatu.griya.dto.PaginatedResponse;
 import com.kelompoksatu.griya.dto.PaginationRequest;
 import com.kelompoksatu.griya.dto.UpdateDeveloperRequest;
 import com.kelompoksatu.griya.entity.Developer;
+import com.kelompoksatu.griya.entity.User;
 import com.kelompoksatu.griya.mapper.DeveloperMapper;
 import com.kelompoksatu.griya.repository.DeveloperRepository;
 import java.time.LocalDateTime;
@@ -27,7 +28,34 @@ public class DeveloperService {
   private final DeveloperRepository developerRepository;
   private final DeveloperMapper developerMapper;
 
-  /** Create a new developer */
+  /** Create a new developer with user relationship (for registration flow) */
+  public DeveloperResponse createDeveloper(CreateDeveloperRequest request, User user) {
+    // Validate unique constraints
+    if (developerRepository.existsByCompanyCode(request.getCompanyCode())) {
+      throw new IllegalArgumentException(
+          "Company code already exists: " + request.getCompanyCode());
+    }
+
+    if (developerRepository.existsByEmail(request.getEmail())) {
+      throw new IllegalArgumentException("Email already exists: " + request.getEmail());
+    }
+
+    // Create new developer entity using MapStruct
+    Developer developer = developerMapper.toEntity(request);
+
+    // Set the user relationship
+    developer.setUser(user);
+
+    // Set default status as ACTIVE
+    developer.setStatus(Developer.DeveloperStatus.ACTIVE);
+
+    // Save the developer
+    Developer savedDeveloper = developerRepository.save(developer);
+
+    return developerMapper.toResponse(savedDeveloper);
+  }
+
+  /** Create a new developer without user relationship (for admin direct creation) */
   public DeveloperResponse createDeveloper(CreateDeveloperRequest request) {
     // Validate unique constraints
     if (developerRepository.existsByCompanyCode(request.getCompanyCode())) {
