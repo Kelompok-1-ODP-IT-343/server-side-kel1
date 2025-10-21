@@ -5,7 +5,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 /** Property entity representing comprehensive property listings with detailed specifications */
 @Entity
@@ -23,10 +25,12 @@ public class Property {
   private Integer developerId;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "property_type", nullable = false)
   private PropertyType propertyType;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "listing_type", nullable = false)
   private ListingType listingType;
 
@@ -95,6 +99,7 @@ public class Property {
 
   // Legal & Certificates
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "certificate_type", nullable = false)
   private CertificateType certificateType;
 
@@ -109,6 +114,7 @@ public class Property {
 
   // Availability
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "status")
   private PropertyStatus status = PropertyStatus.AVAILABLE;
 

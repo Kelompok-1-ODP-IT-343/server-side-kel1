@@ -55,6 +55,7 @@ public class PropertyService {
 
     // Create new property entity
     Property property = new Property();
+    property.setDeveloperId(request.getDeveloperId());
     property.setPropertyCode(request.getPropertyCode());
     property.setDeveloper(developer);
     property.setPropertyType(request.getPropertyType());
