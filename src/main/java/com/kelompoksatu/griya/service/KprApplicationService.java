@@ -40,7 +40,6 @@ public class KprApplicationService {
   private final ApprovalWorkflowRepository approvalWorkflowRepository;
   private final ApplicationDocumentRepository applicationDocumentRepository;
   private final FileStorageService fileStorageService;
-  private final LoanRepository loanRepository;
 
   Logger logger = LoggerFactory.getLogger(KprApplicationService.class);
 
@@ -67,29 +66,35 @@ public class KprApplicationService {
             "Anda sudah memiliki aplikasi KPR yang sedang diproses untuk properti ini");
       }
 
-      // 4. Update user profile with personal data
+      // 4. Get Developer
+      Developer developer =
+          developerRepository
+              .findById(property.getDeveloperId())
+              .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
+
+      // 5. Update user profile with personal data
       updateUserProfileFromForm(
           userId, formRequest.getPersonalData(), formRequest.getEmploymentData());
 
-      // 5. Get KPR rate
+      // 6. Get KPR rate
       KprRate selectedRate =
           validateAndGetKprRate(formRequest.getKprRateId(), formRequest.getSimulationData());
 
-      // 6. Calculate loan details
+      // 7. Calculate loan details
       BigDecimal monthlyInstallment =
           calculateMonthlyInstallment(
               formRequest.getSimulationData().getLoanAmount(),
               selectedRate.getEffectiveRate(),
               formRequest.getSimulationData().getLoanTermYears());
 
-      // 7. Determine approval level
+      // 8. Determine approval level
       Integer currentApprovalLevel =
           determineInitialApprovalLevel(formRequest.getSimulationData().getLoanAmount());
 
-      // 8. Generate application number
+      // 9. Generate application number
       String applicationNumber = generateApplicationNumber();
 
-      // 9. Create KPR application
+      // 10. Create KPR application
       KprApplication application =
           createKprApplicationFromForm(
               userId,
@@ -100,17 +105,17 @@ public class KprApplicationService {
               applicationNumber,
               currentApprovalLevel);
 
-      // 10. Save application
+      // 11. Save application
       KprApplication savedApplication = kprApplicationRepository.save(application);
 
-      // 11. Store documents
+      // 12. Store documents
       List<ApplicationDocument> documents =
           storeApplicationDocuments(savedApplication.getId(), formRequest);
       log.info(
           "Stored {} documents for application: {}", documents.size(), savedApplication.getId());
 
-      // 12. Create initial approval workflow
-      createInitialApprovalWorkflow(savedApplication.getId(), currentApprovalLevel);
+      // 13. Create initial approval workflow
+      createInitialApprovalWorkflow(savedApplication.getId(), developer.getUser().getId());
 
       // 14. Build response
       return KprApplicationResponse.builder()
@@ -151,6 +156,11 @@ public class KprApplicationService {
       throw new IllegalStateException("You already have a pending application for this property");
     }
 
+    Developer developer =
+        developerRepository
+            .findById(property.getDeveloperId())
+            .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
+
     // 4. Rate Selection & Calculation
     BigDecimal loanAmount = property.getPrice().subtract(request.getDownPayment());
     KprRate selectedRate = selectBestRate(property, loanAmount, request.getLoanTermYears(), userId);
@@ -179,7 +189,7 @@ public class KprApplicationService {
     KprApplication savedApplication = kprApplicationRepository.save(application);
 
     // 8. Create initial approval workflow
-    createInitialApprovalWorkflow(savedApplication.getId(), currentApprovalLevel);
+    createInitialApprovalWorkflow(savedApplication.getId(), developer.getUser().getId());
 
     log.info(
         "KPR application created successfully with ID: {} and number: {}",
@@ -445,10 +455,9 @@ public class KprApplicationService {
 
     ApprovalWorkflow workflow = new ApprovalWorkflow();
     workflow.setApplicationId(applicationId);
-    workflow.setApprovalLevelId(approvalLevelId);
     workflow.setStage(ApprovalWorkflow.WorkflowStage.DOCUMENT_VERIFICATION);
     workflow.setStatus(ApprovalWorkflow.WorkflowStatus.PENDING);
-    workflow.setPriority(ApprovalWorkflow.WorkflowPriority.NORMAL);
+    workflow.setPriority(ApprovalWorkflow.PriorityLevel.NORMAL);
 
     // Set due date based on timeout hours
     if (level.getTimeoutHours() != null) {
