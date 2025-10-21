@@ -1,5 +1,5 @@
 -- ADMIN
-INSERT INTO roles (name, description, permissions)
+INSERT INTO roles (name, description, permissions, created_at, updated_at)
 VALUES (
            'ADMIN',
            'Administrator role with full system access',
@@ -10,11 +10,14 @@ VALUES (
              "kpr_applications": ["approve","reject","review","update"],
              "loans": ["create","read","update","delete"],
              "system_settings": ["manage"]
-           }'::json
+           }'::json,
+           NOW(),
+           NOW()
        )
 ON CONFLICT (name) DO NOTHING;
+
 -- USER
-INSERT INTO roles (name, description, permissions)
+INSERT INTO roles (name, description, permissions, created_at, updated_at)
 VALUES (
            'USER',
            'Default user role with limited access',
@@ -23,6 +26,8 @@ VALUES (
              "properties": ["read"],
              "kpr_applications": ["create","read"],
              "loans": ["read"]
-           }'::json
+           }'::json,
+           NOW(),
+           NOW()
        )
 ON CONFLICT (name) DO NOTHING;

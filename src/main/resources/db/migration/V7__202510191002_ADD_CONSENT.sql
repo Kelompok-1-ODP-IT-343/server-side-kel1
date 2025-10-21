@@ -1,0 +1,2 @@
+ALTER TABLE users
+    ADD COLUMN "consent_at" timestamp DEFAULT CURRENT_TIMESTAMP;
