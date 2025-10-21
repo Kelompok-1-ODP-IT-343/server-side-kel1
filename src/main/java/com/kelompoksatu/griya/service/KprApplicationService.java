@@ -1,6 +1,7 @@
 package com.kelompoksatu.griya.service;
 
 import com.kelompoksatu.griya.dto.EmploymentData;
+import com.kelompoksatu.griya.dto.KprApplicationDetailResponse;
 import com.kelompoksatu.griya.dto.KprApplicationFormRequest;
 import com.kelompoksatu.griya.dto.KprApplicationRequest;
 import com.kelompoksatu.griya.dto.KprApplicationResponse;
@@ -706,5 +707,77 @@ public class KprApplicationService {
     String year = String.valueOf(LocalDate.now().getYear());
     String timestamp = String.valueOf(System.currentTimeMillis()).substring(7); // Last 6 digits
     return String.format("LOAN-%s-%s", year, timestamp);
+  }
+
+  /**
+   * Get KPR application detail with documents
+   *
+   * @param applicationId Application ID
+   * @param userId User ID for authorization
+   * @return KprApplicationDetailResponse with application and document details
+   */
+  @Transactional(readOnly = true)
+  public KprApplicationDetailResponse getApplicationDetail(Integer applicationId, Integer userId) {
+    log.info("Retrieving KPR application detail for ID: {} by user: {}", applicationId, userId);
+
+    // Find application
+    KprApplication application =
+        kprApplicationRepository
+            .findById(applicationId)
+            .orElseThrow(() -> new IllegalArgumentException("Aplikasi KPR tidak ditemukan"));
+
+    // Get associated documents
+    List<ApplicationDocument> documents =
+        applicationDocumentRepository.findByApplicationIdOrderByUploadedAtDesc(applicationId);
+
+    // Convert documents to DTO
+    List<KprApplicationDetailResponse.DocumentInfo> documentInfos =
+        documents.stream()
+            .map(
+                doc ->
+                    KprApplicationDetailResponse.DocumentInfo.builder()
+                        .documentId(doc.getId())
+                        .documentType(doc.getDocumentType())
+                        .documentName(doc.getDocumentName())
+                        .filePath(doc.getFilePath())
+                        .fileSize(doc.getFileSize())
+                        .mimeType(doc.getMimeType())
+                        .isVerified(doc.getIsVerified())
+                        .verifiedBy(doc.getVerifiedBy())
+                        .verifiedAt(doc.getVerifiedAt())
+                        .verificationNotes(doc.getVerificationNotes())
+                        .uploadedAt(doc.getUploadedAt())
+                        .build())
+            .toList();
+
+    return KprApplicationDetailResponse.builder()
+        .applicationId(application.getId())
+        .applicationNumber(application.getApplicationNumber())
+        .userId(application.getUserId())
+        .propertyId(application.getPropertyId())
+        .kprRateId(application.getKprRateId())
+        .propertyType(application.getPropertyType())
+        .propertyValue(application.getPropertyValue())
+        .propertyAddress(application.getPropertyAddress())
+        .propertyCertificateType(application.getPropertyCertificateType())
+        .developerName(application.getDeveloperName())
+        .loanAmount(application.getLoanAmount())
+        .loanTermYears(application.getLoanTermYears())
+        .interestRate(application.getInterestRate())
+        .monthlyInstallment(application.getMonthlyInstallment())
+        .downPayment(application.getDownPayment())
+        .ltvRatio(application.getLtvRatio())
+        .purpose(application.getPurpose())
+        .status(application.getStatus())
+        .currentApprovalLevel(application.getCurrentApprovalLevel())
+        .submittedAt(application.getSubmittedAt())
+        .approvedAt(application.getApprovedAt())
+        .rejectedAt(application.getRejectedAt())
+        .rejectionReason(application.getRejectionReason())
+        .notes(application.getNotes())
+        .createdAt(application.getCreatedAt())
+        .updatedAt(application.getUpdatedAt())
+        .documents(documentInfos)
+        .build();
   }
 }

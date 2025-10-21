@@ -1,6 +1,8 @@
 package com.kelompoksatu.griya.controller;
 
+import com.kelompoksatu.griya.dto.ApiResponse;
 import com.kelompoksatu.griya.dto.EmploymentData;
+import com.kelompoksatu.griya.dto.KprApplicationDetailResponse;
 import com.kelompoksatu.griya.dto.KprApplicationFormRequest;
 import com.kelompoksatu.griya.dto.KprApplicationResponse;
 import com.kelompoksatu.griya.dto.PersonalData;
@@ -11,7 +13,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -90,38 +91,38 @@ public class KprApplicationController {
               + "salary slip, and other supporting documents.")
   @ApiResponses(
       value = {
-        @ApiResponse(
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "201",
             description = "KPR application submitted successfully",
             content =
                 @Content(
                     mediaType = "application/json",
                     schema = @Schema(implementation = KprApplicationResponse.class))),
-        @ApiResponse(
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "400",
             description = "Invalid request data, validation failed, or file upload error",
             content = @Content(mediaType = "application/json")),
-        @ApiResponse(
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "401",
             description = "Unauthorized - Invalid or missing JWT token",
             content = @Content(mediaType = "application/json")),
-        @ApiResponse(
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "404",
             description = "Property not found or user not found",
             content = @Content(mediaType = "application/json")),
-        @ApiResponse(
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "409",
             description = "Conflict - User already has pending application for this property",
             content = @Content(mediaType = "application/json")),
-        @ApiResponse(
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "413",
             description = "File too large - exceeds maximum allowed size",
             content = @Content(mediaType = "application/json")),
-        @ApiResponse(
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "415",
             description = "Unsupported file type",
             content = @Content(mediaType = "application/json")),
-        @ApiResponse(
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "500",
             description = "Internal server error",
             content = @Content(mediaType = "application/json"))
@@ -309,6 +310,83 @@ public class KprApplicationController {
 
     public long getTimestamp() {
       return timestamp;
+    }
+  }
+
+  /**
+   * Get KPR application detail with documents
+   *
+   * @param applicationId Application ID
+   * @param authHeader JWT token in Authorization header
+   * @return KprApplicationDetailResponse with application and document details
+   */
+  @GetMapping("/{applicationId}")
+  @Operation(
+      summary = "Get KPR Application Detail",
+      description =
+          "Retrieve detailed information about a KPR application including all associated documents. "
+              + "Users can only access their own applications.")
+  @io.swagger.v3.oas.annotations.responses.ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "KPR application detail retrieved successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = KprApplicationDetailResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized - Invalid or missing JWT token",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            description = "Forbidden - User does not have access to this application",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404",
+            description = "KPR application not found",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(mediaType = "application/json"))
+      })
+  public ResponseEntity<ApiResponse<?>> getKprApplicationDetail(
+      @PathVariable("applicationId") Integer applicationId,
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+
+    try {
+      log.info("Received request for KPR application detail ID: {}", applicationId);
+
+      // Extract and validate JWT token
+      var token = extractTokenFromHeader(authHeader);
+
+      // Extract user ID from token
+      Integer userId = jwtUtil.extractUserId(token);
+      if (userId == null) {
+        log.warn("Invalid token - user ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      log.info("Processing KPR application detail request for user ID: {}", userId);
+
+      // Get application detail through service
+      KprApplicationDetailResponse response =
+          kprApplicationService.getApplicationDetail(applicationId, userId);
+
+      log.info("KPR application detail retrieved successfully for ID: {}", applicationId);
+      return ResponseEntity.ok(
+          new ApiResponse<>(true, "KPR application detail retrieved successfully", response));
+
+    } catch (Exception e) {
+      log.error("Error retrieving KPR application detail: {}", e.getMessage(), e);
+
+      // Determine appropriate HTTP status based on error type
+      HttpStatus status = determineErrorStatus(e.getMessage());
+
+      return ResponseEntity.status(status).body(new ApiResponse<>(false, e.getMessage(), null));
     }
   }
 }
