@@ -168,7 +168,7 @@ public class KprApplicationController {
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
 
     try {
-      log.info("Received KPR application form-data request for property ID: {}", propertyId);
+      logger.info("Received KPR application form-data request for property ID: {}", propertyId);
 
       // Extract and validate JWT token
       var token = jwtUtil.extractTokenFromHeader(authHeader);
@@ -176,12 +176,12 @@ public class KprApplicationController {
       // Extract user ID from token
       Integer userId = jwtUtil.extractUserId(token);
       if (userId == null) {
-        log.warn("Invalid token - user ID not found");
+        logger.warn("Invalid token - user ID not found");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(ApiResponse.error("Token tidak valid"));
       }
 
-      log.info("Processing KPR application for user ID: {}", userId);
+      logger.info("Processing KPR application for user ID: {}", userId);
 
       // Build form request object
       var formRequest =
@@ -232,11 +232,13 @@ public class KprApplicationController {
       KprApplicationResponse response =
           kprApplicationService.submitApplicationWithDocuments(userId, formRequest);
 
-      log.info("KPR application submitted successfully with ID: {}", response.getApplicationId());
+      logger.info(
+          "KPR application submitted successfully with ID: {}", response.getApplicationId());
+
       return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
     } catch (Exception e) {
-      log.error("Error processing KPR application: {}", e.getMessage(), e);
+      logger.error("Error processing KPR application: {}", e.getMessage(), e);
       ApiResponse<KprApplicationResponse> response =
           new ApiResponse<>(false, "Failed to submit KPR application: " + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
@@ -287,7 +289,7 @@ public class KprApplicationController {
       @PathVariable("applicationId") Integer applicationId,
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
     try {
-      log.info("Received request for KPR application detail ID: {}", applicationId);
+      logger.info("Received request for KPR application detail ID: {}", applicationId);
 
       // Extract and validate JWT token
       var token = jwtUtil.extractTokenFromHeader(authHeader);
@@ -295,23 +297,23 @@ public class KprApplicationController {
       // Extract user ID from token
       Integer userId = jwtUtil.extractUserId(token);
       if (userId == null) {
-        log.warn("Invalid token - user ID not found");
+        logger.warn("Invalid token - user ID not found");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(new ApiResponse<>(false, "Token tidak valid", null));
       }
 
-      log.info("Processing KPR application detail request for user ID: {}", userId);
+      logger.info("Processing KPR application detail request for user ID: {}", userId);
 
       // Get application detail through service
       KprApplicationDetailResponse response =
           kprApplicationService.getApplicationDetail(applicationId, userId);
 
-      log.info("KPR application detail retrieved successfully for ID: {}", applicationId);
+      logger.info("KPR application detail retrieved successfully for ID: {}", applicationId);
       return ResponseEntity.ok(
           new ApiResponse<>(true, "KPR application detail retrieved successfully", response));
 
     } catch (Exception e) {
-      log.error("Error retrieving KPR application detail: {}", e.getMessage(), e);
+      logger.error("Error retrieving KPR application detail: {}", e.getMessage(), e);
 
       // Determine appropriate HTTP status based on error type
       ApiResponse<KprApplicationDetailResponse> response =
