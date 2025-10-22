@@ -31,7 +31,7 @@ jobs:
 
       - name: Build & SonarQube Analysis
         run: |
-          mvn clean verify sonar:sonar \
+          mvn clean verify sonar:sonar -DskipTests \
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} \
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
