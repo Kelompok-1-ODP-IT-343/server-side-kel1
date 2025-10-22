@@ -15,8 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,9 +26,8 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/user")
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RequiredArgsConstructor
+@Slf4j
 public class UserController {
-
-  private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
   private final AuthService authService;
   private final UserService userService;
@@ -40,35 +38,17 @@ public class UserController {
   public ResponseEntity<ApiResponse<UserResponse>> getProfile(
       @RequestHeader("Authorization") String authHeader, HttpServletRequest httpRequest) {
 
-    try {
-      // Extract token from Authorization header
-      String token = jwtUtil.extractTokenFromHeader(authHeader);
+    // Extract token from Authorization header
+    String token = jwtUtil.extractTokenFromHeader(authHeader);
 
-      // Validate token
-      if (!authService.validateToken(token)) {
-        ApiResponse<UserResponse> response =
-            ApiResponse.error(
-                "Token tidak valid atau telah kedaluwarsa", httpRequest.getRequestURI());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-      }
+    // Get user profile
+    UserResponse userResponse = authService.getProfile(token);
 
-      // Get user profile
-      UserResponse userResponse = authService.getProfile(token);
+    ApiResponse<UserResponse> response =
+        ApiResponse.success(
+            userResponse, "Profil user berhasil diambil", httpRequest.getRequestURI());
 
-      ApiResponse<UserResponse> response =
-          ApiResponse.success(
-              userResponse, "Profil user berhasil diambil", httpRequest.getRequestURI());
-
-      return ResponseEntity.ok(response);
-
-    } catch (Exception e) {
-      logger.error("Failed to get user profile: {}", e.getMessage());
-
-      ApiResponse<UserResponse> response =
-          ApiResponse.error(e.getMessage(), httpRequest.getRequestURI());
-
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
+    return ResponseEntity.ok(response);
   }
 
   /** Get current user info (minimal endpoint for quick user verification) GET /api/v1/user/me */
@@ -76,32 +56,15 @@ public class UserController {
   public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser(
       @RequestHeader("Authorization") String authHeader, HttpServletRequest httpRequest) {
 
-    try {
-      String token = jwtUtil.extractTokenFromHeader(authHeader);
+    String token = jwtUtil.extractTokenFromHeader(authHeader);
 
-      if (!authService.validateToken(token)) {
-        ApiResponse<UserResponse> response =
-            ApiResponse.error(
-                "Token tidak valid atau telah kedaluwarsa", httpRequest.getRequestURI());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-      }
+    UserResponse userResponse = authService.getProfile(token);
 
-      UserResponse userResponse = authService.getProfile(token);
+    ApiResponse<UserResponse> response =
+        ApiResponse.success(
+            userResponse, "Data user berhasil diambil", httpRequest.getRequestURI());
 
-      ApiResponse<UserResponse> response =
-          ApiResponse.success(
-              userResponse, "Data user berhasil diambil", httpRequest.getRequestURI());
-
-      return ResponseEntity.ok(response);
-
-    } catch (Exception e) {
-      logger.error("Failed to get current user: {}", e.getMessage());
-
-      ApiResponse<UserResponse> response =
-          ApiResponse.error("Gagal mengambil data user", httpRequest.getRequestURI());
-
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
+    return ResponseEntity.ok(response);
   }
 
   /** Update user information PUT /api/v1/user/{id} */
@@ -170,7 +133,7 @@ public class UserController {
       @RequestHeader("Authorization") String authHeader,
       HttpServletRequest httpRequest) {
 
-    logger.info("User update attempt for user ID: {}", id);
+    log.info("User update attempt for user ID: {}", id);
 
     try {
       // Extract and validate token
@@ -188,7 +151,7 @@ public class UserController {
 
       // Ensure user can only update their own profile
       if (!tokenUserId.equals(id)) {
-        logger.warn("User {} attempted to update profile of user {}", tokenUserId, id);
+        log.warn("User {} attempted to update profile of user {}", tokenUserId, id);
         ApiResponse<UserResponse> response =
             ApiResponse.error("You can only update your own profile", httpRequest.getRequestURI());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
@@ -201,38 +164,31 @@ public class UserController {
           ApiResponse.success(
               updatedUser, "User updated successfully", httpRequest.getRequestURI());
 
-      logger.info("User updated successfully for user ID: {}", id);
+      log.info("User updated successfully for user ID: {}", id);
       return ResponseEntity.ok(response);
 
     } catch (IllegalArgumentException e) {
-      logger.error("Validation error during user update: {}", e.getMessage());
+      log.error("Validation error during user update: {}", e.getMessage());
       ApiResponse<UserResponse> response =
           ApiResponse.error(e.getMessage(), httpRequest.getRequestURI());
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     } catch (RuntimeException e) {
       if (e.getMessage().contains("not found")) {
-        logger.error("User not found: {}", e.getMessage());
+        log.error("User not found: {}", e.getMessage());
         ApiResponse<UserResponse> response =
             ApiResponse.error("User not found", httpRequest.getRequestURI());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
       }
-      logger.error("Failed to update user: {}", e.getMessage());
+      log.error("Failed to update user: {}", e.getMessage());
       ApiResponse<UserResponse> response =
           ApiResponse.error(
               "Failed to update user: " + e.getMessage(), httpRequest.getRequestURI());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     } catch (Exception e) {
-      logger.error("Unexpected error during user update: {}", e.getMessage());
+      log.error("Unexpected error during user update: {}", e.getMessage());
       ApiResponse<UserResponse> response =
           ApiResponse.error("An unexpected error occurred", httpRequest.getRequestURI());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
-  // remove duplicate helper and delegate to JwtUtil
-  // (deleted) private String extractTokenFromHeader(String authHeader) {
-  // (deleted)   if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-  // (deleted)     throw new RuntimeException("Header Authorization tidak valid");
-  // (deleted)   }
-  // (deleted)   return authHeader.substring(7);
-  // (deleted) }
 }
