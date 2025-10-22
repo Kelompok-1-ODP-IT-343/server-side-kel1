@@ -80,14 +80,15 @@ public class AdminController {
     try {
       DeveloperResponse developer = developerService.updateDeveloper(id, request);
       ApiResponse<DeveloperResponse> response =
-          new ApiResponse<>(true, "Developer updated successfully", developer);
+          ApiResponse.success("Developer updated successfully", developer);
       return ResponseEntity.ok(response);
     } catch (IllegalArgumentException e) {
-      ApiResponse<DeveloperResponse> response = new ApiResponse<>(false, e.getMessage(), null);
+      ApiResponse<DeveloperResponse> response =
+          ApiResponse.error("Developer not found: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     } catch (Exception e) {
       ApiResponse<DeveloperResponse> response =
-          new ApiResponse<>(false, "Failed to update developer: " + e.getMessage(), null);
+          ApiResponse.error("Failed to update developer: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -136,7 +137,7 @@ public class AdminController {
       }
     } catch (Exception e) {
       ApiResponse<DeveloperResponse> response =
-          new ApiResponse<>(false, "Failed to retrieve developer: " + e.getMessage(), null);
+          ApiResponse.error("Failed to retrieve developer: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }

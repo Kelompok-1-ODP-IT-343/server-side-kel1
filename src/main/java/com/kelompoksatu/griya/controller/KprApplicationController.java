@@ -171,14 +171,14 @@ public class KprApplicationController {
       log.info("Received KPR application form-data request for property ID: {}", propertyId);
 
       // Extract and validate JWT token
-      var token = extractTokenFromHeader(authHeader);
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
 
       // Extract user ID from token
       Integer userId = jwtUtil.extractUserId(token);
       if (userId == null) {
         log.warn("Invalid token - user ID not found");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-            .body(createErrorResponse("Token tidak valid"));
+            .body(ApiResponse.error("Token tidak valid"));
       }
 
       log.info("Processing KPR application for user ID: {}", userId);
@@ -250,12 +250,13 @@ public class KprApplicationController {
   // ========================================
 
   /** Extract JWT token from Authorization header */
-  private String extractTokenFromHeader(String authHeader) {
-    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-      throw new RuntimeException("Header Authorization tidak valid");
-    }
-    return authHeader.substring(7);
-  }
+  // remove duplicate helper and delegate to JwtUtil
+  // (deleted) private String extractTokenFromHeader(String authHeader) {
+  // (deleted)   if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+  // (deleted)     throw new RuntimeException("Header Authorization tidak valid");
+  // (deleted)   }
+  // (deleted)   return authHeader.substring(7);
+  // (deleted) }
 
   /** Create standardized error response */
   private Object createErrorResponse(String message) {
@@ -355,12 +356,11 @@ public class KprApplicationController {
   public ResponseEntity<ApiResponse<?>> getKprApplicationDetail(
       @PathVariable("applicationId") Integer applicationId,
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
-
     try {
       log.info("Received request for KPR application detail ID: {}", applicationId);
 
       // Extract and validate JWT token
-      var token = extractTokenFromHeader(authHeader);
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
 
       // Extract user ID from token
       Integer userId = jwtUtil.extractUserId(token);

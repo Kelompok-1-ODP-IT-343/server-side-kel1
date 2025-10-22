@@ -42,7 +42,7 @@ public class UserController {
 
     try {
       // Extract token from Authorization header
-      String token = extractTokenFromHeader(authHeader);
+      String token = jwtUtil.extractTokenFromHeader(authHeader);
 
       // Validate token
       if (!authService.validateToken(token)) {
@@ -77,7 +77,7 @@ public class UserController {
       @RequestHeader("Authorization") String authHeader, HttpServletRequest httpRequest) {
 
     try {
-      String token = extractTokenFromHeader(authHeader);
+      String token = jwtUtil.extractTokenFromHeader(authHeader);
 
       if (!authService.validateToken(token)) {
         ApiResponse<UserResponse> response =
@@ -174,7 +174,7 @@ public class UserController {
 
     try {
       // Extract and validate token
-      String token = extractTokenFromHeader(authHeader);
+      String token = jwtUtil.extractTokenFromHeader(authHeader);
 
       if (!authService.validateToken(token)) {
         ApiResponse<UserResponse> response =
@@ -228,12 +228,11 @@ public class UserController {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
-
-  /** Extract JWT token from Authorization header */
-  private String extractTokenFromHeader(String authHeader) {
-    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-      throw new RuntimeException("Authorization header tidak valid");
-    }
-    return authHeader.substring(7);
-  }
+  // remove duplicate helper and delegate to JwtUtil
+  // (deleted) private String extractTokenFromHeader(String authHeader) {
+  // (deleted)   if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+  // (deleted)     throw new RuntimeException("Header Authorization tidak valid");
+  // (deleted)   }
+  // (deleted)   return authHeader.substring(7);
+  // (deleted) }
 }

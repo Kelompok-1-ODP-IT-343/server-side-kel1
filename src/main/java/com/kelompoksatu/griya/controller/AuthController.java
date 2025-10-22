@@ -2,6 +2,7 @@ package com.kelompoksatu.griya.controller;
 
 import com.kelompoksatu.griya.dto.*;
 import com.kelompoksatu.griya.service.AuthService;
+import com.kelompoksatu.griya.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -27,6 +28,7 @@ public class AuthController {
   private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
   private final AuthService authService;
+  private final JwtUtil jwtUtil;
 
   /** Register a new user POST /api/v1/auth/register */
   @PostMapping("/register")
@@ -159,7 +161,7 @@ public class AuthController {
 
     try {
       // Extract token from Authorization header
-      String token = extractTokenFromHeader(authHeader);
+      String token = jwtUtil.extractTokenFromHeader(authHeader);
 
       authService.logout(token);
 
@@ -183,7 +185,7 @@ public class AuthController {
       @RequestHeader("Authorization") String authHeader, HttpServletRequest httpRequest) {
 
     try {
-      String token = extractTokenFromHeader(authHeader);
+      String token = jwtUtil.extractTokenFromHeader(authHeader);
       boolean isValid = authService.validateToken(token);
 
       ApiResponse<Boolean> response =
@@ -244,10 +246,11 @@ public class AuthController {
   }
 
   /** Extract JWT token from Authorization header */
-  private String extractTokenFromHeader(String authHeader) {
-    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-      throw new RuntimeException("Authorization header tidak valid");
-    }
-    return authHeader.substring(7);
-  }
+  // remove duplicate helper and delegate to JwtUtil
+  // (deleted) private String extractTokenFromHeader(String authHeader) {
+  // (deleted)   if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+  // (deleted)     throw new RuntimeException("Header Authorization tidak valid");
+  // (deleted)   }
+  // (deleted)   return authHeader.substring(7);
+  // (deleted) }
 }

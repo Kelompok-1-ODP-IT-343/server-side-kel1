@@ -6,7 +6,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 /** Approval workflow tracking for KPR applications */
 @Entity
@@ -24,17 +26,20 @@ public class ApprovalWorkflow {
   private Integer applicationId;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "stage", nullable = false)
-  private WorkflowStage stage;
+  private WorkflowStage stage = WorkflowStage.PROPERTY_APPRAISAL;
 
   @Column(name = "assigned_to", nullable = false)
   private Integer assignedTo;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "status", nullable = false)
   private WorkflowStatus status = WorkflowStatus.PENDING;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "priority", nullable = false)
   private PriorityLevel priority = PriorityLevel.NORMAL;
 

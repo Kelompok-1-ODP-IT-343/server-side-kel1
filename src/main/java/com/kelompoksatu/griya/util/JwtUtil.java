@@ -168,4 +168,13 @@ public class JwtUtil {
   public String hashToken(String token) {
     return DigestUtils.sha256Hex(token + secret);
   }
+
+  /** Extract JWT token from Authorization header (Bearer x) */
+  public String extractTokenFromHeader(String authHeader) {
+    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+      throw new IllegalArgumentException(
+          "Header Authorization tidak valid atau tidak mengandung Bearer token");
+    }
+    return authHeader.substring(7);
+  }
 }

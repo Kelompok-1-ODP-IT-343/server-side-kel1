@@ -451,14 +451,14 @@ public class PropertyController {
           Property.PropertyStatus.valueOf(status.toUpperCase());
       PropertyResponse property = propertyService.updatePropertyStatus(id, propertyStatus);
       ApiResponse<PropertyResponse> response =
-          new ApiResponse<>(true, "Property status updated successfully", property);
+          ApiResponse.success("Property status updated successfully", property);
       return ResponseEntity.ok(response);
     } catch (IllegalArgumentException e) {
       ApiResponse<PropertyResponse> response = new ApiResponse<>(false, e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     } catch (Exception e) {
       ApiResponse<PropertyResponse> response =
-          new ApiResponse<>(false, "Failed to update property status: " + e.getMessage(), null);
+          ApiResponse.error("Failed to update property status: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -508,14 +508,14 @@ public class PropertyController {
     try {
       PropertyResponse property = propertyService.updateFeaturedStatus(id, isFeatured);
       ApiResponse<PropertyResponse> response =
-          new ApiResponse<>(true, "Property featured status updated successfully", property);
+          ApiResponse.success("Property featured status updated successfully", property);
       return ResponseEntity.ok(response);
     } catch (IllegalArgumentException e) {
       ApiResponse<PropertyResponse> response = new ApiResponse<>(false, e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     } catch (Exception e) {
       ApiResponse<PropertyResponse> response =
-          new ApiResponse<>(false, "Failed to update featured status: " + e.getMessage(), null);
+          ApiResponse.error("Failed to update featured status: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
