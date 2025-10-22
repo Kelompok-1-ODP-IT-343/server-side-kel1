@@ -1,5 +1,7 @@
 package com.kelompoksatu.griya.service;
 
+import com.kelompoksatu.griya.dto.AssignWorkflowRequest;
+import com.kelompoksatu.griya.dto.AssignWorkflowResponse;
 import com.kelompoksatu.griya.dto.EmploymentData;
 import com.kelompoksatu.griya.dto.KprApplicationDetailResponse;
 import com.kelompoksatu.griya.dto.KprApplicationFormRequest;
@@ -111,11 +113,11 @@ public class KprApplicationService {
       // 12. Store documents
       List<ApplicationDocument> documents =
           storeApplicationDocuments(savedApplication.getId(), formRequest);
-      log.info(
+      logger.info(
           "Stored {} documents for application: {}", documents.size(), savedApplication.getId());
 
       // 13. Create initial approval workflow
-      createInitialApprovalWorkflow(savedApplication.getId(), developer.getUser().getId());
+      createDeveloperApprovalWorkflow(savedApplication.getId(), developer.getUser().getId());
 
       // 14. Build response
       return KprApplicationResponse.builder()
@@ -129,15 +131,68 @@ public class KprApplicationService {
           .build();
 
     } catch (Exception e) {
-      log.error("Error processing KPR application with documents: {}", e.getMessage(), e);
+      logger.error("Error processing KPR application with documents: {}", e.getMessage(), e);
       throw e;
     }
+  }
+
+  @Transactional
+  public AssignWorkflowResponse assignApprovalWorkflow(AssignWorkflowRequest request) {
+    logger.info(
+        "Assigning approval workflow for application: {} to approval staff one: {}",
+        request.getApplicationId(),
+        request.getFirstApprovalId());
+
+    // 1. Authentication & Authorization
+    User firstApprovalUser = validateUser(request.getFirstApprovalId());
+    User secondApprovalUser = validateUser(request.getSecondApprovalId());
+    logger.info(
+        "Assigning approval workflow for application: {} to approval staff one: {}",
+        request.getApplicationId(),
+        request.getFirstApprovalId());
+
+    logger.info(
+        "Approval staff one: {} has been assigned to application: {}",
+        firstApprovalUser.getUsername(),
+        request.getApplicationId());
+
+    logger.info(
+        "Approval staff two: {} has been assigned to application: {}",
+        secondApprovalUser.getUsername(),
+        request.getApplicationId());
+
+    logger.info(
+        "Assigning approval workflow for application: {} to approval staff two: {}",
+        request.getApplicationId(),
+        request.getSecondApprovalId());
+    // 2. Data Validation (Application)
+    KprApplication application =
+        kprApplicationRepository
+            .findById(request.getApplicationId())
+            .orElseThrow(() -> new IllegalArgumentException("Application not found"));
+
+    logger.info(
+        "KPR application: {} has been assigned to approval workflow.",
+        application.getApplicationNumber());
+
+    // 4. Create first approval workflow
+    createFirstApprovalWorkflow(application.getId(), request.getFirstApprovalId());
+
+    // 4. Create second approval workflow
+    createSecondApprovalWorkflow(application.getId(), request.getSecondApprovalId());
+
+    // 5. Return success response
+    return AssignWorkflowResponse.builder()
+        .applicationID(application.getId())
+        .firstApprovalId(request.getFirstApprovalId())
+        .secondApprovalId(request.getSecondApprovalId())
+        .build();
   }
 
   /** Submit a new KPR application */
   @Transactional
   public KprApplicationResponse submitApplication(Integer userId, KprApplicationRequest request) {
-    log.info(
+    logger.info(
         "Processing KPR application for user: {} and property: {}",
         userId,
         request.getPropertyId());
@@ -189,9 +244,9 @@ public class KprApplicationService {
     KprApplication savedApplication = kprApplicationRepository.save(application);
 
     // 8. Create initial approval workflow
-    createInitialApprovalWorkflow(savedApplication.getId(), developer.getUser().getId());
+    createDeveloperApprovalWorkflow(savedApplication.getId(), developer.getUser().getId());
 
-    log.info(
+    logger.info(
         "KPR application created successfully with ID: {} and number: {}",
         savedApplication.getId(),
         savedApplication.getApplicationNumber());
@@ -445,25 +500,38 @@ public class KprApplicationService {
   }
 
   /** Create initial approval workflow */
-  private void createInitialApprovalWorkflow(Integer applicationId, Integer approvalLevelId) {
+  private void createDeveloperApprovalWorkflow(Integer applicationId, Integer approvalLevelId) {
     if (approvalLevelId == null) return;
-
-    Optional<ApprovalLevel> levelOpt = approvalLevelRepository.findById(approvalLevelId);
-    if (levelOpt.isEmpty()) return;
-
-    ApprovalLevel level = levelOpt.get();
 
     ApprovalWorkflow workflow = new ApprovalWorkflow();
     workflow.setApplicationId(applicationId);
-    workflow.setStage(ApprovalWorkflow.WorkflowStage.DOCUMENT_VERIFICATION);
+    workflow.setStage(ApprovalWorkflow.WorkflowStage.PROPERTY_APPRAISAL);
     workflow.setStatus(ApprovalWorkflow.WorkflowStatus.PENDING);
     workflow.setPriority(ApprovalWorkflow.PriorityLevel.NORMAL);
+    workflow.setAssignedTo(approvalLevelId);
 
-    // Set due date based on timeout hours
-    if (level.getTimeoutHours() != null) {
-      workflow.setDueDate(LocalDateTime.now().plusHours(level.getTimeoutHours()));
-    }
+    approvalWorkflowRepository.save(workflow);
+  }
 
+  private void createFirstApprovalWorkflow(Integer applicationId, Integer approvalLevelId) {
+    if (approvalLevelId == null) return;
+    ApprovalWorkflow workflow = new ApprovalWorkflow();
+    workflow.setApplicationId(applicationId);
+    workflow.setStage(ApprovalWorkflow.WorkflowStage.CREDIT_ANALYSIS);
+    workflow.setStatus(ApprovalWorkflow.WorkflowStatus.ESCALATED);
+    workflow.setPriority(ApprovalWorkflow.PriorityLevel.NORMAL);
+    workflow.setAssignedTo(approvalLevelId);
+    approvalWorkflowRepository.save(workflow);
+  }
+
+  private void createSecondApprovalWorkflow(Integer applicationId, Integer approvalLevelId) {
+    if (approvalLevelId == null) return;
+    ApprovalWorkflow workflow = new ApprovalWorkflow();
+    workflow.setApplicationId(applicationId);
+    workflow.setStage(ApprovalWorkflow.WorkflowStage.FINAL_APPROVAL);
+    workflow.setStatus(ApprovalWorkflow.WorkflowStatus.ESCALATED);
+    workflow.setPriority(ApprovalWorkflow.PriorityLevel.NORMAL);
+    workflow.setAssignedTo(approvalLevelId);
     approvalWorkflowRepository.save(workflow);
   }
 
@@ -536,7 +604,7 @@ public class KprApplicationService {
     profile.setUpdatedAt(LocalDateTime.now());
     userProfileRepository.save(profile);
 
-    log.info("Updated user profile for user: {}", userId);
+    logger.info("Updated user profile for user: {}", userId);
   }
 
   /** Validate and get KPR rate */
@@ -649,7 +717,7 @@ public class KprApplicationService {
             fileStorageService.storeFile(
                 formRequest.getKtpDocument(), ApplicationDocument.DocumentType.KTP, applicationId);
         documents.add(applicationDocumentRepository.save(ktpDoc));
-        log.info("Stored KTP document for application: {}", applicationId);
+        logger.info("Stored KTP document for application: {}", applicationId);
       }
 
       // Store NPWP document (optional)
@@ -660,7 +728,7 @@ public class KprApplicationService {
                 ApplicationDocument.DocumentType.NPWP,
                 applicationId);
         documents.add(applicationDocumentRepository.save(npwpDoc));
-        log.info("Stored NPWP document for application: {}", applicationId);
+        logger.info("Stored NPWP document for application: {}", applicationId);
       }
 
       // Store salary slip document (required)
@@ -672,7 +740,7 @@ public class KprApplicationService {
                 ApplicationDocument.DocumentType.SLIP_GAJI,
                 applicationId);
         documents.add(applicationDocumentRepository.save(salaryDoc));
-        log.info("Stored salary slip document for application: {}", applicationId);
+        logger.info("Stored salary slip document for application: {}", applicationId);
       }
 
       // Store other document (optional)
@@ -683,11 +751,11 @@ public class KprApplicationService {
                 ApplicationDocument.DocumentType.OTHER,
                 applicationId);
         documents.add(applicationDocumentRepository.save(otherDoc));
-        log.info("Stored other document for application: {}", applicationId);
+        logger.info("Stored other document for application: {}", applicationId);
       }
 
     } catch (Exception e) {
-      log.error("Error storing documents for application: {}", applicationId, e);
+      logger.error("Error storing documents for application: {}", applicationId, e);
       // Clean up any stored files if there's an error
       documents.forEach(
           doc -> {
@@ -695,7 +763,7 @@ public class KprApplicationService {
               fileStorageService.deleteFile(doc.getFilePath());
               applicationDocumentRepository.delete(doc);
             } catch (Exception cleanupError) {
-              log.error("Error cleaning up document: {}", doc.getFilePath(), cleanupError);
+              logger.error("Error cleaning up document: {}", doc.getFilePath(), cleanupError);
             }
           });
       throw new RuntimeException("Gagal menyimpan dokumen: " + e.getMessage());
@@ -727,7 +795,7 @@ public class KprApplicationService {
    */
   @Transactional(readOnly = true)
   public KprApplicationDetailResponse getApplicationDetail(Integer applicationId, Integer userId) {
-    log.info("Retrieving KPR application detail for ID: {} by user: {}", applicationId, userId);
+    logger.info("Retrieving KPR application detail for ID: {} by user: {}", applicationId, userId);
 
     // Find application
     KprApplication application =

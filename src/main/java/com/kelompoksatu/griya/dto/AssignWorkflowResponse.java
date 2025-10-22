@@ -5,6 +5,7 @@ import lombok.*;
 @Getter
 @Setter
 @NoArgsConstructor
+@Builder
 @RequiredArgsConstructor
 @Data
 public class AssignWorkflowResponse {

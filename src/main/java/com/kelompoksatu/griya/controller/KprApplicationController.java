@@ -237,83 +237,13 @@ public class KprApplicationController {
 
     } catch (Exception e) {
       log.error("Error processing KPR application: {}", e.getMessage(), e);
-
-      // Determine appropriate HTTP status based on error type
-      HttpStatus status = determineErrorStatus(e.getMessage());
-
-      return ResponseEntity.status(status).body(createErrorResponse(e.getMessage()));
+      ApiResponse<KprApplicationResponse> response =
+          new ApiResponse<>(false, "Failed to submit KPR application: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
-
-  // ========================================
-  // PRIVATE HELPER METHODS
-  // ========================================
-
-  /** Extract JWT token from Authorization header */
-  // remove duplicate helper and delegate to JwtUtil
-  // (deleted) private String extractTokenFromHeader(String authHeader) {
-  // (deleted)   if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-  // (deleted)     throw new RuntimeException("Header Authorization tidak valid");
-  // (deleted)   }
-  // (deleted)   return authHeader.substring(7);
-  // (deleted) }
 
   /** Create standardized error response */
-  private Object createErrorResponse(String message) {
-    return new ErrorResponse(message, System.currentTimeMillis());
-  }
-
-  /** Determine HTTP status code based on error message */
-  private HttpStatus determineErrorStatus(String errorMessage) {
-    String lowerMessage = errorMessage.toLowerCase();
-
-    if (lowerMessage.contains("tidak ditemukan") || lowerMessage.contains("not found")) {
-      return HttpStatus.NOT_FOUND;
-    }
-    if (lowerMessage.contains("sudah ada")
-        || lowerMessage.contains("already exists")
-        || lowerMessage.contains("pending")) {
-      return HttpStatus.CONFLICT;
-    }
-    if (lowerMessage.contains("tidak valid")
-        || lowerMessage.contains("invalid")
-        || lowerMessage.contains("authorization")) {
-      return HttpStatus.UNAUTHORIZED;
-    }
-    if (lowerMessage.contains("tidak memenuhi") || lowerMessage.contains("validation")) {
-      return HttpStatus.BAD_REQUEST;
-    }
-    if (lowerMessage.contains("terlalu besar") || lowerMessage.contains("too large")) {
-      return HttpStatus.PAYLOAD_TOO_LARGE;
-    }
-    if (lowerMessage.contains("tipe file")
-        || lowerMessage.contains("file type")
-        || lowerMessage.contains("unsupported")) {
-      return HttpStatus.UNSUPPORTED_MEDIA_TYPE;
-    }
-
-    return HttpStatus.INTERNAL_SERVER_ERROR;
-  }
-
-  /** Error response DTO */
-  private static class ErrorResponse {
-    private final String message;
-    private final long timestamp;
-
-    public ErrorResponse(String message, long timestamp) {
-      this.message = message;
-      this.timestamp = timestamp;
-    }
-
-    public String getMessage() {
-      return message;
-    }
-
-    public long getTimestamp() {
-      return timestamp;
-    }
-  }
-
   /**
    * Get KPR application detail with documents
    *
@@ -384,9 +314,9 @@ public class KprApplicationController {
       log.error("Error retrieving KPR application detail: {}", e.getMessage(), e);
 
       // Determine appropriate HTTP status based on error type
-      HttpStatus status = determineErrorStatus(e.getMessage());
-
-      return ResponseEntity.status(status).body(new ApiResponse<>(false, e.getMessage(), null));
+      ApiResponse<KprApplicationDetailResponse> response =
+          new ApiResponse<>(false, "Failed to get KPR application detail: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
 }

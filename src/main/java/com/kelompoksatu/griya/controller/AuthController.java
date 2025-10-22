@@ -244,13 +244,4 @@ public class AuthController {
 
     return request.getRemoteAddr();
   }
-
-  /** Extract JWT token from Authorization header */
-  // remove duplicate helper and delegate to JwtUtil
-  // (deleted) private String extractTokenFromHeader(String authHeader) {
-  // (deleted)   if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-  // (deleted)     throw new RuntimeException("Header Authorization tidak valid");
-  // (deleted)   }
-  // (deleted)   return authHeader.substring(7);
-  // (deleted) }
 }

@@ -8,7 +8,7 @@ import lombok.*;
 @RequiredArgsConstructor
 @Data
 public class AssignWorkflowRequest {
-  @NonNull private Integer applicationID;
+  @NonNull private Integer applicationId;
   @NonNull private Integer firstApprovalId;
   @NonNull private Integer secondApprovalId;
 }
