@@ -330,7 +330,7 @@ public class KprApplicationController {
    * @param authHeader JWT token in Authorization header
    * @return List of KprHistoryListResponse with application history
    */
-  @GetMapping("/history")
+  @GetMapping("/user/history")
   @Operation(
       summary = "Get KPR Application History",
       description =
@@ -390,6 +390,80 @@ public class KprApplicationController {
       ApiResponse<List<KprHistoryListResponse>> response =
           new ApiResponse<>(
               false, "Failed to get KPR application history: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  /**
+   * Get KPR application approval history for a developer
+   *
+   * @param authHeader JWT token in Authorization header
+   * @return List of KprHistoryListResponse with approval history
+   */
+  @GetMapping("/developer/history")
+  @Operation(
+      summary = "Get KPR Application Approval History",
+      description =
+          "Retrieve the approval history of KPR applications for the authenticated developer. "
+              + "Developers can only access their own approval history.")
+  @io.swagger.v3.oas.annotations.responses.ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "KPR application approval history retrieved successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = KprHistoryListResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized - Invalid or missing JWT token",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            description = "Forbidden - Developer does not have access to this history",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(mediaType = "application/json"))
+      })
+  public ResponseEntity<ApiResponse<List<KprHistoryListResponse>>> getApprovalDeveloper(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for KPR application approval history");
+
+      // Extract and validate JWT token
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+      // Extract developer ID from token
+      Integer developerId = jwtUtil.extractUserId(token);
+      if (developerId == null) {
+        logger.warn("Invalid token - developer ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      logger.info(
+          "Processing KPR application approval history request for developer ID: {}", developerId);
+
+      // Get approval history through service
+      List<KprHistoryListResponse> response =
+          kprApplicationService.getApprovalDeveloper(developerId);
+
+      logger.info(
+          "KPR application approval history retrieved successfully for developer ID: {}",
+          developerId);
+      return ResponseEntity.ok(
+          new ApiResponse<List<KprHistoryListResponse>>(
+              true, "KPR application approval history retrieved successfully", response));
+    } catch (Exception e) {
+      logger.error("Error retrieving KPR application approval history: {}", e.getMessage(), e);
+
+      // Determine appropriate HTTP status based on error type
+      ApiResponse<List<KprHistoryListResponse>> response =
+          new ApiResponse<>(
+              false, "Failed to get KPR application approval history: " + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
