@@ -140,8 +140,9 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
       @Param("bedrooms") Integer bedrooms,
       @Param("status") Property.PropertyStatus status);
 
-    @Query(
-            value = """
+  @Query(
+      value =
+          """
     SELECT
         p.id,
         p.property_code,
@@ -185,16 +186,14 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
     ORDER BY p.id
     LIMIT :limit OFFSET :offset
     """,
-            nativeQuery = true)
-    List<Map<String, Object>> findPropertiesWithFilter(
-            @Param("city") String city,
-            @Param("minPrice") BigDecimal minPrice,
-            @Param("maxPrice") BigDecimal maxPrice,
-            @Param("propertyType") String propertyType,
-            @Param("offset") int offset,
-            @Param("limit") int limit);
-
-
+      nativeQuery = true)
+  List<Map<String, Object>> findPropertiesWithFilter(
+      @Param("city") String city,
+      @Param("minPrice") BigDecimal minPrice,
+      @Param("maxPrice") BigDecimal maxPrice,
+      @Param("propertyType") String propertyType,
+      @Param("offset") int offset,
+      @Param("limit") int limit);
 
   @Query(
       value =

@@ -362,30 +362,29 @@ public class PropertyService {
     return propertyRepository.existsBySlug(slug);
   }
 
-    @Transactional(readOnly = true)
-    public List<Map<String, Object>> getPropertiesWithFilter(
-            String city,
-            BigDecimal minPrice,
-            BigDecimal maxPrice,
-            String propertyType,
-            int offset,
-            int limit) {
+  @Transactional(readOnly = true)
+  public List<Map<String, Object>> getPropertiesWithFilter(
+      String city,
+      BigDecimal minPrice,
+      BigDecimal maxPrice,
+      String propertyType,
+      int offset,
+      int limit) {
 
-        List<Map<String, Object>> rows = propertyRepository.findPropertiesWithFilter(
-                city, minPrice, maxPrice, propertyType, offset, limit);
+    List<Map<String, Object>> rows =
+        propertyRepository.findPropertiesWithFilter(
+            city, minPrice, maxPrice, propertyType, offset, limit);
 
-        for (Map<String, Object> row : rows) {
-            Object fn = row.get("file_name");
-            if (fn != null) row.put("fileName", fn);
+    for (Map<String, Object> row : rows) {
+      Object fn = row.get("file_name");
+      if (fn != null) row.put("fileName", fn);
 
-            Object fp = row.get("file_path");
-            if (fp != null) row.put("filePath", fp);
-        }
-
-        return rows;
+      Object fp = row.get("file_path");
+      if (fp != null) row.put("filePath", fp);
     }
 
-
+    return rows;
+  }
 
   @Transactional(readOnly = true)
   public Map<String, Object> getPropertyDetails(Integer id) {
