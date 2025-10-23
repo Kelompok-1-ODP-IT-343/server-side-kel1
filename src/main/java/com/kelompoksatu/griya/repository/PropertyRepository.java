@@ -140,9 +140,8 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
       @Param("bedrooms") Integer bedrooms,
       @Param("status") Property.PropertyStatus status);
 
-  @Query(
-      value =
-          """
+    @Query(
+            value = """
     SELECT
         p.id,
         p.property_code,
@@ -151,13 +150,28 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
         p.price,
         p.property_type,
         p.listing_type,
+        -- ambil nama file utama
+        COALESCE(
+            (SELECT pi.file_name FROM property_images pi
+             WHERE pi.property_id = p.id AND pi.is_primary = TRUE
+             ORDER BY pi.id ASC
+             LIMIT 1),
+            (SELECT pi.file_name FROM property_images pi
+             WHERE pi.property_id = p.id
+             ORDER BY pi.id ASC
+             LIMIT 1)
+        ) AS file_name,
+        -- ambil file path utama (URL)
         COALESCE(
             (SELECT pi.file_path FROM property_images pi
              WHERE pi.property_id = p.id AND pi.is_primary = TRUE
+             ORDER BY pi.id ASC
              LIMIT 1),
             (SELECT pi.file_path FROM property_images pi
-             WHERE pi.property_id = p.id LIMIT 1)
-        ) AS main_image,
+             WHERE pi.property_id = p.id
+             ORDER BY pi.id ASC
+             LIMIT 1)
+        ) AS file_path,
         STRING_AGG(DISTINCT pf.feature_name || ' : ' || pf.feature_value, ', ') AS features,
         STRING_AGG(DISTINCT pl.poi_name || ' (' || pl.distance_km || ' km)', ', ') AS nearby_places
     FROM properties p
@@ -171,14 +185,16 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
     ORDER BY p.id
     LIMIT :limit OFFSET :offset
     """,
-      nativeQuery = true)
-  List<Map<String, Object>> findPropertiesWithFilter(
-      @Param("city") String city,
-      @Param("minPrice") BigDecimal minPrice,
-      @Param("maxPrice") BigDecimal maxPrice,
-      @Param("propertyType") String propertyType,
-      @Param("offset") int offset,
-      @Param("limit") int limit);
+            nativeQuery = true)
+    List<Map<String, Object>> findPropertiesWithFilter(
+            @Param("city") String city,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("maxPrice") BigDecimal maxPrice,
+            @Param("propertyType") String propertyType,
+            @Param("offset") int offset,
+            @Param("limit") int limit);
+
+
 
   @Query(
       value =

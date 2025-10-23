@@ -26,6 +26,9 @@ public class PropertyResponse {
     isKprEligible = kprEligible;
   }
 
+  private String fileName;
+  private String filePath;
+
   private String propertyCode;
   private Integer developerId;
   private Property.PropertyType propertyType;
@@ -151,6 +154,21 @@ public class PropertyResponse {
   }
 
   // Getters and Setters
+    
+
+    public String getFilePath() { return filePath; }
+    public void setFilePath(String filePath) { this.filePath = filePath; }
+
+
+    public String getFileName() {
+      return fileName;
+  }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
+
+
   public Integer getId() {
     return id;
   }
