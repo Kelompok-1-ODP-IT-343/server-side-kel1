@@ -5,6 +5,7 @@ import com.kelompoksatu.griya.dto.EmploymentData;
 import com.kelompoksatu.griya.dto.KprApplicationDetailResponse;
 import com.kelompoksatu.griya.dto.KprApplicationFormRequest;
 import com.kelompoksatu.griya.dto.KprApplicationResponse;
+import com.kelompoksatu.griya.dto.KprHistoryListResponse;
 import com.kelompoksatu.griya.dto.PersonalData;
 import com.kelompoksatu.griya.dto.SimulationData;
 import com.kelompoksatu.griya.service.KprApplicationService;
@@ -17,6 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -318,6 +320,76 @@ public class KprApplicationController {
       // Determine appropriate HTTP status based on error type
       ApiResponse<KprApplicationDetailResponse> response =
           new ApiResponse<>(false, "Failed to get KPR application detail: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  /**
+   * Get KPR application history for a user
+   *
+   * @param authHeader JWT token in Authorization header
+   * @return List of KprHistoryListResponse with application history
+   */
+  @GetMapping("/history")
+  @Operation(
+      summary = "Get KPR Application History",
+      description =
+          "Retrieve the history of KPR applications for the authenticated user. "
+              + "Users can only access their own history.")
+  @io.swagger.v3.oas.annotations.responses.ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "KPR application history retrieved successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = KprHistoryListResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized - Invalid or missing JWT token",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            description = "Forbidden - User does not have access to this history",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(mediaType = "application/json"))
+      })
+  public ResponseEntity<ApiResponse<List<KprHistoryListResponse>>> getHistoryUser(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for KPR application history");
+
+      // Extract and validate JWT token
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+      // Extract user ID from token
+      Integer userId = jwtUtil.extractUserId(token);
+      if (userId == null) {
+        logger.warn("Invalid token - user ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      logger.info("Processing KPR application history request for user ID: {}", userId);
+
+      // Get application history through service
+      List<KprHistoryListResponse> response = kprApplicationService.getApplicationHistory(userId);
+
+      logger.info("KPR application history retrieved successfully for user ID: {}", userId);
+      return ResponseEntity.ok(
+          new ApiResponse<>(true, "KPR application history retrieved successfully", response));
+
+    } catch (Exception e) {
+      logger.error("Error retrieving KPR application history: {}", e.getMessage(), e);
+
+      // Determine appropriate HTTP status based on error type
+      ApiResponse<List<KprHistoryListResponse>> response =
+          new ApiResponse<>(
+              false, "Failed to get KPR application history: " + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }

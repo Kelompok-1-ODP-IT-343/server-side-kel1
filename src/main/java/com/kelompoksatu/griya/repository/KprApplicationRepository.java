@@ -12,6 +12,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface KprApplicationRepository extends JpaRepository<KprApplication, Integer> {
 
+  List<KprApplication> findKprApplicationsByUserId(Integer userId);
+
   /** Find application by application number */
   Optional<KprApplication> findByApplicationNumber(String applicationNumber);
 

@@ -1,14 +1,6 @@
 package com.kelompoksatu.griya.service;
 
-import com.kelompoksatu.griya.dto.AssignWorkflowRequest;
-import com.kelompoksatu.griya.dto.AssignWorkflowResponse;
-import com.kelompoksatu.griya.dto.EmploymentData;
-import com.kelompoksatu.griya.dto.KprApplicationDetailResponse;
-import com.kelompoksatu.griya.dto.KprApplicationFormRequest;
-import com.kelompoksatu.griya.dto.KprApplicationRequest;
-import com.kelompoksatu.griya.dto.KprApplicationResponse;
-import com.kelompoksatu.griya.dto.PersonalData;
-import com.kelompoksatu.griya.dto.SimulationData;
+import com.kelompoksatu.griya.dto.*;
 import com.kelompoksatu.griya.entity.*;
 import com.kelompoksatu.griya.repository.*;
 import java.math.BigDecimal;
@@ -20,6 +12,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -257,6 +250,37 @@ public class KprApplicationService {
         savedApplication.getStatus(),
         monthlyInstallment,
         selectedRate.getEffectiveRate());
+  }
+
+  public List<KprHistoryListResponse> getApplicationHistory(Integer userID) {
+    logger.info("Validate user: {}", userID);
+    User user = validateUser(userID);
+    if (user.getStatus() != UserStatus.ACTIVE) {
+      throw new IllegalStateException("User account is not active");
+    }
+    if (!user.getRole().getName().equalsIgnoreCase("USER")) {
+      throw new IllegalStateException("User is not a consumer");
+    }
+
+    logger.info("KPR History search started by {}", userID);
+    List<KprApplication> applications =
+        kprApplicationRepository.findKprApplicationsByUserId(user.getId());
+    return applications.stream()
+        .map(
+            application ->
+                new KprHistoryListResponse(
+                    application.getProperty().getTitle(),
+                    application.getStatus().toString(),
+                    String.format(
+                        "%s, %s, %s",
+                        application.getProperty().getDistrict(),
+                        application.getProperty().getCity(),
+                        application.getProperty().getProvince()),
+                    application.getApplicationNumber(),
+                    application.getLoanAmount(),
+                    application.getCreatedAt().toString(),
+                    ""))
+        .collect(Collectors.toList());
   }
 
   /** Validate user authentication and status */
