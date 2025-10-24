@@ -6,6 +6,7 @@ import com.kelompoksatu.griya.dto.KprApplicationDetailResponse;
 import com.kelompoksatu.griya.dto.KprApplicationFormRequest;
 import com.kelompoksatu.griya.dto.KprApplicationResponse;
 import com.kelompoksatu.griya.dto.KprHistoryListResponse;
+import com.kelompoksatu.griya.dto.KprInProgress;
 import com.kelompoksatu.griya.dto.PersonalData;
 import com.kelompoksatu.griya.dto.SimulationData;
 import com.kelompoksatu.griya.service.KprApplicationService;
@@ -464,6 +465,79 @@ public class KprApplicationController {
       ApiResponse<List<KprHistoryListResponse>> response =
           new ApiResponse<>(
               false, "Failed to get KPR application approval history: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  /**
+   * Get KPR applications on progress for a developer
+   *
+   * @param authHeader JWT token in Authorization header
+   * @return List of KprInProgress with applications on progress
+   */
+  @GetMapping("/developer/progress")
+  @Operation(
+      summary = "Get KPR Applications On Progress",
+      description =
+          "Retrieve the KPR applications that are currently in progress for the authenticated developer. "
+              + "Developers can only access their own applications on progress.")
+  @io.swagger.v3.oas.annotations.responses.ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "KPR applications on progress retrieved successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = KprInProgress.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized - Invalid or missing JWT token",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            description = "Forbidden - Developer does not have access to this progress",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(mediaType = "application/json"))
+      })
+  public ResponseEntity<ApiResponse<List<KprInProgress>>> getKprApplicationsOnProgressByDeveloper(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for KPR applications on progress");
+
+      // Extract and validate JWT token
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+      // Extract developer ID from token
+      Integer developerId = jwtUtil.extractUserId(token);
+      if (developerId == null) {
+        logger.warn("Invalid token - developer ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      logger.info(
+          "Processing KPR applications on progress request for developer ID: {}", developerId);
+
+      // Get KPR applications on progress through service
+      List<KprInProgress> response =
+          kprApplicationService.getKprApplicationsOnProgressByDeveloper(developerId);
+
+      logger.info(
+          "KPR applications on progress retrieved successfully for developer ID: {}", developerId);
+      return ResponseEntity.ok(
+          new ApiResponse<List<KprInProgress>>(
+              true, "KPR applications on progress retrieved successfully", response));
+    } catch (Exception e) {
+      logger.error("Error retrieving KPR applications on progress: {}", e.getMessage(), e);
+
+      // Determine appropriate HTTP status based on error type
+      ApiResponse<List<KprInProgress>> response =
+          new ApiResponse<>(
+              false, "Failed to get KPR applications on progress: " + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }

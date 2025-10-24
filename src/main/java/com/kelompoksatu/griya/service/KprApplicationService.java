@@ -310,6 +310,33 @@ public class KprApplicationService {
         .collect(Collectors.toList());
   }
 
+  public List<KprInProgress> getKprApplicationsOnProgressByDeveloper(Integer developerId) {
+    logger.info("Validate developer: {}", developerId);
+
+    developerRepository
+        .findById(developerId)
+        .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
+
+    logger.info("KPR In Progress search started by {}", developerId);
+
+    List<KprApplication> applications =
+        kprApplicationRepository.findKprApplicationsOnProgressByDeveloper(developerId);
+
+    logger.info("KPR In Progress search completed by {}", developerId);
+    return applications.stream()
+        .map(
+            application ->
+                new KprInProgress(
+                    application.getId(),
+                    application.getApplicationNumber(),
+                    application.getProperty().getTitle(),
+                    application.getProperty().getAddress(),
+                    application.getLoanAmount(),
+                    application.getCreatedAt().toString(),
+                    application.getKprRate().getRateName()))
+        .collect(Collectors.toList());
+  }
+
   /** Validate user authentication and status */
   private User validateUser(Integer userId) {
     User user =
