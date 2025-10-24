@@ -2,6 +2,7 @@ package com.kelompoksatu.griya.dto;
 
 import com.kelompoksatu.griya.entity.Gender;
 import com.kelompoksatu.griya.entity.MaritalStatus;
+import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -45,7 +46,6 @@ public class RegisterRequest {
   @NotBlank(message = "Confirm password is required")
   private String confirmPassword;
 
-  @NotBlank(message = "Phone number is required")
   @Pattern(
       regexp = "^(\\+62|62|0)[0-9]{9,13}$",
       message = "Please provide a valid Indonesian phone number")
@@ -56,37 +56,31 @@ public class RegisterRequest {
   @Size(max = 100, message = "Full name must not exceed 100 characters")
   private String fullName;
 
-  @NotBlank(message = "NIK is required")
   @Pattern(regexp = "^[0-9]{16}$", message = "NIK must be exactly 16 digits")
   private String nik;
 
   @Pattern(regexp = "^[0-9]{16}$", message = "NPWP must be exactly 16 digits")
   private String npwp;
 
-  @NotNull(message = "Birth date is required") @Past(message = "Birth date must be in the past")
+  @Past(message = "Birth date must be in the past")
   private LocalDate birthDate;
 
-  @NotBlank(message = "Birth place is required")
   @Size(max = 100, message = "Birth place must not exceed 100 characters")
   private String birthPlace;
 
-  @NotNull(message = "Gender is required") private Gender gender;
+  @Enumerated private Gender gender;
 
-  @NotNull(message = "Marital status is required") private MaritalStatus maritalStatus;
+  @Enumerated private MaritalStatus maritalStatus;
 
-  @NotBlank(message = "Address is required")
   @Size(max = 500, message = "Address must not exceed 500 characters")
   private String address;
 
-  @NotBlank(message = "City is required")
   @Size(max = 100, message = "City must not exceed 100 characters")
   private String city;
 
-  @NotBlank(message = "Province is required")
   @Size(max = 100, message = "Province must not exceed 100 characters")
   private String province;
 
-  @NotBlank(message = "Postal code is required")
   @Pattern(regexp = "^[0-9]{5}$", message = "Postal code must be exactly 5 digits")
   private String postalCode;
 
@@ -105,7 +99,7 @@ public class RegisterRequest {
   @Max(value = 50, message = "Work experience cannot exceed 50 years")
   private Integer workExperience;
 
-  private String role;
+  @Enumerated private String role;
 
   @NotNull(message = "Consent at is required") private LocalDateTime consentAt;
 
