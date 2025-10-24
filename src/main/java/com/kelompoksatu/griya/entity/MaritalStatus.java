@@ -5,5 +5,9 @@ public enum MaritalStatus {
   SINGLE,
   MARRIED,
   DIVORCED,
-  WIDOWED
+  WIDOWED;
+
+  public static MaritalStatus fromString(String maritalStatus) {
+    return MaritalStatus.valueOf(maritalStatus.toUpperCase());
+  }
 }

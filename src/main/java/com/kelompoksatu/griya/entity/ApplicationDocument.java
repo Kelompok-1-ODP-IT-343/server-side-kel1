@@ -3,6 +3,7 @@ package com.kelompoksatu.griya.entity;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcType;
@@ -17,6 +18,7 @@ import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class ApplicationDocument {
 
   @Id

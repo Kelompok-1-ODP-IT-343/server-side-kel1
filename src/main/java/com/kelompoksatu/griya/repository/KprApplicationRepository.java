@@ -45,7 +45,7 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
   @Query(
       "SELECT COALESCE(MAX(CAST(SUBSTRING(k.applicationNumber, 10) AS integer)), 0) + 1 "
           + "FROM KprApplication k WHERE k.applicationNumber LIKE :yearPrefix")
-  Integer getNextSequenceNumber(@Param("yearPrefix") String yearPrefix);
+  Long getNextSequenceNumber(@Param("yearPrefix") String yearPrefix);
 
   /** Find applications requiring approval at specific level */
   @Query(

@@ -41,32 +41,24 @@ public class AuthService {
   private Long forgotPasswordExpiredTime;
 
   private final UserService userService;
-
   private final DeveloperService developerService;
-
   private final RoleRepository roleRepository;
-
   private final UserSessionRepository userSessionRepository;
-
   private final PasswordEncoder passwordEncoder;
-
   private final JwtUtil jwtUtil;
-
   private final UserRepository userRepo;
-
   private final VerificationTokenRepository tokenRepo;
-
   private final EmailService emailService;
+
+  // ========================================
+  // REGISTRATION OPERATIONS
+  // ========================================
 
   /** Register a new user */
   public RegisterResponse register(RegisterRequest request) {
-
     logger.info("Processing registration for username: {}", request.getUsername());
 
-    // Validate password confirmation
-    if (!request.getPassword().equals(request.getConfirmPassword())) {
-      throw new RuntimeException("Password dan konfirmasi password tidak cocok");
-    }
+    validatePasswordConfirmation(request.getPassword(), request.getConfirmPassword());
 
     // Register user through UserService
     Pair<User, Role> result = userService.registerUser(request);
@@ -84,73 +76,11 @@ public class AuthService {
     logger.info("Processing developer registration for username: {}", request.getUsername());
 
     try {
-      // Validate password
-      if (!request.isPasswordMatching()) {
-        throw new IllegalArgumentException("Password validation failed");
-      }
+      validateDeveloperRegistrationRequest(request);
+      Role developerRole = validateAndGetDeveloperRole();
 
-      // Check if username already exists
-      if (userRepo.existsByUsername(request.getUsername())) {
-        throw new IllegalArgumentException("Username already exists: " + request.getUsername());
-      }
-
-      // Check if email already exists
-      if (userRepo.existsByEmail(request.getEmail())) {
-        throw new IllegalArgumentException("Email already exists: " + request.getEmail());
-      }
-
-      // Check if phone already exists
-      if (userRepo.existsByPhone(request.getPhone())) {
-        throw new IllegalArgumentException("Phone number already exists: " + request.getPhone());
-      }
-
-      // Get DEVELOPER role
-      Role developerRole =
-          roleRepository
-              .findByName("DEVELOPER")
-              .orElseThrow(() -> new RuntimeException("DEVELOPER role not found"));
-
-      // Create user account first
-      User user = new User();
-      user.setUsername(request.getUsername());
-      user.setEmail(request.getEmail());
-      user.setPhone(request.getPhone());
-      user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-      user.setRole(developerRole);
-      user.setStatus(UserStatus.ACTIVE); // Admin registration - set as active
-      user.setFailedLoginAttempts(0);
-      user.setCreatedAt(LocalDateTime.now());
-      user.setUpdatedAt(LocalDateTime.now());
-      user.setConsentAt(request.getConsentAt());
-
-      User savedUser = userRepo.save(user);
-      logger.info("Developer user account created successfully with ID: {}", savedUser.getId());
-
-      // Create developer profile
-      CreateDeveloperRequest developerRequest = new CreateDeveloperRequest();
-      developerRequest.setCompanyName(request.getCompanyName());
-      developerRequest.setCompanyCode(request.getCompanyCode());
-      developerRequest.setBusinessLicense(request.getBusinessLicense());
-      developerRequest.setDeveloperLicense(request.getDeveloperLicense());
-      developerRequest.setContactPerson(request.getContactPerson());
-      developerRequest.setPhone(request.getPhone());
-      developerRequest.setEmail(request.getEmail());
-      developerRequest.setWebsite(request.getWebsite());
-      developerRequest.setAddress(request.getAddress());
-      developerRequest.setCity(request.getCity());
-      developerRequest.setProvince(request.getProvince());
-      developerRequest.setPostalCode(request.getPostalCode());
-      developerRequest.setEstablishedYear(request.getEstablishedYear());
-      developerRequest.setDescription(request.getDescription());
-      developerRequest.setSpecialization(request.getSpecialization());
-      developerRequest.setIsPartner(request.getIsPartner());
-      developerRequest.setPartnershipLevel(request.getPartnershipLevel());
-      developerRequest.setCommissionRate(request.getCommissionRate());
-
-      DeveloperResponse developerResponse =
-          developerService.createDeveloper(developerRequest, savedUser);
-
-      // Convert to UserResponse for consistency
+      User savedUser = createDeveloperUser(request, developerRole);
+      DeveloperResponse developerResponse = createDeveloperProfile(request, savedUser);
       UserResponse userResponse = userService.convertToUserResponse(savedUser, developerRole);
 
       logger.info("Developer registered successfully: {}", savedUser.getUsername());
@@ -158,55 +88,35 @@ public class AuthService {
 
     } catch (IllegalArgumentException e) {
       logger.error("Validation error during developer registration: {}", e.getMessage());
-      throw e; // Re-throw validation errors as-is
+      throw e;
     } catch (Exception e) {
       logger.error("Failed to register developer: {}", e.getMessage());
       throw new RuntimeException("Failed to register developer: " + e.getMessage());
     }
   }
 
+  // ========================================
+  // AUTHENTICATION OPERATIONS
+  // ========================================
+
   /** Authenticate user login */
   public AuthResponse login(LoginRequest request, String ipAddress, String userAgent) {
     try {
       logger.info("Processing login for identifier: {}", request.getIdentifier());
 
-      // Find user by username or email
-      User user =
-          userService
-              .findByUsernameOrEmail(request.getIdentifier())
-              .orElseThrow(() -> new RuntimeException("Username atau email tidak ditemukan"));
-
-      // Check if account is locked
-      if (userService.isAccountLocked(user)) {
-        throw new RuntimeException(
-            "Akun terkunci karena terlalu banyak percobaan login yang gagal");
-      }
-
-      // Verify password
-      if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-        userService.incrementFailedLoginAttempts(user.getId());
-        throw new RuntimeException("Password salah");
-      }
-
-      // Check if account is active
-      if (!userService.isAccountActive(user)) {
-        throw new RuntimeException("Akun belum aktif atau telah dinonaktifkan");
-      }
+      User user = validateLoginCredentials(request);
+      validateAccountStatus(user);
 
       // Reset failed login attempts on successful login
       userService.resetFailedLoginAttempts(user.getId());
-
-      // Update last login time
       userService.updateLastLogin(user.getId());
 
-      // Generate JWT token
+      // Generate tokens and create session
       String refreshToken =
           jwtUtil.generateRefreshToken(user.getUsername(), user.getId(), user.getRole().getName());
-      // Generate JWT token
       String accessToken =
           jwtUtil.generateAccessToken(user.getUsername(), user.getId(), user.getRole().getName());
 
-      // Create user session
       createUserSession(user.getId(), ipAddress, userAgent, refreshToken);
 
       logger.info("User logged in successfully: {}", user.getUsername());
@@ -215,22 +125,6 @@ public class AuthService {
     } catch (Exception e) {
       logger.error("Login failed for identifier {}: {}", request.getIdentifier(), e.getMessage());
       throw new RuntimeException("Login gagal: " + e.getMessage());
-    }
-  }
-
-  /** Get user profile by token */
-  public UserResponse getProfile(String token) {
-    try {
-      // Extract username from token
-      String username = jwtUtil.extractUsername(token);
-      Integer userId = jwtUtil.extractUserId(token);
-
-      // Get user profile
-      return userService.getUserProfile(userId);
-
-    } catch (Exception e) {
-      logger.error("Failed to get user profile: {}", e.getMessage());
-      throw new RuntimeException("Gagal mengambil profil user: " + e.getMessage());
     }
   }
 
@@ -252,6 +146,10 @@ public class AuthService {
     }
   }
 
+  // ========================================
+  // TOKEN OPERATIONS
+  // ========================================
+
   /** Validate JWT token */
   public boolean validateToken(String token) {
     try {
@@ -262,86 +160,7 @@ public class AuthService {
     }
   }
 
-  /** Create user session record */
-  private void createUserSession(
-      Integer userId, String ipAddress, String userAgent, String refreshToken) {
-    try {
-      UserSession session = new UserSession();
-      session.setId(UUID.randomUUID().toString());
-      session.setUserId(userId);
-      session.setIpAddress(ipAddress);
-      session.setUserAgent(userAgent);
-
-      // Create session payload with basic info
-      Map<String, Object> payload = new HashMap<>();
-      payload.put("loginTime", LocalDateTime.now().toString());
-      session.setPayload(payload.toString());
-
-      session.setLastActivity(LocalDateTime.now());
-      session.setCreatedAt(LocalDateTime.now());
-
-      session.setRefreshToken(jwtUtil.hashToken(refreshToken));
-      session.setStatus(SessionStatus.ACTIVE);
-      userSessionRepository.save(session);
-      logger.info("User session created for userId: {}", userId);
-
-    } catch (Exception e) {
-      logger.error("Failed to create user session: {}", e.getMessage());
-      // Don't throw exception here as it's not critical for login process
-    }
-  }
-
-  /** Clean up expired sessions */
-  public void cleanupExpiredSessions() {
-    try {
-      LocalDateTime expiredBefore =
-          LocalDateTime.now().minusDays(30); // Sessions older than 30 days
-      userSessionRepository.deleteExpiredSessions(expiredBefore);
-      logger.info("Expired sessions cleaned up");
-    } catch (Exception e) {
-      logger.error("Failed to cleanup expired sessions: {}", e.getMessage());
-    }
-  }
-
-  @SneakyThrows
-  @Transactional
-  public String generateEmailVerificationToken(User user, long durationInMinutes) {
-
-    String token = UUID.randomUUID().toString().replace("-", ""); // 32 char
-    VerificationToken vt = new VerificationToken();
-    vt.setToken(hashToken(token));
-    vt.setUser(user);
-    vt.setExpiresAt(Instant.now().plus(durationInMinutes, ChronoUnit.MINUTES));
-
-    tokenRepo.save(vt);
-    return token;
-  }
-
-  /** Verifikasi token dari link email */
-  @SneakyThrows
-  @Transactional
-  public VerifyEmailResponse verifyEmail(String token) {
-    String hashedToken = hashToken(token);
-    VerificationToken vt =
-        tokenRepo
-            .findByToken(hashedToken)
-            .orElseThrow(() -> new IllegalArgumentException("Invalid token"));
-    invalidateToken(vt);
-    User user = vt.getUser();
-    if (!user.isEmailVerified()) {
-      user.setEmailVerifiedAt(LocalDateTime.now());
-      user.setStatus(UserStatus.ACTIVE);
-      userRepo.save(user);
-    }
-    return new VerifyEmailResponse(true, "Email verified successfully", user.getEmail());
-  }
-
-  private static String hashToken(String token) throws NoSuchAlgorithmException {
-    return HexFormat.of()
-        .formatHex(
-            MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));
-  }
-
+  /** Refresh access token */
   @Transactional
   public AuthResponse refreshToken(TokenRefreshRequest request) {
     String oldRefreshToken = request.getRefreshToken();
@@ -359,7 +178,6 @@ public class AuthService {
                         "Refresh token not found or revoked"));
 
     String username = jwtUtil.extractUsername(oldRefreshToken);
-
     User user = session.getUser();
 
     // Generate new tokens
@@ -368,30 +186,70 @@ public class AuthService {
     String newRefreshToken =
         jwtUtil.generateRefreshToken(user.getUsername(), user.getId(), user.getRole().getName());
 
-    session.setUserId(user.getId());
-    session.setRefreshToken(jwtUtil.hashToken(newRefreshToken));
-    session.setIpAddress(request.getIpAddress());
-    session.setUserAgent(request.getUserAgent());
-    session.setLastActivity(LocalDateTime.now());
-    session.setStatus(SessionStatus.ACTIVE);
-    userSessionRepository.save(session);
+    updateUserSession(session, user, newRefreshToken, request);
 
     logger.info("Access token refreshed for user: {}", username);
-
     return new AuthResponse(newAccessToken, newRefreshToken);
   }
 
+  // ========================================
+  // EMAIL VERIFICATION OPERATIONS
+  // ========================================
+
+  /** Generate email verification token */
+  @SneakyThrows
+  @Transactional
+  public String generateEmailVerificationToken(User user, long durationInMinutes) {
+    String token = UUID.randomUUID().toString().replace("-", ""); // 32 char
+    VerificationToken vt = new VerificationToken();
+    vt.setToken(hashToken(token));
+    vt.setUser(user);
+    vt.setExpiresAt(Instant.now().plus(durationInMinutes, ChronoUnit.MINUTES));
+
+    tokenRepo.save(vt);
+    return token;
+  }
+
+  /** Verify email token from link */
+  @SneakyThrows
+  @Transactional
+  public VerifyEmailResponse verifyEmail(String token) {
+    String hashedToken = hashToken(token);
+    VerificationToken vt =
+        tokenRepo
+            .findByToken(hashedToken)
+            .orElseThrow(() -> new IllegalArgumentException("Invalid token"));
+
+    invalidateToken(vt);
+    User user = vt.getUser();
+
+    if (!user.isEmailVerified()) {
+      user.setEmailVerifiedAt(LocalDateTime.now());
+      user.setStatus(UserStatus.ACTIVE);
+      userRepo.save(user);
+    }
+
+    return new VerifyEmailResponse(true, "Email verified successfully", user.getEmail());
+  }
+
+  // ========================================
+  // PASSWORD RESET OPERATIONS
+  // ========================================
+
+  /** Send forgot password email */
   public void forgotPassword(@Valid ForgotPasswordRequest request) {
     User user =
         userRepo
             .findByEmail(request.getEmail())
             .orElseThrow(() -> new AuthenticationCredentialsNotFoundException("Email not found"));
+
     emailService.sendEmailForgotPassword(
         request.getEmail(),
         generateEmailVerificationToken(user, forgotPasswordExpiredTime),
         forgotPasswordExpiredTime);
   }
 
+  /** Reset password with token */
   @SneakyThrows
   @Transactional
   public void resetPassword(String tokenValue, String newPassword) {
@@ -399,13 +257,199 @@ public class AuthService {
         tokenRepo
             .findByToken(hashToken(tokenValue))
             .orElseThrow(() -> new IllegalArgumentException("Invalid token"));
+
     invalidateToken(token);
     User user = token.getUser();
+
     if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
       throw new IllegalArgumentException("New password cannot be the same as old password");
     }
+
     user.setPasswordHash(passwordEncoder.encode(newPassword));
     userRepo.save(user);
+  }
+
+  // ========================================
+  // USER PROFILE OPERATIONS
+  // ========================================
+
+  /** Get user profile by token */
+  public UserResponse getProfile(String token) {
+    try {
+      String username = jwtUtil.extractUsername(token);
+      Integer userId = jwtUtil.extractUserId(token);
+
+      return userService.getUserProfile(userId);
+
+    } catch (Exception e) {
+      logger.error("Failed to get user profile: {}", e.getMessage());
+      throw new RuntimeException("Gagal mengambil profil user: " + e.getMessage());
+    }
+  }
+
+  // ========================================
+  // SESSION MANAGEMENT OPERATIONS
+  // ========================================
+
+  /** Clean up expired sessions */
+  public void cleanupExpiredSessions() {
+    try {
+      LocalDateTime expiredBefore =
+          LocalDateTime.now().minusDays(30); // Sessions older than 30 days
+      userSessionRepository.deleteExpiredSessions(expiredBefore);
+      logger.info("Expired sessions cleaned up");
+    } catch (Exception e) {
+      logger.error("Failed to cleanup expired sessions: {}", e.getMessage());
+    }
+  }
+
+  // ========================================
+  // PRIVATE VALIDATION METHODS
+  // ========================================
+
+  private void validatePasswordConfirmation(String password, String confirmPassword) {
+    if (!password.equals(confirmPassword)) {
+      throw new RuntimeException("Password dan konfirmasi password tidak cocok");
+    }
+  }
+
+  private void validateDeveloperRegistrationRequest(RegisterDeveloperRequest request) {
+    if (!request.isPasswordMatching()) {
+      throw new IllegalArgumentException("Password validation failed");
+    }
+
+    if (userRepo.existsByUsername(request.getUsername())) {
+      throw new IllegalArgumentException("Username already exists: " + request.getUsername());
+    }
+
+    if (userRepo.existsByEmail(request.getEmail())) {
+      throw new IllegalArgumentException("Email already exists: " + request.getEmail());
+    }
+
+    if (userRepo.existsByPhone(request.getPhone())) {
+      throw new IllegalArgumentException("Phone number already exists: " + request.getPhone());
+    }
+  }
+
+  private Role validateAndGetDeveloperRole() {
+    return roleRepository
+        .findByName("DEVELOPER")
+        .orElseThrow(() -> new RuntimeException("DEVELOPER role not found"));
+  }
+
+  private User validateLoginCredentials(LoginRequest request) {
+    User user =
+        userService
+            .findByUsernameOrEmail(request.getIdentifier())
+            .orElseThrow(() -> new RuntimeException("Username atau email tidak ditemukan"));
+
+    if (userService.isAccountLocked(user)) {
+      throw new RuntimeException("Akun terkunci karena terlalu banyak percobaan login yang gagal");
+    }
+
+    if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+      userService.incrementFailedLoginAttempts(user.getId());
+      throw new RuntimeException("Password salah");
+    }
+
+    return user;
+  }
+
+  private void validateAccountStatus(User user) {
+    if (!userService.isAccountActive(user)) {
+      throw new RuntimeException("Akun belum aktif atau telah dinonaktifkan");
+    }
+  }
+
+  // ========================================
+  // PRIVATE BUSINESS LOGIC METHODS
+  // ========================================
+
+  private User createDeveloperUser(RegisterDeveloperRequest request, Role developerRole) {
+    User user = new User();
+    user.setUsername(request.getUsername());
+    user.setEmail(request.getEmail());
+    user.setPhone(request.getPhone());
+    user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+    user.setRole(developerRole);
+    user.setStatus(UserStatus.ACTIVE); // Admin registration - set as active
+    user.setFailedLoginAttempts(0);
+    user.setCreatedAt(LocalDateTime.now());
+    user.setUpdatedAt(LocalDateTime.now());
+    user.setConsentAt(request.getConsentAt());
+
+    User savedUser = userRepo.save(user);
+    logger.info("Developer user account created successfully with ID: {}", savedUser.getId());
+    return savedUser;
+  }
+
+  private DeveloperResponse createDeveloperProfile(
+      RegisterDeveloperRequest request, User savedUser) {
+    CreateDeveloperRequest developerRequest = new CreateDeveloperRequest();
+    setDeveloperRequestFields(developerRequest, request);
+
+    return developerService.createDeveloper(developerRequest, savedUser);
+  }
+
+  private void setDeveloperRequestFields(
+      CreateDeveloperRequest developerRequest, RegisterDeveloperRequest request) {
+    developerRequest.setCompanyName(request.getCompanyName());
+    developerRequest.setCompanyCode(request.getCompanyCode());
+    developerRequest.setBusinessLicense(request.getBusinessLicense());
+    developerRequest.setDeveloperLicense(request.getDeveloperLicense());
+    developerRequest.setContactPerson(request.getContactPerson());
+    developerRequest.setPhone(request.getPhone());
+    developerRequest.setEmail(request.getEmail());
+    developerRequest.setWebsite(request.getWebsite());
+    developerRequest.setAddress(request.getAddress());
+    developerRequest.setCity(request.getCity());
+    developerRequest.setProvince(request.getProvince());
+    developerRequest.setPostalCode(request.getPostalCode());
+    developerRequest.setEstablishedYear(request.getEstablishedYear());
+    developerRequest.setDescription(request.getDescription());
+    developerRequest.setSpecialization(request.getSpecialization());
+    developerRequest.setIsPartner(request.getIsPartner());
+    developerRequest.setPartnershipLevel(request.getPartnershipLevel());
+    developerRequest.setCommissionRate(request.getCommissionRate());
+  }
+
+  private void createUserSession(
+      Integer userId, String ipAddress, String userAgent, String refreshToken) {
+    try {
+      UserSession session = new UserSession();
+      session.setId(UUID.randomUUID().toString());
+      session.setUserId(userId);
+      session.setIpAddress(ipAddress);
+      session.setUserAgent(userAgent);
+
+      // Create session payload with basic info
+      Map<String, Object> payload = new HashMap<>();
+      payload.put("loginTime", LocalDateTime.now().toString());
+      session.setPayload(payload.toString());
+
+      session.setLastActivity(LocalDateTime.now());
+      session.setCreatedAt(LocalDateTime.now());
+      session.setRefreshToken(jwtUtil.hashToken(refreshToken));
+      session.setStatus(SessionStatus.ACTIVE);
+
+      userSessionRepository.save(session);
+      logger.info("User session created for userId: {}", userId);
+
+    } catch (Exception e) {
+      logger.error("Failed to create user session: {}", e.getMessage());
+      // Don't throw exception here as it's not critical for login process
+    }
+  }
+
+  private void updateUserSession(
+      UserSession session, User user, String newRefreshToken, TokenRefreshRequest request) {
+    session.setUserId(user.getId());
+    session.setRefreshToken(jwtUtil.hashToken(newRefreshToken));
+    session.setIpAddress(request.getIpAddress());
+    session.setUserAgent(request.getUserAgent());
+    session.setLastActivity(LocalDateTime.now());
+    session.setStatus(SessionStatus.ACTIVE);
+    userSessionRepository.save(session);
   }
 
   private void invalidateToken(VerificationToken vt) {
@@ -417,5 +461,15 @@ public class AuthService {
     }
     vt.setUsedAt(Instant.now());
     tokenRepo.save(vt);
+  }
+
+  // ========================================
+  // PRIVATE UTILITY METHODS
+  // ========================================
+
+  private static String hashToken(String token) throws NoSuchAlgorithmException {
+    return HexFormat.of()
+        .formatHex(
+            MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));
   }
 }
