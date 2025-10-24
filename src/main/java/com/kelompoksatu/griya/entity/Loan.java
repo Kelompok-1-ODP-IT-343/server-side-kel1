@@ -77,11 +77,11 @@ public class Loan {
   private LocalDateTime updatedAt;
 
   // Relationships
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "user_id", insertable = false, updatable = false)
   private User user;
 
-  @OneToOne(fetch = FetchType.LAZY)
+  @OneToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "application_id", insertable = false, updatable = false)
   private KprApplication kprApplication;
 

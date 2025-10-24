@@ -64,11 +64,11 @@ public class ApplicationDocument {
   // RELATIONSHIPS
   // ========================================
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "application_id", insertable = false, updatable = false)
   private KprApplication kprApplication;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "verified_by", insertable = false, updatable = false)
   private User verifier;
 

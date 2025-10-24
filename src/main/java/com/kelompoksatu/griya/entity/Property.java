@@ -176,7 +176,7 @@ public class Property {
   private LocalDateTime publishedAt;
 
   // Relationship with Developer
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "developer_id", insertable = false, updatable = false)
   private Developer developer;
 

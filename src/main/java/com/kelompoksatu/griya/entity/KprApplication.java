@@ -111,15 +111,15 @@ public class KprApplication {
   private LocalDateTime updatedAt;
 
   // Relationships
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "user_id", insertable = false, updatable = false)
   private User user;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "property_id", insertable = false, updatable = false)
   private Property property;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "kpr_rate_id", insertable = false, updatable = false)
   private KprRate kprRate;
 

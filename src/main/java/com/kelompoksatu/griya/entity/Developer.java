@@ -106,7 +106,7 @@ public class Developer {
   private LocalDateTime updatedAt;
 
   /** 🔹 New: Relation to User */
-  @OneToOne(fetch = FetchType.LAZY)
+  @OneToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "user_id", nullable = false, unique = true)
   private User user;
 

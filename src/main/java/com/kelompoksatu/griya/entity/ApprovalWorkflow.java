@@ -75,15 +75,15 @@ public class ApprovalWorkflow {
   private LocalDateTime updatedAt;
 
   // Relationships
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "application_id", insertable = false, updatable = false)
   private KprApplication kprApplication;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "assigned_to", insertable = false, updatable = false)
   private User assignedUser;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "escalated_to", insertable = false, updatable = false)
   private User escalatedUser;
 

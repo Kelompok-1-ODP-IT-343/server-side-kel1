@@ -174,6 +174,12 @@ public interface ApprovalWorkflowRepository extends JpaRepository<ApprovalWorkfl
   Optional<ApprovalWorkflow> findCurrentActiveWorkflow(
       @Param("applicationId") Integer applicationId);
 
+  /** Approve workflow by user ID and application ID */
+  @Query(
+      "SELECT aw FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId AND aw.applicationId = :applicationId AND aw.status = 'PENDING'")
+  Optional<ApprovalWorkflow> approveByUserIDandApplicationID(
+      @Param("userId") Integer userId, @Param("applicationId") Integer applicationId);
+
   // Delete workflows by application ID (for cleanup)
   void deleteByApplicationId(Integer applicationId);
 }

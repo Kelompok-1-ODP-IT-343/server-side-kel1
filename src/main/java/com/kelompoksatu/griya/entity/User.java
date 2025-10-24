@@ -75,7 +75,7 @@ public class User {
   @Column(name = "consent_at", nullable = false)
   private LocalDateTime consentAt;
 
-  @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
   private Developer developer;
 
   // Utility methods
