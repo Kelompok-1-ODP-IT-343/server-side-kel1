@@ -46,7 +46,7 @@ public class UserSession {
   private SessionStatus status = SessionStatus.ACTIVE;
 
   // Relationship with User
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "user_id", insertable = false, updatable = false)
   private User user;
 }

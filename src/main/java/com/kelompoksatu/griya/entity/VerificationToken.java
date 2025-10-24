@@ -15,7 +15,7 @@ public class VerificationToken {
   @Column(nullable = false, unique = true, length = 128)
   private String token; // atau tokenHash (lihat catatan security)
 
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @ManyToOne(fetch = FetchType.EAGER, optional = false)
   @JoinColumn(name = "user_id")
   private User user;
 

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
@@ -17,6 +18,7 @@ import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class KprApplication {
 
   @Id
@@ -109,15 +111,15 @@ public class KprApplication {
   private LocalDateTime updatedAt;
 
   // Relationships
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "user_id", insertable = false, updatable = false)
   private User user;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "property_id", insertable = false, updatable = false)
   private Property property;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "kpr_rate_id", insertable = false, updatable = false)
   private KprRate kprRate;
 

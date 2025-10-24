@@ -107,4 +107,8 @@ public interface DeveloperRepository extends JpaRepository<Developer, Integer> {
   @Query("SELECT d FROM Developer d WHERE d.isPartner = true AND d.partnershipLevel = :level")
   Page<Developer> findPartnersByLevel(
       @Param("level") Developer.PartnershipLevel level, Pageable pageable);
+
+  /** Validate developer existence */
+  @Query("SELECT d FROM Developer d WHERE d.id = :developerId AND d.status = 'ACTIVE'")
+  Optional<Developer> validateDeveloper(@Param("developerId") Integer developerId);
 }

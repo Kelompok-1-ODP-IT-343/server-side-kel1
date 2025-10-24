@@ -34,14 +34,14 @@ public class DeveloperController {
     try {
       DeveloperResponse developer = developerService.createDeveloper(request);
       ApiResponse<DeveloperResponse> response =
-          new ApiResponse<>(true, "Developer created successfully", developer);
+          ApiResponse.success("Developer created successfully", developer);
       return ResponseEntity.status(HttpStatus.CREATED).body(response);
     } catch (IllegalArgumentException e) {
-      ApiResponse<DeveloperResponse> response = new ApiResponse<>(false, e.getMessage(), null);
+      ApiResponse<DeveloperResponse> response = ApiResponse.error(e.getMessage());
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     } catch (Exception e) {
       ApiResponse<DeveloperResponse> response =
-          new ApiResponse<>(false, "Failed to create developer: " + e.getMessage(), null);
+          ApiResponse.error("Failed to create developer: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -52,11 +52,11 @@ public class DeveloperController {
     try {
       List<DeveloperResponse> developers = developerService.getAllDevelopers();
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(true, "Developers retrieved successfully", developers);
+          ApiResponse.success("Developers retrieved successfully", developers);
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(false, "Failed to retrieve developers: " + e.getMessage(), null);
+          ApiResponse.error("Failed to retrieve developers: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -68,16 +68,17 @@ public class DeveloperController {
       Optional<DeveloperResponse> developer = developerService.getDeveloperById(id);
       if (developer.isPresent()) {
         ApiResponse<DeveloperResponse> response =
-            new ApiResponse<>(true, "Developer retrieved successfully", developer.get());
+            ApiResponse.success("Developer retrieved successfully", developer.get());
+
         return ResponseEntity.ok(response);
       } else {
         ApiResponse<DeveloperResponse> response =
-            new ApiResponse<>(false, "Developer not found with id: " + id, null);
+            ApiResponse.error("Developer not found with id: " + id);
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
       }
     } catch (Exception e) {
       ApiResponse<DeveloperResponse> response =
-          new ApiResponse<>(false, "Failed to retrieve developer: " + e.getMessage(), null);
+          ApiResponse.error("Failed to retrieve developer: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -91,16 +92,16 @@ public class DeveloperController {
           developerService.getDeveloperByCompanyCode(companyCode);
       if (developer.isPresent()) {
         ApiResponse<DeveloperResponse> response =
-            new ApiResponse<>(true, "Developer retrieved successfully", developer.get());
+            ApiResponse.success("Developer retrieved successfully", developer.get());
         return ResponseEntity.ok(response);
       } else {
         ApiResponse<DeveloperResponse> response =
-            new ApiResponse<>(false, "Developer not found with company code: " + companyCode, null);
+            ApiResponse.error("Developer not found with company code: " + companyCode);
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
       }
     } catch (Exception e) {
       ApiResponse<DeveloperResponse> response =
-          new ApiResponse<>(false, "Failed to retrieve developer: " + e.getMessage(), null);
+          ApiResponse.error("Failed to retrieve developer: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -111,11 +112,11 @@ public class DeveloperController {
     try {
       List<DeveloperResponse> developers = developerService.getActiveDevelopers();
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(true, "Active developers retrieved successfully", developers);
+          ApiResponse.success("Active developers retrieved successfully", developers);
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(false, "Failed to retrieve active developers: " + e.getMessage(), null);
+          ApiResponse.error("Failed to retrieve active developers: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -129,16 +130,16 @@ public class DeveloperController {
           Developer.DeveloperStatus.valueOf(status.toUpperCase());
       List<DeveloperResponse> developers = developerService.getDevelopersByStatus(developerStatus);
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(
-              true, "Developers with status " + status + " retrieved successfully", developers);
+          ApiResponse.success(
+              "Developers with status " + status + " retrieved successfully", developers);
       return ResponseEntity.ok(response);
     } catch (IllegalArgumentException e) {
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(false, "Invalid status: " + status, null);
+          ApiResponse.error("Invalid status: " + status);
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     } catch (Exception e) {
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(false, "Failed to retrieve developers: " + e.getMessage(), null);
+          ApiResponse.error("Failed to retrieve developers: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -149,12 +150,11 @@ public class DeveloperController {
     try {
       List<DeveloperResponse> developers = developerService.getPartnerDevelopers();
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(true, "Partner developers retrieved successfully", developers);
+          ApiResponse.success("Partner developers retrieved successfully", developers);
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(
-              false, "Failed to retrieve partner developers: " + e.getMessage(), null);
+          ApiResponse.error("Failed to retrieve partner developers: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -168,8 +168,7 @@ public class DeveloperController {
           Developer.Specialization.valueOf(specialization.toUpperCase());
       List<DeveloperResponse> developers = developerService.getDevelopersBySpecialization(spec);
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(
-              true,
+          ApiResponse.success(
               "Developers with specialization " + specialization + " retrieved successfully",
               developers);
       return ResponseEntity.ok(response);
@@ -225,12 +224,12 @@ public class DeveloperController {
       List<DeveloperResponse> developers =
           developerService.searchDevelopersByCompanyName(companyName);
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(
-              true, "Search results for '" + companyName + "' retrieved successfully", developers);
+          ApiResponse.success(
+              "Search results for '" + companyName + "' retrieved successfully", developers);
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(false, "Failed to search developers: " + e.getMessage(), null);
+          ApiResponse.error("Failed to search developers: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }

@@ -77,19 +77,10 @@ public class AdminController {
           @Valid
           @RequestBody
           UpdateDeveloperRequest request) {
-    try {
-      DeveloperResponse developer = developerService.updateDeveloper(id, request);
-      ApiResponse<DeveloperResponse> response =
-          new ApiResponse<>(true, "Developer updated successfully", developer);
-      return ResponseEntity.ok(response);
-    } catch (IllegalArgumentException e) {
-      ApiResponse<DeveloperResponse> response = new ApiResponse<>(false, e.getMessage(), null);
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-    } catch (Exception e) {
-      ApiResponse<DeveloperResponse> response =
-          new ApiResponse<>(false, "Failed to update developer: " + e.getMessage(), null);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
+    DeveloperResponse developer = developerService.updateDeveloper(id, request);
+    ApiResponse<DeveloperResponse> response =
+        new ApiResponse<>(true, "Developer updated successfully", developer);
+    return ResponseEntity.ok(response);
   }
 
   /** Get developer by ID (admin only) */
@@ -123,21 +114,15 @@ public class AdminController {
       })
   @GetMapping("/developers/{id}")
   public ResponseEntity<ApiResponse<DeveloperResponse>> getDeveloperById(@PathVariable Integer id) {
-    try {
-      Optional<DeveloperResponse> developer = developerService.getDeveloperById(id);
-      if (developer.isPresent()) {
-        ApiResponse<DeveloperResponse> response =
-            new ApiResponse<>(true, "Developer retrieved successfully", developer.get());
-        return ResponseEntity.ok(response);
-      } else {
-        ApiResponse<DeveloperResponse> response =
-            new ApiResponse<>(false, "Developer not found with id: " + id, null);
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-      }
-    } catch (Exception e) {
+    Optional<DeveloperResponse> developer = developerService.getDeveloperById(id);
+    if (developer.isPresent()) {
       ApiResponse<DeveloperResponse> response =
-          new ApiResponse<>(false, "Failed to retrieve developer: " + e.getMessage(), null);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+          new ApiResponse<>(true, "Developer retrieved successfully", developer.get());
+      return ResponseEntity.ok(response);
+    } else {
+      ApiResponse<DeveloperResponse> response =
+          new ApiResponse<>(false, "Developer not found with id: " + id, null);
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
   }
 
@@ -177,23 +162,15 @@ public class AdminController {
       @Parameter(description = "Sort direction", example = "desc")
           @RequestParam(defaultValue = "desc")
           String sortDirection) {
-    try {
-      PaginationRequest paginationRequest =
-          new PaginationRequest(page, size, sortBy, sortDirection);
-      PaginatedResponse<DeveloperResponse> developers =
-          developerService.getAllDevelopers(paginationRequest);
+    PaginationRequest paginationRequest = new PaginationRequest(page, size, sortBy, sortDirection);
+    PaginatedResponse<DeveloperResponse> developers =
+        developerService.getAllDevelopers(paginationRequest);
 
-      ApiResponse<PaginatedResponse<DeveloperResponse>> response =
-          ApiResponse.success(
-              developers, "All developers retrieved successfully", "/api/v1/admin/developers");
+    ApiResponse<PaginatedResponse<DeveloperResponse>> response =
+        ApiResponse.success(
+            developers, "All developers retrieved successfully", "/api/v1/admin/developers");
 
-      return ResponseEntity.ok(response);
-    } catch (Exception e) {
-      ApiResponse<PaginatedResponse<DeveloperResponse>> response =
-          ApiResponse.error(
-              "Failed to retrieve developers: " + e.getMessage(), "/api/v1/admin/developers");
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
+    return ResponseEntity.ok(response);
   }
 
   /** Get active developers with pagination (admin only) */
@@ -232,26 +209,17 @@ public class AdminController {
       @Parameter(description = "Sort direction", example = "desc")
           @RequestParam(defaultValue = "desc")
           String sortDirection) {
-    try {
-      PaginationRequest paginationRequest =
-          new PaginationRequest(page, size, sortBy, sortDirection);
-      PaginatedResponse<DeveloperResponse> developers =
-          developerService.getActiveDevelopers(paginationRequest);
+    PaginationRequest paginationRequest = new PaginationRequest(page, size, sortBy, sortDirection);
+    PaginatedResponse<DeveloperResponse> developers =
+        developerService.getActiveDevelopers(paginationRequest);
 
-      ApiResponse<PaginatedResponse<DeveloperResponse>> response =
-          ApiResponse.success(
-              developers,
-              "Active developers retrieved successfully",
-              "/api/v1/admin/developers/active");
+    ApiResponse<PaginatedResponse<DeveloperResponse>> response =
+        ApiResponse.success(
+            developers,
+            "Active developers retrieved successfully",
+            "/api/v1/admin/developers/active");
 
-      return ResponseEntity.ok(response);
-    } catch (Exception e) {
-      ApiResponse<PaginatedResponse<DeveloperResponse>> response =
-          ApiResponse.error(
-              "Failed to retrieve active developers: " + e.getMessage(),
-              "/api/v1/admin/developers/active");
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
+    return ResponseEntity.ok(response);
   }
 
   /** Get partner developers with pagination (admin only) */
@@ -290,26 +258,17 @@ public class AdminController {
       @Parameter(description = "Sort direction", example = "desc")
           @RequestParam(defaultValue = "desc")
           String sortDirection) {
-    try {
-      PaginationRequest paginationRequest =
-          new PaginationRequest(page, size, sortBy, sortDirection);
-      PaginatedResponse<DeveloperResponse> developers =
-          developerService.getPartnerDevelopers(paginationRequest);
+    PaginationRequest paginationRequest = new PaginationRequest(page, size, sortBy, sortDirection);
+    PaginatedResponse<DeveloperResponse> developers =
+        developerService.getPartnerDevelopers(paginationRequest);
 
-      ApiResponse<PaginatedResponse<DeveloperResponse>> response =
-          ApiResponse.success(
-              developers,
-              "Partner developers retrieved successfully",
-              "/api/v1/admin/developers/partners");
+    ApiResponse<PaginatedResponse<DeveloperResponse>> response =
+        ApiResponse.success(
+            developers,
+            "Partner developers retrieved successfully",
+            "/api/v1/admin/developers/partners");
 
-      return ResponseEntity.ok(response);
-    } catch (Exception e) {
-      ApiResponse<PaginatedResponse<DeveloperResponse>> response =
-          ApiResponse.error(
-              "Failed to retrieve partner developers: " + e.getMessage(),
-              "/api/v1/admin/developers/partners");
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
+    return ResponseEntity.ok(response);
   }
 
   /** Search developers by company name with pagination (admin only) */
@@ -357,37 +316,21 @@ public class AdminController {
       @Parameter(description = "Sort direction", example = "desc")
           @RequestParam(defaultValue = "desc")
           String sortDirection) {
-    try {
-      if (companyName == null || companyName.trim().isEmpty()) {
-        ApiResponse<PaginatedResponse<DeveloperResponse>> response =
-            ApiResponse.error(
-                "Company name parameter is required", "/api/v1/admin/developers/search");
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-      }
-
-      PaginationRequest paginationRequest =
-          new PaginationRequest(page, size, sortBy, sortDirection);
-      PaginatedResponse<DeveloperResponse> developers =
-          developerService.searchDevelopersByCompanyName(companyName, paginationRequest);
-
-      ApiResponse<PaginatedResponse<DeveloperResponse>> response =
-          ApiResponse.success(
-              developers,
-              "Search results retrieved successfully",
-              "/api/v1/admin/developers/search");
-
-      return ResponseEntity.ok(response);
-    } catch (Exception e) {
+    if (companyName == null || companyName.trim().isEmpty()) {
       ApiResponse<PaginatedResponse<DeveloperResponse>> response =
           ApiResponse.error(
-              "Failed to search developers: " + e.getMessage(), "/api/v1/admin/developers/search");
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+              "Company name parameter is required", "/api/v1/admin/developers/search");
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
-  }
 
-  // ==================== FUTURE ADMIN ENDPOINTS ====================
-  // TODO: Add user management endpoints
-  // TODO: Add property management endpoints
-  // TODO: Add KPR application management endpoints
-  // TODO: Add system configuration endpoints
+    PaginationRequest paginationRequest = new PaginationRequest(page, size, sortBy, sortDirection);
+    PaginatedResponse<DeveloperResponse> developers =
+        developerService.searchDevelopersByCompanyName(companyName, paginationRequest);
+
+    ApiResponse<PaginatedResponse<DeveloperResponse>> response =
+        ApiResponse.success(
+            developers, "Search results retrieved successfully", "/api/v1/admin/developers/search");
+
+    return ResponseEntity.ok(response);
+  }
 }

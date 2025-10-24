@@ -35,76 +35,39 @@ public class UserService {
   private Long emailVerificationExpiredTime;
 
   @Autowired private UserRepository userRepository;
-
   @Autowired private UserProfileRepository userProfileRepository;
-
   @Autowired private RoleRepository roleRepository;
-
   @Autowired private PasswordEncoder passwordEncoder;
-
   @Autowired private EmailService emailService;
-
   @Autowired private AuthService authService;
-
   @Autowired private UserMapper userMapper;
+
+  // ========================================
+  // USER REGISTRATION AND CREATION
+  // ========================================
 
   /** Register a new user with comprehensive profile information */
   public Pair<User, Role> registerUser(RegisterRequest request) {
     logger.info("Attempting to register user: {}", request.getUsername());
 
-    if (!request.isPasswordMatching()) {
-      throw new ValidationException("Password dan konfirmasi password tidak cocok");
-    }
+    validateRegistrationRequest(request);
+    Role userRole = getDefaultUserRole();
 
-    Role userRole =
-        roleRepository
-            .findByName("USER")
-            .orElseThrow(() -> new RuntimeException("Default role 'USER' not found"));
-
-    // Create new user
-    User user = new User();
-    user.setUsername(request.getUsername());
-    user.setEmail(request.getEmail());
-    user.setPhone(request.getPhone());
-    user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-    user.setRole(userRole);
-    user.setStatus(UserStatus.PENDING_VERIFICATION);
-    user.setFailedLoginAttempts(0);
-    user.setCreatedAt(LocalDateTime.now());
-    user.setUpdatedAt(LocalDateTime.now());
-    user.setConsentAt(request.getConsentAt());
     try {
-      User savedUser = userRepository.save(user);
-      logger.info("User registered successfully with ID: {}", savedUser.getId());
-
-      // Create user profile
-      UserProfile userProfile = new UserProfile();
-      userProfile.setUserId(savedUser.getId());
-      userProfile.setFullName(request.getFullName());
-      userProfile.setNik(request.getNik());
-      userProfile.setNpwp(request.getNpwp());
-      userProfile.setBirthDate(request.getBirthDate());
-      userProfile.setBirthPlace(request.getBirthPlace());
-      userProfile.setGender(request.getGender());
-      userProfile.setMaritalStatus(request.getMaritalStatus());
-      userProfile.setAddress(request.getAddress());
-      userProfile.setCity(request.getCity());
-      userProfile.setProvince(request.getProvince());
-      userProfile.setPostalCode(request.getPostalCode());
-      userProfile.setOccupation(request.getOccupation());
-      userProfile.setCompanyName(request.getCompanyName());
-      userProfile.setMonthlyIncome(request.getMonthlyIncome());
-      userProfile.setWorkExperience(request.getWorkExperience());
-
-      UserProfile savedProfile = userProfileRepository.save(userProfile);
+      User savedUser = createUserEntity(request, userRole);
+      UserProfile savedProfile = createUserProfile(request, savedUser.getId());
       sendEmailVerification(savedUser);
-      logger.info("User profile created successfully for user ID: {}", savedUser.getId());
 
+      logger.info("User profile created successfully for user ID: {}", savedUser.getId());
       return Pair.of(savedUser, userRole);
     } catch (DataIntegrityViolationException ex) {
       throw ex;
     }
   }
+
+  // ========================================
+  // USER QUERY METHODS
+  // ========================================
 
   /** Find user by username */
   public Optional<User> findByUsername(String username) {
@@ -121,44 +84,29 @@ public class UserService {
     return userRepository.findByUsernameOrEmail(identifier);
   }
 
+  /** Get user profile by user ID */
+  public UserResponse getUserProfile(Integer userId) {
+    User user = validateAndGetUser(userId);
+    return convertToUserResponse(user, user.getRole());
+  }
+
+  // ========================================
+  // USER UPDATE OPERATIONS
+  // ========================================
+
   /** Update user information */
   public UserResponse updateUser(Integer userId, UpdateUserRequest request) {
     logger.info("Attempting to update user with ID: {}", userId);
 
-    // Find existing user
-    User existingUser =
-        userRepository
-            .findById(userId)
-            .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
-
-    // Check for unique constraints if updating username, email, or phone
-    if (request.getUsername() != null
-        && !request.getUsername().equals(existingUser.getUsername())) {
-      if (userRepository.existsByUsername(request.getUsername())) {
-        throw new ValidationException("Username already exists: " + request.getUsername());
-      }
-    }
-
-    if (request.getEmail() != null && !request.getEmail().equals(existingUser.getEmail())) {
-      if (userRepository.existsByEmail(request.getEmail())) {
-        throw new ValidationException("Email already exists: " + request.getEmail());
-      }
-    }
-
-    if (request.getPhone() != null && !request.getPhone().equals(existingUser.getPhone())) {
-      if (userRepository.existsByPhone(request.getPhone())) {
-        throw new ValidationException("Phone number already exists: " + request.getPhone());
-      }
-    }
+    User existingUser = validateAndGetUser(userId);
+    validateUserUpdateRequest(request, existingUser);
 
     // Update user fields using MapStruct
     userMapper.updateUserFromRequest(request, existingUser);
 
-    // Save updated user
     User updatedUser = userRepository.save(existingUser);
     logger.info("User updated successfully with ID: {}", userId);
 
-    // Convert to response using MapStruct
     return userMapper.toResponse(updatedUser);
   }
 
@@ -166,46 +114,17 @@ public class UserService {
   public UserResponse updateUserProfile(Integer userId, UpdateUserRequest request) {
     logger.info("Attempting to update user profile with ID: {}", userId);
 
-    // Find existing user profile
-    UserProfile existingProfile =
-        userProfileRepository
-            .findByUserId(userId)
-            .orElseThrow(
-                () -> new RuntimeException("User profile not found for user ID: " + userId));
-
-    // Check for unique constraints if updating NIK or NPWP
-    if (request.getNik() != null && !request.getNik().equals(existingProfile.getNik())) {
-      if (userProfileRepository.existsByNik(request.getNik())) {
-        throw new ValidationException("NIK already exists: " + request.getNik());
-      }
-    }
-
-    if (request.getNpwp() != null && !request.getNpwp().equals(existingProfile.getNpwp())) {
-      if (userProfileRepository.existsByNpwp(request.getNpwp())) {
-        throw new ValidationException("NPWP already exists: " + request.getNpwp());
-      }
-    }
+    UserProfile existingProfile = validateAndGetUserProfile(userId);
+    validateProfileUpdateRequest(request, existingProfile);
 
     // Update profile fields using MapStruct
     userMapper.updateUserProfileFromRequest(request, existingProfile);
-    if (request.getMaritalStatusEnum() != null) {
-      existingProfile.setMaritalStatus(request.getMaritalStatusEnum());
-    }
-    if (request.getGenderEnum() != null) {
-      existingProfile.setGender(request.getGenderEnum());
-    }
+    updateProfileEnumFields(request, existingProfile);
 
-    // Save updated profile
     UserProfile updatedProfile = userProfileRepository.save(existingProfile);
     logger.info("User profile updated successfully for user ID: {}", userId);
 
-    // Get user to return complete response
-    User user =
-        userRepository
-            .findById(userId)
-            .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
-
-    // Convert to response using MapStruct
+    User user = validateAndGetUser(userId);
     return userMapper.toResponse(user);
   }
 
@@ -227,10 +146,7 @@ public class UserService {
 
     // If no fields are provided, return current user info
     if (result == null) {
-      User user =
-          userRepository
-              .findById(userId)
-              .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+      User user = validateAndGetUser(userId);
       result = userMapper.toResponse(user);
     }
 
@@ -238,42 +154,9 @@ public class UserService {
     return result;
   }
 
-  /** Check if request has user account fields */
-  private boolean hasUserAccountFields(UpdateUserRequest request) {
-    return request.getUsername() != null
-        || request.getEmail() != null
-        || request.getPhone() != null
-        || request.getStatus() != null;
-  }
-
-  /** Check if request has profile fields */
-  private boolean hasProfileFields(UpdateUserRequest request) {
-    return request.getFullName() != null
-        || request.getNik() != null
-        || request.getNpwp() != null
-        || request.getBirthDate() != null
-        || request.getBirthPlace() != null
-        || request.getGender() != null
-        || request.getMaritalStatus() != null
-        || request.getAddress() != null
-        || request.getCity() != null
-        || request.getProvince() != null
-        || request.getPostalCode() != null
-        || request.getOccupation() != null
-        || request.getCompanyName() != null
-        || request.getMonthlyIncome() != null
-        || request.getWorkExperience() != null;
-  }
-
-  /** Get user profile by user ID */
-  public UserResponse getUserProfile(Integer userId) {
-    User user =
-        userRepository
-            .findById(userId)
-            .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
-
-    return convertToUserResponse(user, user.getRole());
-  }
+  // ========================================
+  // AUTHENTICATION AND SECURITY OPERATIONS
+  // ========================================
 
   /** Update user last login time */
   public void updateLastLogin(Integer userId) {
@@ -313,6 +196,33 @@ public class UserService {
     return user.getStatus() == UserStatus.ACTIVE && !isAccountLocked(user);
   }
 
+  // ========================================
+  // VERIFICATION OPERATIONS
+  // ========================================
+
+  /** Verify user phone */
+  public void verifyPhone(Integer userId) {
+    userRepository.verifyPhone(userId, LocalDateTime.now());
+    logger.info("Phone verified for user ID: {}", userId);
+
+    // If both email and phone are verified, activate the account
+    User user = userRepository.findById(userId).orElse(null);
+    if (user != null && user.getEmailVerifiedAt() != null && user.getPhoneVerifiedAt() != null) {
+      user.setStatus(UserStatus.ACTIVE);
+      userRepository.save(user);
+    }
+  }
+
+  public void sendEmailVerification(User user) {
+    emailService.sendEmailVerification(
+        user.getEmail(),
+        authService.generateEmailVerificationToken(user, emailVerificationExpiredTime));
+  }
+
+  // ========================================
+  // UTILITY AND CONVERSION METHODS
+  // ========================================
+
   /** Convert User entity to UserResponse DTO */
   public UserResponse convertToUserResponse(User user, Role role) {
     UserResponse response = new UserResponse();
@@ -332,22 +242,153 @@ public class UserService {
     return response;
   }
 
-  /** Verify user phone */
-  public void verifyPhone(Integer userId) {
-    userRepository.verifyPhone(userId, LocalDateTime.now());
-    logger.info("Phone verified for user ID: {}", userId);
+  // ========================================
+  // PRIVATE VALIDATION METHODS
+  // ========================================
 
-    // If both email and phone are verified, activate the account
-    User user = userRepository.findById(userId).orElse(null);
-    if (user != null && user.getEmailVerifiedAt() != null && user.getPhoneVerifiedAt() != null) {
-      user.setStatus(UserStatus.ACTIVE);
-      userRepository.save(user);
+  private void validateRegistrationRequest(RegisterRequest request) {
+    if (!request.isPasswordMatching()) {
+      throw new ValidationException("Password dan konfirmasi password tidak cocok");
     }
   }
 
-  public void sendEmailVerification(User user) {
-    emailService.sendEmailVerification(
-        user.getEmail(),
-        authService.generateEmailVerificationToken(user, emailVerificationExpiredTime));
+  private User validateAndGetUser(Integer userId) {
+    return userRepository
+        .findById(userId)
+        .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+  }
+
+  private UserProfile validateAndGetUserProfile(Integer userId) {
+    return userProfileRepository
+        .findByUserId(userId)
+        .orElseThrow(() -> new RuntimeException("User profile not found for user ID: " + userId));
+  }
+
+  private void validateUserUpdateRequest(UpdateUserRequest request, User existingUser) {
+    // Check for unique constraints if updating username, email, or phone
+    if (request.getUsername() != null
+        && !request.getUsername().equals(existingUser.getUsername())) {
+      if (userRepository.existsByUsername(request.getUsername())) {
+        throw new ValidationException("Username already exists: " + request.getUsername());
+      }
+    }
+
+    if (request.getEmail() != null && !request.getEmail().equals(existingUser.getEmail())) {
+      if (userRepository.existsByEmail(request.getEmail())) {
+        throw new ValidationException("Email already exists: " + request.getEmail());
+      }
+    }
+
+    if (request.getPhone() != null && !request.getPhone().equals(existingUser.getPhone())) {
+      if (userRepository.existsByPhone(request.getPhone())) {
+        throw new ValidationException("Phone number already exists: " + request.getPhone());
+      }
+    }
+  }
+
+  private void validateProfileUpdateRequest(
+      UpdateUserRequest request, UserProfile existingProfile) {
+    // Check for unique constraints if updating NIK or NPWP
+    if (request.getNik() != null && !request.getNik().equals(existingProfile.getNik())) {
+      if (userProfileRepository.existsByNik(request.getNik())) {
+        throw new ValidationException("NIK already exists: " + request.getNik());
+      }
+    }
+
+    if (request.getNpwp() != null && !request.getNpwp().equals(existingProfile.getNpwp())) {
+      if (userProfileRepository.existsByNpwp(request.getNpwp())) {
+        throw new ValidationException("NPWP already exists: " + request.getNpwp());
+      }
+    }
+  }
+
+  // ========================================
+  // PRIVATE BUSINESS LOGIC METHODS
+  // ========================================
+
+  private Role getDefaultUserRole() {
+    return roleRepository
+        .findByName("USER")
+        .orElseThrow(() -> new RuntimeException("Default role 'USER' not found"));
+  }
+
+  private User createUserEntity(RegisterRequest request, Role userRole) {
+    User user = new User();
+    user.setUsername(request.getUsername());
+    user.setEmail(request.getEmail());
+    user.setPhone(request.getPhone());
+    user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+    user.setRole(userRole);
+    user.setStatus(UserStatus.PENDING_VERIFICATION);
+    user.setFailedLoginAttempts(0);
+    user.setCreatedAt(LocalDateTime.now());
+    user.setUpdatedAt(LocalDateTime.now());
+    user.setConsentAt(request.getConsentAt());
+
+    User savedUser = userRepository.save(user);
+    logger.info("User registered successfully with ID: {}", savedUser.getId());
+    return savedUser;
+  }
+
+  private UserProfile createUserProfile(RegisterRequest request, Integer userId) {
+    UserProfile userProfile = new UserProfile();
+    userProfile.setUserId(userId);
+    userProfile.setFullName(request.getFullName());
+    userProfile.setNik(request.getNik());
+    userProfile.setNpwp(request.getNpwp());
+    userProfile.setBirthDate(request.getBirthDate());
+    userProfile.setBirthPlace(request.getBirthPlace());
+    userProfile.setGender(request.getGender());
+    userProfile.setMaritalStatus(request.getMaritalStatus());
+    userProfile.setAddress(request.getAddress());
+    userProfile.setCity(request.getCity());
+    userProfile.setProvince(request.getProvince());
+    userProfile.setPostalCode(request.getPostalCode());
+    userProfile.setOccupation(request.getOccupation());
+    userProfile.setCompanyName(request.getCompanyName());
+    userProfile.setMonthlyIncome(request.getMonthlyIncome());
+    userProfile.setWorkExperience(request.getWorkExperience());
+
+    return userProfileRepository.save(userProfile);
+  }
+
+  private void updateProfileEnumFields(UpdateUserRequest request, UserProfile existingProfile) {
+    if (request.getMaritalStatusEnum() != null) {
+      existingProfile.setMaritalStatus(request.getMaritalStatusEnum());
+    }
+    if (request.getGenderEnum() != null) {
+      existingProfile.setGender(request.getGenderEnum());
+    }
+  }
+
+  // ========================================
+  // PRIVATE UTILITY METHODS
+  // ========================================
+
+  /** Check if request has user account fields */
+  private boolean hasUserAccountFields(UpdateUserRequest request) {
+    return request.getUsername() != null
+        || request.getEmail() != null
+        || request.getPhone() != null
+        || request.getStatus() != null;
+  }
+
+  /** Check if request has profile fields */
+  private boolean hasProfileFields(UpdateUserRequest request) {
+    return request.getFullName() != null
+        || request.getNik() != null
+        || request.getNpwp() != null
+        || request.getBirthDate() != null
+        || request.getBirthPlace() != null
+        || request.getGender() != null
+        || request.getMaritalStatus() != null
+        || request.getAddress() != null
+        || request.getCity() != null
+        || request.getProvince() != null
+        || request.getPostalCode() != null
+        || request.getOccupation() != null
+        || request.getCompanyName() != null
+        || request.getMonthlyIncome() != null
+        || request.getWorkExperience() != null;
   }
 }

@@ -34,7 +34,7 @@ public class User {
   @Column(name = "email", length = 100, unique = true, nullable = false)
   private String email;
 
-  @Column(name = "phone", length = 20, unique = true, nullable = false)
+  @Column(name = "phone", length = 20, unique = true, nullable = true)
   private String phone;
 
   @Column(name = "password_hash", length = 255, nullable = false)
@@ -68,14 +68,14 @@ public class User {
   @Column(name = "updated_at", nullable = false)
   private LocalDateTime updatedAt;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "role_id", nullable = false)
   private Role role;
 
   @Column(name = "consent_at", nullable = false)
   private LocalDateTime consentAt;
 
-  @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
   private Developer developer;
 
   // Utility methods

@@ -28,56 +28,88 @@ public class DeveloperService {
   private final DeveloperRepository developerRepository;
   private final DeveloperMapper developerMapper;
 
+  // ========================================
+  // CRUD OPERATIONS
+  // ========================================
+
   /** Create a new developer with user relationship (for registration flow) */
   public DeveloperResponse createDeveloper(CreateDeveloperRequest request, User user) {
-    // Validate unique constraints
-    if (developerRepository.existsByCompanyCode(request.getCompanyCode())) {
-      throw new IllegalArgumentException(
-          "Company code already exists: " + request.getCompanyCode());
-    }
+    validateCreateDeveloperRequest(request);
 
-    if (developerRepository.existsByEmail(request.getEmail())) {
-      throw new IllegalArgumentException("Email already exists: " + request.getEmail());
-    }
-
-    // Create new developer entity using MapStruct
-    Developer developer = developerMapper.toEntity(request);
-
-    // Set the user relationship
+    Developer developer = createDeveloperEntity(request);
     developer.setUser(user);
 
-    // Set default status as ACTIVE
-    developer.setStatus(Developer.DeveloperStatus.ACTIVE);
-
-    // Save the developer
     Developer savedDeveloper = developerRepository.save(developer);
-
     return developerMapper.toResponse(savedDeveloper);
   }
 
   /** Create a new developer without user relationship (for admin direct creation) */
   public DeveloperResponse createDeveloper(CreateDeveloperRequest request) {
-    // Validate unique constraints
-    if (developerRepository.existsByCompanyCode(request.getCompanyCode())) {
-      throw new IllegalArgumentException(
-          "Company code already exists: " + request.getCompanyCode());
-    }
+    validateCreateDeveloperRequest(request);
 
-    if (developerRepository.existsByEmail(request.getEmail())) {
-      throw new IllegalArgumentException("Email already exists: " + request.getEmail());
-    }
+    Developer developer = createDeveloperEntity(request);
 
-    // Create new developer entity using MapStruct
-    Developer developer = developerMapper.toEntity(request);
-
-    // Set default status as ACTIVE
-    developer.setStatus(Developer.DeveloperStatus.ACTIVE);
-
-    // Save the developer
     Developer savedDeveloper = developerRepository.save(developer);
-
     return developerMapper.toResponse(savedDeveloper);
   }
+
+  /** Update developer information (admin only) */
+  public DeveloperResponse updateDeveloper(Integer id, UpdateDeveloperRequest request) {
+    Developer developer = validateAndGetDeveloper(id);
+
+    // Update fields using MapStruct - only non-null fields will be updated
+    developerMapper.updateDeveloperFromRequest(request, developer);
+
+    Developer updatedDeveloper = developerRepository.save(developer);
+    return developerMapper.toResponse(updatedDeveloper);
+  }
+
+  /** Delete developer */
+  public void deleteDeveloper(Integer id) {
+    validateDeveloperExists(id);
+    developerRepository.deleteById(id);
+  }
+
+  // ========================================
+  // STATUS AND PARTNERSHIP MANAGEMENT
+  // ========================================
+
+  /** Update developer status */
+  public DeveloperResponse updateDeveloperStatus(Integer id, Developer.DeveloperStatus status) {
+    Developer developer = validateAndGetDeveloper(id);
+
+    developer.setStatus(status);
+    Developer updatedDeveloper = developerRepository.save(developer);
+
+    return developerMapper.toResponse(updatedDeveloper);
+  }
+
+  /** Verify developer */
+  public DeveloperResponse verifyDeveloper(Integer id, Integer verifiedBy) {
+    Developer developer = validateAndGetDeveloper(id);
+
+    developer.setVerifiedAt(LocalDateTime.now());
+    developer.setVerifiedBy(verifiedBy);
+    Developer updatedDeveloper = developerRepository.save(developer);
+
+    return developerMapper.toResponse(updatedDeveloper);
+  }
+
+  /** Update partnership status */
+  public DeveloperResponse updatePartnershipStatus(
+      Integer id, Boolean isPartner, Developer.PartnershipLevel partnershipLevel) {
+    Developer developer = validateAndGetDeveloper(id);
+
+    developer.setIsPartner(isPartner);
+    developer.setPartnershipLevel(partnershipLevel);
+    Developer updatedDeveloper = developerRepository.save(developer);
+
+    return developerMapper.toResponse(updatedDeveloper);
+  }
+
+  // ========================================
+  // QUERY METHODS - BASIC RETRIEVAL
+  // ========================================
 
   /** Get developer by ID */
   @Transactional(readOnly = true)
@@ -109,6 +141,10 @@ public class DeveloperService {
     Page<DeveloperResponse> responsePage = developerPage.map(developerMapper::toResponse);
     return PaginatedResponse.of(responsePage);
   }
+
+  // ========================================
+  // QUERY METHODS - BY STATUS
+  // ========================================
 
   /** Get active developers */
   @Transactional(readOnly = true)
@@ -148,6 +184,10 @@ public class DeveloperService {
     return PaginatedResponse.of(responsePage);
   }
 
+  // ========================================
+  // QUERY METHODS - BY PARTNERSHIP
+  // ========================================
+
   /** Get partner developers */
   @Transactional(readOnly = true)
   public List<DeveloperResponse> getPartnerDevelopers() {
@@ -166,6 +206,10 @@ public class DeveloperService {
     Page<DeveloperResponse> responsePage = developerPage.map(developerMapper::toResponse);
     return PaginatedResponse.of(responsePage);
   }
+
+  // ========================================
+  // QUERY METHODS - BY SPECIALIZATION AND LOCATION
+  // ========================================
 
   /** Get developers by specialization */
   @Transactional(readOnly = true)
@@ -192,6 +236,10 @@ public class DeveloperService {
         .collect(Collectors.toList());
   }
 
+  // ========================================
+  // SEARCH METHODS
+  // ========================================
+
   /** Search developers by company name */
   @Transactional(readOnly = true)
   public List<DeveloperResponse> searchDevelopersByCompanyName(String companyName) {
@@ -211,55 +259,9 @@ public class DeveloperService {
     return PaginatedResponse.of(responsePage);
   }
 
-  /** Update developer status */
-  public DeveloperResponse updateDeveloperStatus(Integer id, Developer.DeveloperStatus status) {
-    Developer developer =
-        developerRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Developer not found with id: " + id));
-
-    developer.setStatus(status);
-    Developer updatedDeveloper = developerRepository.save(developer);
-
-    return developerMapper.toResponse(updatedDeveloper);
-  }
-
-  /** Verify developer */
-  public DeveloperResponse verifyDeveloper(Integer id, Integer verifiedBy) {
-    Developer developer =
-        developerRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Developer not found with id: " + id));
-
-    developer.setVerifiedAt(LocalDateTime.now());
-    developer.setVerifiedBy(verifiedBy);
-    Developer updatedDeveloper = developerRepository.save(developer);
-
-    return developerMapper.toResponse(updatedDeveloper);
-  }
-
-  /** Update partnership status */
-  public DeveloperResponse updatePartnershipStatus(
-      Integer id, Boolean isPartner, Developer.PartnershipLevel partnershipLevel) {
-    Developer developer =
-        developerRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Developer not found with id: " + id));
-
-    developer.setIsPartner(isPartner);
-    developer.setPartnershipLevel(partnershipLevel);
-    Developer updatedDeveloper = developerRepository.save(developer);
-
-    return developerMapper.toResponse(updatedDeveloper);
-  }
-
-  /** Delete developer */
-  public void deleteDeveloper(Integer id) {
-    if (!developerRepository.existsById(id)) {
-      throw new IllegalArgumentException("Developer not found with id: " + id);
-    }
-    developerRepository.deleteById(id);
-  }
+  // ========================================
+  // VALIDATION AND EXISTENCE CHECKS
+  // ========================================
 
   /** Check if company code exists */
   @Transactional(readOnly = true)
@@ -273,17 +275,40 @@ public class DeveloperService {
     return developerRepository.existsByEmail(email);
   }
 
-  /** Update developer information (admin only) */
-  public DeveloperResponse updateDeveloper(Integer id, UpdateDeveloperRequest request) {
-    Developer developer =
-        developerRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Developer not found with id: " + id));
+  // ========================================
+  // PRIVATE VALIDATION METHODS
+  // ========================================
 
-    // Update fields using MapStruct - only non-null fields will be updated
-    developerMapper.updateDeveloperFromRequest(request, developer);
+  private void validateCreateDeveloperRequest(CreateDeveloperRequest request) {
+    if (developerRepository.existsByCompanyCode(request.getCompanyCode())) {
+      throw new IllegalArgumentException(
+          "Company code already exists: " + request.getCompanyCode());
+    }
 
-    Developer updatedDeveloper = developerRepository.save(developer);
-    return developerMapper.toResponse(updatedDeveloper);
+    if (developerRepository.existsByEmail(request.getEmail())) {
+      throw new IllegalArgumentException("Email already exists: " + request.getEmail());
+    }
+  }
+
+  private Developer validateAndGetDeveloper(Integer id) {
+    return developerRepository
+        .findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Developer not found with id: " + id));
+  }
+
+  private void validateDeveloperExists(Integer id) {
+    if (!developerRepository.existsById(id)) {
+      throw new IllegalArgumentException("Developer not found with id: " + id);
+    }
+  }
+
+  // ========================================
+  // PRIVATE ENTITY CREATION METHODS
+  // ========================================
+
+  private Developer createDeveloperEntity(CreateDeveloperRequest request) {
+    Developer developer = developerMapper.toEntity(request);
+    developer.setStatus(Developer.DeveloperStatus.ACTIVE);
+    return developer;
   }
 }
