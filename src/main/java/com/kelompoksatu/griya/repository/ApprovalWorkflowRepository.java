@@ -176,9 +176,21 @@ public interface ApprovalWorkflowRepository extends JpaRepository<ApprovalWorkfl
 
   /** Approve workflow by user ID and application ID */
   @Query(
-      "SELECT aw FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId AND aw.applicationId = :applicationId AND aw.status = 'PENDING'")
-  Optional<ApprovalWorkflow> approveByUserIDandApplicationID(
-      @Param("userId") Integer userId, @Param("applicationId") Integer applicationId);
+      "UPDATE ApprovalWorkflow aw SET aw.status = 'APPROVED', aw.completedAt = :completedAt, aw.approvalNotes = :approvalNotes WHERE aw.assignedTo = :userId AND aw.applicationId = :applicationId AND aw.status = 'PENDING'")
+  Optional<Boolean> approveByUserIDandApplicationID(
+      @Param("userId") Integer userId,
+      @Param("applicationId") Integer applicationId,
+      @Param("completedAt") LocalDateTime completedAt,
+      @Param("approvalNotes") String approvalNotes);
+
+  // Reject workflow by user ID and application ID
+  @Query(
+      "UPDATE ApprovalWorkflow aw SET aw.status = 'REJECTED', aw.completedAt = :completedAt, aw.rejectionReason = :rejectionReason WHERE aw.assignedTo = :userId AND aw.applicationId = :applicationId AND aw.status = 'PENDING'")
+  Optional<Boolean> rejectByUserIDandApplicationID(
+      @Param("userId") Integer userId,
+      @Param("applicationId") Integer applicationId,
+      @Param("completedAt") LocalDateTime completedAt,
+      @Param("rejectionReason") String rejectionReason);
 
   // Delete workflows by application ID (for cleanup)
   void deleteByApplicationId(Integer applicationId);

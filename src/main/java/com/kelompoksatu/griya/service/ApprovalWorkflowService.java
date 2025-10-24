@@ -1,9 +1,11 @@
 package com.kelompoksatu.griya.service;
 
+import com.kelompoksatu.griya.dto.ApprovalConfirmation;
 import com.kelompoksatu.griya.entity.ApprovalWorkflow;
 import com.kelompoksatu.griya.entity.ApprovalWorkflow.PriorityLevel;
 import com.kelompoksatu.griya.entity.ApprovalWorkflow.WorkflowStatus;
 import com.kelompoksatu.griya.repository.ApprovalWorkflowRepository;
+import com.kelompoksatu.griya.repository.DeveloperRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ApprovalWorkflowService {
 
   private final ApprovalWorkflowRepository approvalWorkflowRepository;
+  private final DeveloperRepository developerRepository;
 
   // ========================================
   // VALIDATION METHODS
@@ -324,5 +327,31 @@ public class ApprovalWorkflowService {
     log.info("Deleting all workflows for application ID: {}", applicationId);
     approvalWorkflowRepository.deleteByApplicationId(applicationId);
     log.info("Deleted all workflows for application ID: {}", applicationId);
+  }
+
+  public boolean approveOrRejectWorkflowDeveloper(ApprovalConfirmation request, Integer userID) {
+    var developer =
+        developerRepository
+            .validateDeveloper(userID)
+            .orElseThrow(
+                () -> new IllegalArgumentException("Developer not found with ID: " + userID));
+
+    log.info(
+        "Processing approval/rejection for developer: {} with request: {}",
+        developer.getCompanyName(),
+        request);
+    Boolean isApproved = request.getIsApproved();
+    String reason = request.getReason();
+    var now = LocalDateTime.now();
+    if (isApproved) {
+      log.info("Approving workflow for user ID: {}", userID);
+      return approvalWorkflowRepository
+          .approveByUserIDandApplicationID(userID, userID, now, reason)
+          .orElse(false);
+    }
+    log.info("Rejecting workflow for user ID: {}", userID);
+    return approvalWorkflowRepository
+        .rejectByUserIDandApplicationID(userID, userID, now, reason)
+        .orElse(false);
   }
 }
