@@ -534,11 +534,9 @@ public class KprApplicationController {
     }
   }
 
-
   @GetMapping("/applicant")
   public ResponseEntity<ApiResponse<List<KPRApplicant>>> getAllKprApplications(
-          @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader
-  ) {
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
     try {
       logger.info("Received request for all KPR applications");
       // Extract and validate JWT token
@@ -549,7 +547,7 @@ public class KprApplicationController {
       if (userID == null) {
         logger.warn("Invalid token - user ID not found");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ApiResponse<>(false, "Token tidak valid", null));
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
       }
 
       // Get all KPR applications through service
@@ -557,15 +555,14 @@ public class KprApplicationController {
 
       logger.info("All KPR applications retrieved successfully");
       return ResponseEntity.ok(
-              new ApiResponse<List<KPRApplicant>>(
-                      true, "All KPR applications retrieved successfully", response));
+          new ApiResponse<List<KPRApplicant>>(
+              true, "All KPR applications retrieved successfully", response));
     } catch (Exception e) {
       logger.error("Error retrieving all KPR applications: {}", e.getMessage(), e);
 
       // Determine appropriate HTTP status based on error type
       ApiResponse<List<KPRApplicant>> response =
-              new ApiResponse<>(
-                      false, "Failed to get all KPR applications: " + e.getMessage(), null);
+          new ApiResponse<>(false, "Failed to get all KPR applications: " + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
