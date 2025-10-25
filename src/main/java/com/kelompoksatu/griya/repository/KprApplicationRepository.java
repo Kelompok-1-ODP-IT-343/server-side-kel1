@@ -88,4 +88,8 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
   List<ApprovalWorkflow> findApprovalWorkflowByDeveloperAndStatus(
       @Param("developerId") Integer developerId,
       @Param("status") ApprovalWorkflow.WorkflowStatus status);
+
+  // Show list semua KPR untuk superadmin
+  @Query("SELECT k FROM KprApplication k ORDER BY k.createdAt DESC")
+  List<KprApplication> findAllKprApplications();
 }

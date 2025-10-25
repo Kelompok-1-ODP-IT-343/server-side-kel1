@@ -40,11 +40,8 @@ public class KprApplicationService {
 
   /** Submit a new KPR application with documents (form-data) */
   @Transactional
-  public KprApplicationResponse submitApplicationWithDocuments(
-      Integer userId, KprApplicationFormRequest formRequest) {
-    logger.info(
-        "Processing KPR application with documents for user: {} and property: {}",
-        userId,
+  public KprApplicationResponse submitApplicationWithDocuments(Integer userId, KprApplicationFormRequest formRequest) {
+    logger.info("Processing KPR application with documents for user: {} and property: {}", userId,
         formRequest.getPropertyId());
 
     try {
@@ -55,73 +52,49 @@ public class KprApplicationService {
       Property property = validatePropertyForForm(formRequest);
 
       // 3. Check for existing pending applications
-      if (kprApplicationRepository.existsPendingApplicationByUserAndProperty(
-          userId, formRequest.getPropertyId())) {
-        throw new IllegalStateException(
-            "Anda sudah memiliki aplikasi KPR yang sedang diproses untuk properti ini");
+      if (kprApplicationRepository.existsPendingApplicationByUserAndProperty(userId, formRequest.getPropertyId())) {
+        throw new IllegalStateException("Anda sudah memiliki aplikasi KPR yang sedang diproses untuk properti ini");
       }
 
       // 4. Get Developer
-      Developer developer =
-          developerRepository
-              .findById(property.getDeveloperId())
-              .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
+      Developer developer = developerRepository.findById(property.getDeveloperId())
+          .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
 
       // 5. Update user profile with personal data
-      updateUserProfileFromForm(
-          userId, formRequest.getPersonalData(), formRequest.getEmploymentData());
+      updateUserProfileFromForm(userId, formRequest.getPersonalData(), formRequest.getEmploymentData());
 
       // 6. Get KPR rate
-      KprRate selectedRate =
-          validateAndGetKprRate(formRequest.getKprRateId(), formRequest.getSimulationData());
+      KprRate selectedRate = validateAndGetKprRate(formRequest.getKprRateId(), formRequest.getSimulationData());
 
       // 7. Calculate loan details
-      BigDecimal monthlyInstallment =
-          calculateMonthlyInstallment(
-              formRequest.getSimulationData().getLoanAmount(),
-              selectedRate.getEffectiveRate(),
-              formRequest.getSimulationData().getLoanTermYears());
+      BigDecimal monthlyInstallment = calculateMonthlyInstallment(formRequest.getSimulationData().getLoanAmount(),
+          selectedRate.getEffectiveRate(), formRequest.getSimulationData().getLoanTermYears());
 
       // 8. Determine approval level
-      Integer currentApprovalLevel =
-          determineInitialApprovalLevel(formRequest.getSimulationData().getLoanAmount());
+      Integer currentApprovalLevel = determineInitialApprovalLevel(formRequest.getSimulationData().getLoanAmount());
 
       // 9. Generate application number
       String applicationNumber = generateApplicationNumber();
 
       // 10. Create KPR application
-      KprApplication application =
-          createKprApplicationFromForm(
-              userId,
-              formRequest,
-              property,
-              selectedRate,
-              monthlyInstallment,
-              applicationNumber,
-              currentApprovalLevel);
+      KprApplication application = createKprApplicationFromForm(userId, formRequest, property, selectedRate,
+          monthlyInstallment, applicationNumber, currentApprovalLevel);
 
       // 11. Save application
       KprApplication savedApplication = kprApplicationRepository.save(application);
 
       // 12. Store documents
-      List<ApplicationDocument> documents =
-          storeApplicationDocuments(savedApplication.getId(), formRequest);
-      logger.info(
-          "Stored {} documents for application: {}", documents.size(), savedApplication.getId());
+      List<ApplicationDocument> documents = storeApplicationDocuments(savedApplication.getId(), formRequest);
+      logger.info("Stored {} documents for application: {}", documents.size(), savedApplication.getId());
 
       // 13. Create initial approval workflow
       createDeveloperApprovalWorkflow(savedApplication.getId(), developer.getUser().getId());
 
       // 14. Build response
-      return KprApplicationResponse.builder()
-          .applicationId(savedApplication.getId())
-          .applicationNumber(applicationNumber)
-          .status(savedApplication.getStatus())
-          .monthlyInstallment(monthlyInstallment)
-          .interestRate(selectedRate.getEffectiveRate())
-          .message(
-              "Aplikasi KPR berhasil disubmit dengan dokumen. Silakan tunggu proses verifikasi.")
-          .build();
+      return KprApplicationResponse.builder().applicationId(savedApplication.getId())
+          .applicationNumber(applicationNumber).status(savedApplication.getStatus())
+          .monthlyInstallment(monthlyInstallment).interestRate(selectedRate.getEffectiveRate())
+          .message("Aplikasi KPR berhasil disubmit dengan dokumen. Silakan tunggu proses verifikasi.").build();
 
     } catch (Exception e) {
       logger.error("Error processing KPR application with documents: {}", e.getMessage(), e);
@@ -131,71 +104,46 @@ public class KprApplicationService {
 
   public List<KprHistoryListResponse> getApprovalDeveloper(Integer developerId) {
     logger.info("Validate developer: {}", developerId);
-    Developer developer =
-        developerRepository
-            .findById(developerId)
-            .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
-    List<KprApplication> applications =
-        kprApplicationRepository.findKprApplicationsByDeveloperIDHistory(developer.getId());
+    Developer developer = developerRepository.findById(developerId)
+        .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
+    List<KprApplication> applications = kprApplicationRepository
+        .findKprApplicationsByDeveloperIDHistory(developer.getId());
 
     return applications.stream()
-        .map(
-            application ->
-                new KprHistoryListResponse(
-                    application.getProperty().getTitle(),
-                    application.getStatus().toString(),
-                    String.format(
-                        "%s, %s, %s",
-                        application.getProperty().getDistrict(),
-                        application.getProperty().getCity(),
-                        application.getProperty().getProvince()),
-                    application.getApplicationNumber(),
-                    application.getLoanAmount(),
-                    application.getCreatedAt().toString(),
-                    ""))
+        .map(application -> new KprHistoryListResponse(application.getProperty().getTitle(),
+            application.getStatus().toString(),
+            String.format("%s, %s, %s", application.getProperty().getDistrict(), application.getProperty().getCity(),
+                application.getProperty().getProvince()),
+            application.getApplicationNumber(), application.getLoanAmount(), application.getCreatedAt().toString(), ""))
         .collect(Collectors.toList());
   }
 
   public List<KprInProgress> getKprApplicationsOnProgressByDeveloper(Integer developerId) {
     logger.info("Validate developer: {}", developerId);
 
-    developerRepository
-        .findById(developerId)
-        .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
+    developerRepository.findById(developerId).orElseThrow(() -> new IllegalArgumentException("Developer not found"));
 
     logger.info("KPR In Progress search started by {}", developerId);
 
-    List<KprApplication> applications =
-        kprApplicationRepository.findKprApplicationsOnProgressByDeveloper(developerId);
+    List<KprApplication> applications = kprApplicationRepository.findKprApplicationsOnProgressByDeveloper(developerId);
 
     logger.info("KPR In Progress search completed by {}", developerId);
     return applications.stream()
-        .map(
-            application ->
-                new KprInProgress(
-                    application.getId(),
-                    application.getApplicationNumber(),
-                    application.getProperty().getTitle(),
-                    application.getProperty().getAddress(),
-                    application.getLoanAmount(),
-                    application.getCreatedAt().toString(),
-                    application.getKprRate().getRateName()))
+        .map(application -> new KprInProgress(application.getId(), application.getApplicationNumber(),
+            application.getProperty().getTitle(), application.getProperty().getAddress(), application.getLoanAmount(),
+            application.getCreatedAt().toString(), application.getKprRate().getRateName()))
         .collect(Collectors.toList());
   }
 
   /** Validate user authentication and status */
   private User validateUser(Integer userId) {
-    User user =
-        userRepository
-            .findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
 
     if (user.getStatus() == UserStatus.SUSPENDED) {
       throw new IllegalStateException("User account is suspended");
     }
 
-    if (user.getStatus() != UserStatus.ACTIVE
-        && user.getStatus() != UserStatus.PENDING_VERIFICATION) {
+    if (user.getStatus() != UserStatus.ACTIVE && user.getStatus() != UserStatus.PENDING_VERIFICATION) {
       throw new IllegalStateException("User account is not eligible for KPR application");
     }
 
@@ -203,12 +151,9 @@ public class KprApplicationService {
   }
 
   /** Validate property and loan parameters */
-  private Property validateProperty(
-      Integer propertyId, BigDecimal downPayment, Integer loanTermYears) {
-    Property property =
-        propertyRepository
-            .findById(propertyId)
-            .orElseThrow(() -> new IllegalArgumentException("Property not found"));
+  private Property validateProperty(Integer propertyId, BigDecimal downPayment, Integer loanTermYears) {
+    Property property = propertyRepository.findById(propertyId)
+        .orElseThrow(() -> new IllegalArgumentException("Property not found"));
 
     if (property.getStatus() != Property.PropertyStatus.AVAILABLE) {
       throw new IllegalStateException("Property is not available for purchase");
@@ -219,25 +164,19 @@ public class KprApplicationService {
     }
 
     // Validate down payment
-    BigDecimal minDownPayment =
-        property
-            .getPrice()
-            .multiply(property.getMinDownPaymentPercent())
-            .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+    BigDecimal minDownPayment = property.getPrice().multiply(property.getMinDownPaymentPercent())
+        .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
 
     if (downPayment.compareTo(minDownPayment) < 0) {
       throw new IllegalArgumentException(
-          String.format(
-              "Down payment must be at least %.2f%% of property price (Rp %.2f)",
+          String.format("Down payment must be at least %.2f%% of property price (Rp %.2f)",
               property.getMinDownPaymentPercent(), minDownPayment));
     }
 
     // Validate loan term
     if (loanTermYears > property.getMaxLoanTermYears()) {
       throw new IllegalArgumentException(
-          String.format(
-              "Loan term cannot exceed %d years for this property",
-              property.getMaxLoanTermYears()));
+          String.format("Loan term cannot exceed %d years for this property", property.getMaxLoanTermYears()));
     }
 
     return property;
@@ -245,10 +184,8 @@ public class KprApplicationService {
 
   /** Validate property for form submission */
   private Property validatePropertyForForm(KprApplicationFormRequest formRequest) {
-    Property property =
-        propertyRepository
-            .findById(formRequest.getPropertyId())
-            .orElseThrow(() -> new IllegalArgumentException("Property not found"));
+    Property property = propertyRepository.findById(formRequest.getPropertyId())
+        .orElseThrow(() -> new IllegalArgumentException("Property not found"));
 
     if (property.getStatus() != Property.PropertyStatus.AVAILABLE) {
       throw new IllegalStateException("Property is not available for purchase");
@@ -259,25 +196,19 @@ public class KprApplicationService {
     }
 
     // Validate down payment
-    BigDecimal minDownPayment =
-        property
-            .getPrice()
-            .multiply(property.getMinDownPaymentPercent())
-            .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+    BigDecimal minDownPayment = property.getPrice().multiply(property.getMinDownPaymentPercent())
+        .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
 
     if (formRequest.getSimulationData().getDownPayment().compareTo(minDownPayment) < 0) {
       throw new IllegalArgumentException(
-          String.format(
-              "Down payment must be at least %.2f%% of property price (Rp %.2f)",
+          String.format("Down payment must be at least %.2f%% of property price (Rp %.2f)",
               property.getMinDownPaymentPercent(), minDownPayment));
     }
 
     // Validate loan term
     if (formRequest.getSimulationData().getLoanTermYears() > property.getMaxLoanTermYears()) {
       throw new IllegalArgumentException(
-          String.format(
-              "Loan term cannot exceed %d years for this property",
-              property.getMaxLoanTermYears()));
+          String.format("Loan term cannot exceed %d years for this property", property.getMaxLoanTermYears()));
     }
 
     return property;
@@ -285,10 +216,8 @@ public class KprApplicationService {
 
   /** Validate and get KPR rate */
   private KprRate validateAndGetKprRate(Integer kprRateId, SimulationData simulationData) {
-    KprRate kprRate =
-        kprRateRepository
-            .findById(kprRateId)
-            .orElseThrow(() -> new IllegalArgumentException("KPR rate not found"));
+    KprRate kprRate = kprRateRepository.findById(kprRateId)
+        .orElseThrow(() -> new IllegalArgumentException("KPR rate not found"));
 
     if (!kprRate.getIsActive()) {
       throw new IllegalStateException("Selected KPR rate is not active");
@@ -297,19 +226,15 @@ public class KprApplicationService {
     // Validate loan amount range
     if (simulationData.getLoanAmount().compareTo(kprRate.getMinLoanAmount()) < 0
         || simulationData.getLoanAmount().compareTo(kprRate.getMaxLoanAmount()) > 0) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Loan amount must be between Rp %.2f and Rp %.2f for this rate",
-              kprRate.getMinLoanAmount(), kprRate.getMaxLoanAmount()));
+      throw new IllegalArgumentException(String.format("Loan amount must be between Rp %.2f and Rp %.2f for this rate",
+          kprRate.getMinLoanAmount(), kprRate.getMaxLoanAmount()));
     }
 
     // Validate loan term
     if (simulationData.getLoanTermYears() < kprRate.getMinTermYears()
         || simulationData.getLoanTermYears() > kprRate.getMaxTermYears()) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Loan term must be between %d and %d years for this rate",
-              kprRate.getMinTermYears(), kprRate.getMaxTermYears()));
+      throw new IllegalArgumentException(String.format("Loan term must be between %d and %d years for this rate",
+          kprRate.getMinTermYears(), kprRate.getMaxTermYears()));
     }
 
     return kprRate;
@@ -318,15 +243,13 @@ public class KprApplicationService {
   /** Validate no existing pending applications */
   private void validateNoPendingApplications(Integer userId, Integer propertyId) {
     if (kprApplicationRepository.existsPendingApplicationByUserAndProperty(userId, propertyId)) {
-      throw new IllegalStateException(
-          "Anda sudah memiliki aplikasi KPR yang sedang diproses untuk properti ini");
+      throw new IllegalStateException("Anda sudah memiliki aplikasi KPR yang sedang diproses untuk properti ini");
     }
   }
 
   /** Validate application exists */
   private KprApplication validateApplicationExists(Integer applicationId) {
-    return kprApplicationRepository
-        .findById(applicationId)
+    return kprApplicationRepository.findById(applicationId)
         .orElseThrow(() -> new IllegalArgumentException("Application not found"));
   }
 
@@ -335,8 +258,7 @@ public class KprApplicationService {
   // ========================================
 
   /** Select the best KPR rate based on criteria */
-  private KprRate selectBestRate(
-      Property property, BigDecimal loanAmount, Integer loanTermYears, Integer userId) {
+  private KprRate selectBestRate(Property property, BigDecimal loanAmount, Integer loanTermYears, Integer userId) {
     // Convert property type to rate filter
     KprRate.PropertyTypeFilter propertyTypeFilter = convertPropertyType(property.getPropertyType());
 
@@ -356,26 +278,17 @@ public class KprApplicationService {
     }
 
     // Find best eligible rate
-    Optional<KprRate> bestRateOpt =
-        kprRateRepository.findBestEligibleRate(
-            propertyTypeFilter,
-            customerSegment,
-            loanAmount,
-            loanTermYears,
-            monthlyIncome,
-            LocalDate.now());
+    Optional<KprRate> bestRateOpt = kprRateRepository.findBestEligibleRate(propertyTypeFilter, customerSegment,
+        loanAmount, loanTermYears, monthlyIncome, LocalDate.now());
 
     if (bestRateOpt.isEmpty()) {
       // Fallback to basic rate selection without customer segment
-      bestRateOpt =
-          kprRateRepository
-              .findEligibleRates(propertyTypeFilter, loanAmount, loanTermYears, LocalDate.now())
-              .stream()
-              .findFirst();
+      bestRateOpt = kprRateRepository.findEligibleRates(propertyTypeFilter, loanAmount, loanTermYears, LocalDate.now())
+          .stream().findFirst();
     }
 
-    return bestRateOpt.orElseThrow(
-        () -> new IllegalStateException("No eligible KPR rate found for the specified criteria"));
+    return bestRateOpt
+        .orElseThrow(() -> new IllegalStateException("No eligible KPR rate found for the specified criteria"));
   }
 
   // ========================================
@@ -383,19 +296,14 @@ public class KprApplicationService {
   // ========================================
 
   /** Calculate monthly installment using standard loan formula */
-  public BigDecimal calculateMonthlyInstallment(
-      BigDecimal principal, BigDecimal annualRate, Integer years) {
-    if (principal.compareTo(BigDecimal.ZERO) <= 0
-        || annualRate.compareTo(BigDecimal.ZERO) <= 0
-        || years <= 0) {
+  public BigDecimal calculateMonthlyInstallment(BigDecimal principal, BigDecimal annualRate, Integer years) {
+    if (principal.compareTo(BigDecimal.ZERO) <= 0 || annualRate.compareTo(BigDecimal.ZERO) <= 0 || years <= 0) {
       throw new IllegalArgumentException("Invalid loan parameters");
     }
 
     // Convert annual rate to monthly rate
-    BigDecimal monthlyRate =
-        annualRate
-            .divide(new BigDecimal("12"), 10, RoundingMode.HALF_UP)
-            .divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP);
+    BigDecimal monthlyRate = annualRate.divide(new BigDecimal("12"), 10, RoundingMode.HALF_UP)
+        .divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP);
 
     // Number of payments
     int numberOfPayments = years * 12;
@@ -416,9 +324,7 @@ public class KprApplicationService {
     BigDecimal propertyValue = formRequest.getSimulationData().getPropertyValue();
     BigDecimal loanAmount = formRequest.getSimulationData().getLoanAmount();
 
-    return loanAmount
-        .divide(propertyValue, 4, RoundingMode.HALF_UP)
-        .multiply(new BigDecimal("100"));
+    return loanAmount.divide(propertyValue, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
   }
 
   // ========================================
@@ -428,25 +334,24 @@ public class KprApplicationService {
   /** Convert property type to rate filter */
   private KprRate.PropertyTypeFilter convertPropertyType(Property.PropertyType propertyType) {
     return switch (propertyType) {
-      case RUMAH -> KprRate.PropertyTypeFilter.RUMAH;
-      case APARTEMEN -> KprRate.PropertyTypeFilter.APARTEMEN;
-      case RUKO -> KprRate.PropertyTypeFilter.RUKO;
-      default -> KprRate.PropertyTypeFilter.ALL;
+    case RUMAH -> KprRate.PropertyTypeFilter.RUMAH;
+    case APARTEMEN -> KprRate.PropertyTypeFilter.APARTEMEN;
+    case RUKO -> KprRate.PropertyTypeFilter.RUKO;
+    default -> KprRate.PropertyTypeFilter.ALL;
     };
   }
 
   /** Determine customer segment based on occupation */
   private KprRate.CustomerSegment determineCustomerSegment(String occupation) {
-    if (occupation == null) return KprRate.CustomerSegment.ALL;
+    if (occupation == null)
+      return KprRate.CustomerSegment.ALL;
 
     String occ = occupation.toLowerCase();
     if (occ.contains("pegawai") || occ.contains("karyawan") || occ.contains("employee")) {
       return KprRate.CustomerSegment.EMPLOYEE;
     } else if (occ.contains("dokter") || occ.contains("lawyer") || occ.contains("professional")) {
       return KprRate.CustomerSegment.PROFESSIONAL;
-    } else if (occ.contains("wiraswasta")
-        || occ.contains("entrepreneur")
-        || occ.contains("bisnis")) {
+    } else if (occ.contains("wiraswasta") || occ.contains("entrepreneur") || occ.contains("bisnis")) {
       return KprRate.CustomerSegment.ENTREPRENEUR;
     } else if (occ.contains("pensioner") || occ.contains("pensiun")) {
       return KprRate.CustomerSegment.PENSIONER;
@@ -485,72 +390,41 @@ public class KprApplicationService {
   // ========================================
 
   /** Create KPR application entity from request */
-  private KprApplication createKprApplication(
-      Integer userId,
-      KprApplicationRequest request,
-      Property property,
-      KprRate selectedRate,
-      BigDecimal loanAmount,
-      BigDecimal monthlyInstallment,
-      String applicationNumber,
+  private KprApplication createKprApplication(Integer userId, KprApplicationRequest request, Property property,
+      KprRate selectedRate, BigDecimal loanAmount, BigDecimal monthlyInstallment, String applicationNumber,
       Integer currentApprovalLevel) {
 
-    return KprApplication.builder()
-        .applicationNumber(applicationNumber)
-        .userId(userId)
-        .propertyId(request.getPropertyId())
-        .kprRateId(selectedRate.getId())
-        .propertyType(convertToApplicationPropertyType(property.getPropertyType()))
-        .propertyValue(property.getPrice())
-        .loanAmount(loanAmount)
-        .loanTermYears(request.getLoanTermYears())
-        .interestRate(selectedRate.getEffectiveRate())
-        .monthlyInstallment(monthlyInstallment)
-        .downPayment(request.getDownPayment())
+    return KprApplication.builder().applicationNumber(applicationNumber).userId(userId)
+        .propertyId(request.getPropertyId()).kprRateId(selectedRate.getId())
+        .propertyType(convertToApplicationPropertyType(property.getPropertyType())).propertyValue(property.getPrice())
+        .loanAmount(loanAmount).loanTermYears(request.getLoanTermYears()).interestRate(selectedRate.getEffectiveRate())
+        .monthlyInstallment(monthlyInstallment).downPayment(request.getDownPayment())
         .propertyAddress(property.getAddress())
         .propertyCertificateType(convertToCertificateType(property.getCertificateType()))
         .developerName(property.getDeveloper().getCompanyName())
-        .purpose(KprApplication.ApplicationPurpose.PRIMARY_RESIDENCE)
-        .status(KprApplication.ApplicationStatus.SUBMITTED)
-        .currentApprovalLevel(currentApprovalLevel)
-        .submittedAt(LocalDateTime.now())
-        .createdAt(LocalDateTime.now())
-        .updatedAt(LocalDateTime.now())
-        .build();
+        .purpose(KprApplication.ApplicationPurpose.PRIMARY_RESIDENCE).status(KprApplication.ApplicationStatus.SUBMITTED)
+        .currentApprovalLevel(currentApprovalLevel).submittedAt(LocalDateTime.now()).createdAt(LocalDateTime.now())
+        .updatedAt(LocalDateTime.now()).build();
   }
 
   /** Create KPR application entity from form request */
-  private KprApplication createKprApplicationFromForm(
-      Integer userId,
-      KprApplicationFormRequest formRequest,
-      Property property,
-      KprRate selectedRate,
-      BigDecimal monthlyInstallment,
-      String applicationNumber,
+  private KprApplication createKprApplicationFromForm(Integer userId, KprApplicationFormRequest formRequest,
+      Property property, KprRate selectedRate, BigDecimal monthlyInstallment, String applicationNumber,
       Integer currentApprovalLevel) {
 
-    return KprApplication.builder()
-        .applicationNumber(applicationNumber)
-        .userId(userId)
-        .propertyId(formRequest.getPropertyId())
-        .kprRateId(selectedRate.getId())
+    return KprApplication.builder().applicationNumber(applicationNumber).userId(userId)
+        .propertyId(formRequest.getPropertyId()).kprRateId(selectedRate.getId())
         .propertyType(convertToApplicationPropertyType(property.getPropertyType()))
         .propertyValue(formRequest.getSimulationData().getPropertyValue())
         .loanAmount(formRequest.getSimulationData().getLoanAmount())
-        .loanTermYears(formRequest.getSimulationData().getLoanTermYears())
-        .interestRate(selectedRate.getEffectiveRate())
-        .monthlyInstallment(monthlyInstallment)
-        .downPayment(formRequest.getSimulationData().getDownPayment())
+        .loanTermYears(formRequest.getSimulationData().getLoanTermYears()).interestRate(selectedRate.getEffectiveRate())
+        .monthlyInstallment(monthlyInstallment).downPayment(formRequest.getSimulationData().getDownPayment())
         .propertyAddress(property.getAddress())
         .propertyCertificateType(convertToCertificateType(property.getCertificateType()))
         .developerName(property.getDeveloper().getCompanyName())
-        .purpose(determinePurpose(formRequest.getPersonalData()))
-        .status(KprApplication.ApplicationStatus.SUBMITTED)
-        .currentApprovalLevel(currentApprovalLevel)
-        .submittedAt(LocalDateTime.now())
-        .createdAt(LocalDateTime.now())
-        .updatedAt(LocalDateTime.now())
-        .build();
+        .purpose(determinePurpose(formRequest.getPersonalData())).status(KprApplication.ApplicationStatus.SUBMITTED)
+        .currentApprovalLevel(currentApprovalLevel).submittedAt(LocalDateTime.now()).createdAt(LocalDateTime.now())
+        .updatedAt(LocalDateTime.now()).build();
   }
 
   // ========================================
@@ -558,8 +432,7 @@ public class KprApplicationService {
   // ========================================
 
   /** Update user profile from form data */
-  private void updateUserProfileFromForm(
-      Integer userId, PersonalData personalData, EmploymentData employmentData) {
+  private void updateUserProfileFromForm(Integer userId, PersonalData personalData, EmploymentData employmentData) {
     Optional<UserProfile> existingProfileOpt = userProfileRepository.findByUserId(userId);
 
     UserProfile profile;
@@ -597,40 +470,32 @@ public class KprApplicationService {
   }
 
   /** Store application documents */
-  private List<ApplicationDocument> storeApplicationDocuments(
-      Integer applicationId, KprApplicationFormRequest formRequest) {
+  private List<ApplicationDocument> storeApplicationDocuments(Integer applicationId,
+      KprApplicationFormRequest formRequest) {
     List<ApplicationDocument> documents = new ArrayList<>();
 
     // Store each document type
     if (formRequest.getKtpDocument() != null) {
-      ApplicationDocument doc =
-          createDocumentEntity(
-              applicationId, ApplicationDocument.DocumentType.KTP, formRequest.getKtpDocument());
+      ApplicationDocument doc = createDocumentEntity(applicationId, ApplicationDocument.DocumentType.KTP,
+          formRequest.getKtpDocument());
       documents.add(applicationDocumentRepository.save(doc));
     }
 
     if (formRequest.getNpwpDocument() != null) {
-      ApplicationDocument doc =
-          createDocumentEntity(
-              applicationId, ApplicationDocument.DocumentType.NPWP, formRequest.getNpwpDocument());
+      ApplicationDocument doc = createDocumentEntity(applicationId, ApplicationDocument.DocumentType.NPWP,
+          formRequest.getNpwpDocument());
       documents.add(applicationDocumentRepository.save(doc));
     }
 
     if (formRequest.getSalarySlipDocument() != null) {
-      ApplicationDocument doc =
-          createDocumentEntity(
-              applicationId,
-              ApplicationDocument.DocumentType.SLIP_GAJI,
-              formRequest.getSalarySlipDocument());
+      ApplicationDocument doc = createDocumentEntity(applicationId, ApplicationDocument.DocumentType.SLIP_GAJI,
+          formRequest.getSalarySlipDocument());
       documents.add(applicationDocumentRepository.save(doc));
     }
 
     if (formRequest.getOtherDocument() != null) {
-      ApplicationDocument doc =
-          createDocumentEntity(
-              applicationId,
-              ApplicationDocument.DocumentType.OTHER,
-              formRequest.getOtherDocument());
+      ApplicationDocument doc = createDocumentEntity(applicationId, ApplicationDocument.DocumentType.OTHER,
+          formRequest.getOtherDocument());
       documents.add(applicationDocumentRepository.save(doc));
     }
 
@@ -643,51 +508,30 @@ public class KprApplicationService {
 
   /** Create developer approval workflow */
   private void createDeveloperApprovalWorkflow(Integer applicationId, Integer developerId) {
-    ApprovalWorkflow workflow =
-        ApprovalWorkflow.builder()
-            .applicationId(applicationId)
-            .stage(ApprovalWorkflow.WorkflowStage.PROPERTY_APPRAISAL)
-            .assignedTo(developerId)
-            .status(ApprovalWorkflow.WorkflowStatus.PENDING)
-            .priority(ApprovalWorkflow.PriorityLevel.NORMAL)
-            .dueDate(LocalDateTime.now().plusDays(3))
-            .createdAt(LocalDateTime.now())
-            .updatedAt(LocalDateTime.now())
-            .build();
+    ApprovalWorkflow workflow = ApprovalWorkflow.builder().applicationId(applicationId)
+        .stage(ApprovalWorkflow.WorkflowStage.PROPERTY_APPRAISAL).assignedTo(developerId)
+        .status(ApprovalWorkflow.WorkflowStatus.PENDING).priority(ApprovalWorkflow.PriorityLevel.NORMAL)
+        .dueDate(LocalDateTime.now().plusDays(3)).createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
 
     approvalWorkflowRepository.save(workflow);
   }
 
   /** Create first approval workflow */
   private void createFirstApprovalWorkflow(Integer applicationId, Integer approvalStaffId) {
-    ApprovalWorkflow workflow =
-        ApprovalWorkflow.builder()
-            .applicationId(applicationId)
-            .stage(ApprovalWorkflow.WorkflowStage.CREDIT_ANALYSIS)
-            .assignedTo(approvalStaffId)
-            .status(ApprovalWorkflow.WorkflowStatus.PENDING)
-            .priority(ApprovalWorkflow.PriorityLevel.NORMAL)
-            .dueDate(LocalDateTime.now().plusDays(5))
-            .createdAt(LocalDateTime.now())
-            .updatedAt(LocalDateTime.now())
-            .build();
+    ApprovalWorkflow workflow = ApprovalWorkflow.builder().applicationId(applicationId)
+        .stage(ApprovalWorkflow.WorkflowStage.CREDIT_ANALYSIS).assignedTo(approvalStaffId)
+        .status(ApprovalWorkflow.WorkflowStatus.PENDING).priority(ApprovalWorkflow.PriorityLevel.NORMAL)
+        .dueDate(LocalDateTime.now().plusDays(5)).createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
 
     approvalWorkflowRepository.save(workflow);
   }
 
   /** Create second approval workflow */
   private void createSecondApprovalWorkflow(Integer applicationId, Integer approvalStaffId) {
-    ApprovalWorkflow workflow =
-        ApprovalWorkflow.builder()
-            .applicationId(applicationId)
-            .stage(ApprovalWorkflow.WorkflowStage.FINAL_APPROVAL)
-            .assignedTo(approvalStaffId)
-            .status(ApprovalWorkflow.WorkflowStatus.PENDING)
-            .priority(ApprovalWorkflow.PriorityLevel.NORMAL)
-            .dueDate(LocalDateTime.now().plusDays(7))
-            .createdAt(LocalDateTime.now())
-            .updatedAt(LocalDateTime.now())
-            .build();
+    ApprovalWorkflow workflow = ApprovalWorkflow.builder().applicationId(applicationId)
+        .stage(ApprovalWorkflow.WorkflowStage.FINAL_APPROVAL).assignedTo(approvalStaffId)
+        .status(ApprovalWorkflow.WorkflowStatus.PENDING).priority(ApprovalWorkflow.PriorityLevel.NORMAL)
+        .dueDate(LocalDateTime.now().plusDays(7)).createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
 
     approvalWorkflowRepository.save(workflow);
   }
@@ -699,42 +543,26 @@ public class KprApplicationService {
   /** Submit a new KPR application */
   @Transactional
   public KprApplicationResponse submitApplication(Integer userId, KprApplicationRequest request) {
-    logger.info(
-        "Processing KPR application for user: {} and property: {}",
-        userId,
-        request.getPropertyId());
+    logger.info("Processing KPR application for user: {} and property: {}", userId, request.getPropertyId());
 
     // 1. Validation Phase
     User user = validateUser(userId);
-    Property property =
-        validateProperty(
-            request.getPropertyId(), request.getDownPayment(), request.getLoanTermYears());
+    Property property = validateProperty(request.getPropertyId(), request.getDownPayment(), request.getLoanTermYears());
     validateNoPendingApplications(userId, request.getPropertyId());
 
     // 2. Business Logic Phase
-    Developer developer =
-        developerRepository
-            .findById(property.getDeveloperId())
-            .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
+    Developer developer = developerRepository.findById(property.getDeveloperId())
+        .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
     BigDecimal loanAmount = property.getPrice().subtract(request.getDownPayment());
     KprRate selectedRate = selectBestRate(property, loanAmount, request.getLoanTermYears(), userId);
-    BigDecimal monthlyInstallment =
-        calculateMonthlyInstallment(
-            loanAmount, selectedRate.getEffectiveRate(), request.getLoanTermYears());
+    BigDecimal monthlyInstallment = calculateMonthlyInstallment(loanAmount, selectedRate.getEffectiveRate(),
+        request.getLoanTermYears());
     Integer currentApprovalLevel = determineInitialApprovalLevel(loanAmount);
 
     // 3. Entity Creation Phase
     String applicationNumber = generateApplicationNumber();
-    KprApplication application =
-        createKprApplication(
-            userId,
-            request,
-            property,
-            selectedRate,
-            loanAmount,
-            monthlyInstallment,
-            applicationNumber,
-            currentApprovalLevel);
+    KprApplication application = createKprApplication(userId, request, property, selectedRate, loanAmount,
+        monthlyInstallment, applicationNumber, currentApprovalLevel);
 
     // 4. Persistence Phase
     KprApplication savedApplication = kprApplicationRepository.save(application);
@@ -742,17 +570,11 @@ public class KprApplicationService {
     // 5. Workflow Creation Phase
     createDeveloperApprovalWorkflow(savedApplication.getId(), developer.getUser().getId());
 
-    logger.info(
-        "KPR application created successfully with ID: {} and number: {}",
-        savedApplication.getId(),
+    logger.info("KPR application created successfully with ID: {} and number: {}", savedApplication.getId(),
         savedApplication.getApplicationNumber());
 
-    return new KprApplicationResponse(
-        savedApplication.getId(),
-        savedApplication.getApplicationNumber(),
-        savedApplication.getStatus(),
-        monthlyInstallment,
-        selectedRate.getEffectiveRate());
+    return new KprApplicationResponse(savedApplication.getId(), savedApplication.getApplicationNumber(),
+        savedApplication.getStatus(), monthlyInstallment, selectedRate.getEffectiveRate());
   }
 
   // ========================================
@@ -762,9 +584,7 @@ public class KprApplicationService {
   /** Assign approval workflow to staff members */
   @Transactional
   public AssignWorkflowResponse assignApprovalWorkflow(AssignWorkflowRequest request) {
-    logger.info(
-        "Assigning approval workflow for application: {} to approval staff one: {}",
-        request.getApplicationId(),
+    logger.info("Assigning approval workflow for application: {} to approval staff one: {}", request.getApplicationId(),
         request.getFirstApprovalId());
 
     // 1. Validation Phase
@@ -772,28 +592,19 @@ public class KprApplicationService {
     User secondApprovalUser = validateUser(request.getSecondApprovalId());
     KprApplication application = validateApplicationExists(request.getApplicationId());
 
-    logger.info(
-        "Approval staff one: {} has been assigned to application: {}",
-        firstApprovalUser.getUsername(),
+    logger.info("Approval staff one: {} has been assigned to application: {}", firstApprovalUser.getUsername(),
         request.getApplicationId());
-    logger.info(
-        "Approval staff two: {} has been assigned to application: {}",
-        secondApprovalUser.getUsername(),
+    logger.info("Approval staff two: {} has been assigned to application: {}", secondApprovalUser.getUsername(),
         request.getApplicationId());
-    logger.info(
-        "KPR application: {} has been assigned to approval workflow.",
-        application.getApplicationNumber());
+    logger.info("KPR application: {} has been assigned to approval workflow.", application.getApplicationNumber());
 
     // 2. Workflow Creation Phase
     createFirstApprovalWorkflow(application.getId(), request.getFirstApprovalId());
     createSecondApprovalWorkflow(application.getId(), request.getSecondApprovalId());
 
     // 3. Response Building
-    return AssignWorkflowResponse.builder()
-        .applicationID(application.getId())
-        .firstApprovalId(request.getFirstApprovalId())
-        .secondApprovalId(request.getSecondApprovalId())
-        .build();
+    return AssignWorkflowResponse.builder().applicationID(application.getId())
+        .firstApprovalId(request.getFirstApprovalId()).secondApprovalId(request.getSecondApprovalId()).build();
   }
 
   // ========================================
@@ -805,32 +616,19 @@ public class KprApplicationService {
     logger.info("Validate user: {}", userID);
 
     // Validation Phase
-    User user =
-        userRepository
-            .findById(userID)
-            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    User user = userRepository.findById(userID).orElseThrow(() -> new IllegalArgumentException("User not found"));
 
     // Query Phase
     logger.info("KPR History search started by {}", userID);
-    List<KprApplication> applications =
-        kprApplicationRepository.findKprApplicationsByUserId(user.getId());
+    List<KprApplication> applications = kprApplicationRepository.findKprApplicationsByUserId(user.getId());
 
     // Response Building Phase
     return applications.stream()
-        .map(
-            application ->
-                new KprHistoryListResponse(
-                    application.getProperty().getTitle(),
-                    application.getStatus().toString(),
-                    String.format(
-                        "%s, %s, %s",
-                        application.getProperty().getDistrict(),
-                        application.getProperty().getCity(),
-                        application.getProperty().getProvince()),
-                    application.getApplicationNumber(),
-                    application.getLoanAmount(),
-                    application.getCreatedAt().toString(),
-                    ""))
+        .map(application -> new KprHistoryListResponse(application.getProperty().getTitle(),
+            application.getStatus().toString(),
+            String.format("%s, %s, %s", application.getProperty().getDistrict(), application.getProperty().getCity(),
+                application.getProperty().getProvince()),
+            application.getApplicationNumber(), application.getLoanAmount(), application.getCreatedAt().toString(), ""))
         .collect(Collectors.toList());
   }
 
@@ -847,46 +645,37 @@ public class KprApplicationService {
     }
 
     // Response Building Phase
-    return KprApplicationDetailResponse.builder()
-        .applicationId(application.getId())
-        .applicationNumber(application.getApplicationNumber())
-        .status(application.getStatus())
-        .propertyAddress(application.getPropertyAddress())
-        .loanAmount(application.getLoanAmount())
-        .monthlyInstallment(application.getMonthlyInstallment())
-        .interestRate(application.getInterestRate())
-        .loanTermYears(application.getLoanTermYears())
-        .downPayment(application.getDownPayment())
-        .submittedAt(application.getSubmittedAt())
-        .build();
+    return KprApplicationDetailResponse.builder().applicationId(application.getId())
+        .applicationNumber(application.getApplicationNumber()).status(application.getStatus())
+        .propertyAddress(application.getPropertyAddress()).loanAmount(application.getLoanAmount())
+        .monthlyInstallment(application.getMonthlyInstallment()).interestRate(application.getInterestRate())
+        .loanTermYears(application.getLoanTermYears()).downPayment(application.getDownPayment())
+        .submittedAt(application.getSubmittedAt()).build();
   }
 
   // ========================================
   // HELPER METHODS FOR TYPE CONVERSION
   // ========================================
 
-  private Property.PropertyType convertToApplicationPropertyType(
-      Property.PropertyType propertyType) {
+  private Property.PropertyType convertToApplicationPropertyType(Property.PropertyType propertyType) {
     return switch (propertyType) {
-      case RUMAH -> Property.PropertyType.RUMAH;
-      case APARTEMEN -> Property.PropertyType.APARTEMEN;
-      case RUKO -> Property.PropertyType.RUKO;
-      case TANAH -> Property.PropertyType.TANAH;
-      default -> throw new IllegalArgumentException("Unsupported property type: " + propertyType);
+    case RUMAH -> Property.PropertyType.RUMAH;
+    case APARTEMEN -> Property.PropertyType.APARTEMEN;
+    case RUKO -> Property.PropertyType.RUKO;
+    case TANAH -> Property.PropertyType.TANAH;
+    default -> throw new IllegalArgumentException("Unsupported property type: " + propertyType);
     };
   }
 
-  private Property.CertificateType convertToCertificateType(
-      Property.CertificateType certificateType) {
+  private Property.CertificateType convertToCertificateType(Property.CertificateType certificateType) {
     return switch (certificateType) {
-      case SHM -> Property.CertificateType.SHM;
-      case HGB -> Property.CertificateType.HGB;
-      case HGU -> Property.CertificateType.HGU;
-      case HP -> Property.CertificateType.HP;
-      case GIRIK -> Property.CertificateType.GIRIK;
-      case PETOK_D -> Property.CertificateType.PETOK_D;
-      default ->
-          throw new IllegalArgumentException("Unsupported certificate type: " + certificateType);
+    case SHM -> Property.CertificateType.SHM;
+    case HGB -> Property.CertificateType.HGB;
+    case HGU -> Property.CertificateType.HGU;
+    case HP -> Property.CertificateType.HP;
+    case GIRIK -> Property.CertificateType.GIRIK;
+    case PETOK_D -> Property.CertificateType.PETOK_D;
+    default -> throw new IllegalArgumentException("Unsupported certificate type: " + certificateType);
     };
   }
 
@@ -895,18 +684,37 @@ public class KprApplicationService {
     return KprApplication.ApplicationPurpose.PRIMARY_RESIDENCE;
   }
 
-  private ApplicationDocument createDocumentEntity(
-      Integer applicationId, ApplicationDocument.DocumentType documentType, Object fileData) {
+  private ApplicationDocument createDocumentEntity(Integer applicationId, ApplicationDocument.DocumentType documentType,
+      Object fileData) {
     // This is a placeholder - actual implementation would handle file storage
-    return ApplicationDocument.builder()
-        .applicationId(applicationId)
-        .documentType(documentType)
+    return ApplicationDocument.builder().applicationId(applicationId).documentType(documentType)
         .documentName(documentType.name() + "_document")
-        .filePath("/documents/" + applicationId + "/" + documentType.name())
-        .fileSize(1024) // placeholder
+        .filePath("/documents/" + applicationId + "/" + documentType.name()).fileSize(1024) // placeholder
         .mimeType("application/pdf") // placeholder
-        .isVerified(false)
-        .uploadedAt(LocalDateTime.now())
-        .build();
+        .isVerified(false).uploadedAt(LocalDateTime.now()).build();
+  }
+
+  // Show all KPR for superadmin
+  public List<KPRApplicant> getAllKprApplications(Integer userID) {
+    var user = userRepository.findById(userID).orElseThrow(() -> new IllegalArgumentException("User not found"));
+    if (!user.getRole().toString().equalsIgnoreCase("ADMIN")) {
+       throw new IllegalArgumentException("You are not authorized to view this application");
+    }
+
+    var applications =  kprApplicationRepository.findAllKprApplications();
+
+      List<KPRApplicant> kprApplicants = new ArrayList<>();
+
+      for (var application : applications) {
+        var kprApplicant = KPRApplicant.builder()
+                .name(application.getUser().getUsername())
+                .email(application.getUser().getEmail())
+                .phone(application.getUser().getPhone())
+                .KprApplicationCode(application.getApplicationNumber())
+                .build();
+
+        kprApplicants.add(kprApplicant);
+      }
+      return kprApplicants;
   }
 }
