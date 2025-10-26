@@ -37,19 +37,19 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 public class IDCloudHostS3Util {
 
   // IDCloudHost Object Storage Configuration
-  @Value("${idcloudhost.s3.access-key:}")
+  @Value("${IDCLOUDHOST_S3_ACCESS_KEY:}")
   private String accessKey;
 
-  @Value("${idcloudhost.s3.secret-key:}")
+  @Value("${IDCLOUDHOST_S3_SECRET_KEY:}")
   private String secretKey;
 
-  @Value("${idcloudhost.s3.bucket-name:}")
+  @Value("${IDCLOUDHOST_S3_BUCKET_NAME:}")
   private String bucketName;
 
-  @Value("${idcloudhost.s3.region:id-jkt-1}")
+  @Value("${IDCLOUDHOST_S3_REGION:id-jkt-1}")
   private String region;
 
-  @Value("${idcloudhost.s3.endpoint:https://s3-id-jkt-1.kilatstorage.id}")
+  @Value("${IDCLOUDHOST_S3_ENDPOINT:https://is3.cloudhost.id}")
   private String endpoint;
 
   // --- REFACTORED: S3Client is now an instance variable ---
@@ -76,8 +76,8 @@ public class IDCloudHostS3Util {
           "application/zip"
   );
 
-  // Maximum file size (20MB)
-  private static final long MAX_FILE_SIZE = 20 * 1024 * 1024;
+  // Maximum file size (1MB)
+  private static final long MAX_FILE_SIZE = 1 * 1024 * 1024;
 
   /**
    * REFACTORED: Initializes the S3Client bean once after all @Value properties are injected.
