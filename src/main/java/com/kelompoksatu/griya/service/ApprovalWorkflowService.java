@@ -4,8 +4,10 @@ import com.kelompoksatu.griya.dto.ApprovalConfirmation;
 import com.kelompoksatu.griya.entity.ApprovalWorkflow;
 import com.kelompoksatu.griya.entity.ApprovalWorkflow.PriorityLevel;
 import com.kelompoksatu.griya.entity.ApprovalWorkflow.WorkflowStatus;
+import com.kelompoksatu.griya.entity.User;
 import com.kelompoksatu.griya.repository.ApprovalWorkflowRepository;
 import com.kelompoksatu.griya.repository.DeveloperRepository;
+import com.kelompoksatu.griya.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -28,6 +30,7 @@ public class ApprovalWorkflowService {
 
   private final ApprovalWorkflowRepository approvalWorkflowRepository;
   private final DeveloperRepository developerRepository;
+  private final UserRepository userRepository;
 
   // ========================================
   // VALIDATION METHODS
@@ -349,6 +352,34 @@ public class ApprovalWorkflowService {
           .approveByUserIDandApplicationID(userID, userID, now, reason)
           .orElse(false);
     }
+    log.info("Rejecting workflow for user ID: {}", userID);
+    return approvalWorkflowRepository
+        .rejectByUserIDandApplicationID(userID, userID, now, reason)
+        .orElse(false);
+  }
+
+  public boolean approveOrRejectWorkflowVerifikator(ApprovalConfirmation request, Integer userID) {
+    User verifikator =
+        userRepository
+            .findById(userID)
+            .orElseThrow(
+                () -> new IllegalArgumentException("Verifikator not found with ID: " + userID));
+
+    log.info(
+        "Processing approval/rejection for verifikator: {} with request: {}",
+        verifikator.getUsername(),
+        request);
+
+    Boolean isApproved = request.getIsApproved();
+    String reason = request.getReason();
+    var now = LocalDateTime.now();
+    if (isApproved) {
+      log.info("Approving workflow for user ID: {}", userID);
+      return approvalWorkflowRepository
+          .approveByUserIDandApplicationID(userID, userID, now, reason)
+          .orElse(false);
+    }
+
     log.info("Rejecting workflow for user ID: {}", userID);
     return approvalWorkflowRepository
         .rejectByUserIDandApplicationID(userID, userID, now, reason)
