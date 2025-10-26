@@ -180,10 +180,9 @@ public class UserService {
     }
   }
 
-  /** Reset failed login attempts */
-  public void resetFailedLoginAttempts(Integer userId) {
-    userRepository.updateFailedLoginAttempts(userId, 0);
-    userRepository.unlockUserAccount(userId);
+  /** 1. Reset failed login attempts 2. Reset last login time 3. Unlock account */
+  public void resetLogin(Integer userId) {
+    userRepository.unlockResetAndSetLastLogin(userId);
   }
 
   /** Check if user account is locked */
