@@ -964,7 +964,6 @@ public class KprApplicationService {
           .documentName(fileName)
           .originalFilename(originalFilename)
           .filePath(fileUrl)
-          .s3Key(fileName) // Store the S3 key for future operations
           .fileSize((int) file.getSize())
           .mimeType(file.getContentType())
           .isVerified(false)
