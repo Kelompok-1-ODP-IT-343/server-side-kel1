@@ -1,10 +1,9 @@
 package com.kelompoksatu.griya.controller;
 
-import com.kelompoksatu.griya.dto.ApiResponse;
-import com.kelompoksatu.griya.dto.DeveloperResponse;
-import com.kelompoksatu.griya.dto.PaginatedResponse;
-import com.kelompoksatu.griya.dto.PaginationRequest;
-import com.kelompoksatu.griya.dto.UpdateDeveloperRequest;
+import org.springframework.http.MediaType;
+import com.kelompoksatu.griya.repository.ImageAdminRepository;
+import com.kelompoksatu.griya.dto.*;
+import com.kelompoksatu.griya.entity.ImageAdmin;
 import com.kelompoksatu.griya.service.DeveloperService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,25 +12,46 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
+import com.kelompoksatu.griya.entity.ImageType;
+import com.kelompoksatu.griya.entity.ImageCategory;
+
+
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+
+import java.io.IOException;
 import java.util.Optional;
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /** REST Controller for Admin operations */
 @Tag(name = "Admin Management", description = "Administrative operations for system management")
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/admin")
 @Validated
 public class AdminController {
 
+
+
   private final DeveloperService developerService;
+  private final ImageAdminRepository imageAdminRepository;
 
   @Autowired
-  public AdminController(DeveloperService developerService) {
+  public AdminController(DeveloperService developerService,
+                         ImageAdminRepository imageAdminRepository) {
     this.developerService = developerService;
+    this.imageAdminRepository = imageAdminRepository;
   }
 
   // ==================== DEVELOPER MANAGEMENT ====================
@@ -82,6 +102,89 @@ public class AdminController {
         new ApiResponse<>(true, "Developer updated successfully", developer);
     return ResponseEntity.ok(response);
   }
+
+    @PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<ImageAdminResponse>> uploadAdminImage(
+            @RequestPart("image") MultipartFile image,
+            @RequestPart("data") ImageAdminRequest request
+    ) {
+        try {
+            log.info("Mulai upload image: {}", image.getOriginalFilename());
+
+            // ✅ 1️⃣ Validasi input
+            if (image == null || image.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Image file tidak boleh kosong"));
+            }
+            if (request == null || request.getImageType() == null || request.getImageCategory() == null) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Field imageType dan imageCategory wajib diisi"));
+            }
+
+            // ✅ 2️⃣ Convert ENUM (handle invalid enum)
+            ImageType imageType;
+            ImageCategory imageCategory;
+            try {
+                imageType = ImageType.valueOf(request.getImageType().name());
+                imageCategory = ImageCategory.valueOf(request.getImageCategory().name());
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Nilai imageType atau imageCategory tidak valid"));
+            }
+
+            // ✅ 3️⃣ Simpan file (langsung di root project)
+            Path filePath = Paths.get(image.getOriginalFilename());
+            Files.copy(image.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            log.debug("File path: {}", filePath);
+
+            // ✅ 4️⃣ Generate public URL
+            String imageUrl = "http://localhost:18080/" + image.getOriginalFilename();
+
+            // ✅ 5️⃣ Simpan metadata ke database
+            ImageAdmin imageAdmin = ImageAdmin.builder()
+                    .propertyId(request.getPropertyId())
+                    .imageType(imageType)
+                    .imageCategory(imageCategory)
+                    .fileName(UUID.randomUUID().toString())
+                    .filePath(filePath.toString())
+                    .fileSize((int) image.getSize())
+                    .mimeType(image.getContentType())
+                    .caption(request.getCaption())
+                    .build();
+
+            imageAdminRepository.save(imageAdmin);
+            log.info("✅ Image berhasil disimpan di DB: {}", imageAdmin.getFileName());
+
+            // ✅ 6️⃣ Build response data
+            ImageAdminResponse responseData = ImageAdminResponse.builder()
+                    .id(imageAdmin.getId())
+                    .propertyId(imageAdmin.getPropertyId())
+                    .imageUrl(imageUrl)
+                    .fileName(imageAdmin.getFileName())
+                    .imageType(imageType.name())
+                    .imageCategory(imageCategory.name())
+                    .caption(imageAdmin.getCaption())
+                    .fileSize(imageAdmin.getFileSize())
+                    .mimeType(imageAdmin.getMimeType())
+                    .build();
+
+            ApiResponse<ImageAdminResponse> response =
+                    ApiResponse.success("Image uploaded successfully", responseData);
+            return ResponseEntity.ok(response);
+
+        } catch (IOException e) {
+            log.error("❌ Gagal menyimpan file: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Gagal menyimpan file: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("❌ Gagal upload image: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Gagal upload image: " + e.getMessage()));
+        }
+    }
+
+
+
 
   /** Get developer by ID (admin only) */
   @Operation(
