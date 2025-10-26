@@ -5,6 +5,7 @@ import com.kelompoksatu.griya.entity.ImageAdmin;
 import com.kelompoksatu.griya.entity.ImageCategory;
 import com.kelompoksatu.griya.entity.ImageType;
 import com.kelompoksatu.griya.repository.ImageAdminRepository;
+import com.kelompoksatu.griya.service.AdminService;
 import com.kelompoksatu.griya.service.DeveloperService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -18,10 +19,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -35,17 +37,12 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/v1/admin")
 @Validated
+@RequiredArgsConstructor
 public class AdminController {
 
   private final DeveloperService developerService;
   private final ImageAdminRepository imageAdminRepository;
-
-  @Autowired
-  public AdminController(
-      DeveloperService developerService, ImageAdminRepository imageAdminRepository) {
-    this.developerService = developerService;
-    this.imageAdminRepository = imageAdminRepository;
-  }
+  private final AdminService adminService;
 
   // ==================== DEVELOPER MANAGEMENT ====================
 
@@ -424,5 +421,34 @@ public class AdminController {
             developers, "Search results retrieved successfully", "/api/v1/admin/developers/search");
 
     return ResponseEntity.ok(response);
+  }
+
+  @Operation(
+      summary = "Get All Admin",
+      description = "Get All Admin. This endpoint is restricted to admin users only.")
+  @ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Get All successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class)))
+      })
+  @GetMapping("/simple")
+  public ResponseEntity<ApiResponse<List<AdminSimpleResponse>>> getAllSimple() {
+
+    List<AdminSimpleResponse> admin = adminService.getAllAdminSimple();
+    var apiResponse = new ApiResponse<>(true, "", admin);
+
+    return ResponseEntity.ok(apiResponse);
   }
 }
