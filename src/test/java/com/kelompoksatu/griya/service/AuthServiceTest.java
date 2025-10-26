@@ -198,7 +198,6 @@ class AuthServiceTest {
     verify(passwordEncoder).matches(loginRequest.getPassword(), testUser.getPasswordHash());
     verify(userService).isAccountActive(testUser);
     verify(userService).resetLogin(testUser.getId());
-    verify(userService).updateLastLogin(testUser.getId());
     verify(jwtUtil)
         .generateRefreshToken(
             testUser.getUsername(), testUser.getId(), testUser.getRole().getName());
@@ -260,7 +259,7 @@ class AuthServiceTest {
     verify(userService).findByUsernameOrEmail(loginRequest.getIdentifier());
     verify(userService).isAccountLocked(testUser);
     verify(passwordEncoder).matches(loginRequest.getPassword(), testUser.getPasswordHash());
-    verify(userService).incrementFailedLoginAttempts(testUser.getId());
+    verify(userService).incrementFailedLoginAttempts(testUser);
   }
 
   @Test
