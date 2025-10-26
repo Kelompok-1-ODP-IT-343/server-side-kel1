@@ -4,9 +4,9 @@ import com.kelompoksatu.griya.dto.ApiResponse;
 import com.kelompoksatu.griya.dto.CreatePropertyRequest;
 import com.kelompoksatu.griya.dto.PropertyResponse;
 import com.kelompoksatu.griya.entity.Property;
+import com.kelompoksatu.griya.entity.PropertyFavorite;
 import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
 import com.kelompoksatu.griya.service.PropertyService;
-import com.kelompoksatu.griya.entity.PropertyFavorite;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -14,7 +14,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -32,10 +31,11 @@ import org.springframework.web.bind.annotation.*;
 public class PropertyController {
 
   private final PropertyService propertyService;
-  private final  PropertyFavoriteRepository propertyFavoriteRepository;
+  private final PropertyFavoriteRepository propertyFavoriteRepository;
 
   @Autowired
-  public PropertyController(PropertyService propertyService, PropertyFavoriteRepository propertyFavoriteRepository) {
+  public PropertyController(
+      PropertyService propertyService, PropertyFavoriteRepository propertyFavoriteRepository) {
     this.propertyService = propertyService;
     this.propertyFavoriteRepository = propertyFavoriteRepository;
   }
@@ -90,46 +90,44 @@ public class PropertyController {
     }
   }
 
-    @PostMapping("/favorites")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> toggleFavorite(
-            @RequestParam Integer userId,
-            @RequestParam Integer propertyId) {
+  @PostMapping("/favorites")
+  public ResponseEntity<ApiResponse<Map<String, Object>>> toggleFavorite(
+      @RequestParam Integer userId, @RequestParam Integer propertyId) {
 
-        try {
-            Optional<PropertyFavorite> existing =
-                    propertyFavoriteRepository.findByUserIdAndPropertyId(userId, propertyId);
+    try {
+      Optional<PropertyFavorite> existing =
+          propertyFavoriteRepository.findByUserIdAndPropertyId(userId, propertyId);
 
-            Map<String, Object> responseData = new HashMap<>();
+      Map<String, Object> responseData = new HashMap<>();
 
-            if (existing.isPresent()) {
-                propertyFavoriteRepository.delete(existing.get());
-                responseData.put("status", "removed");
-            } else {
-                PropertyFavorite favorite = PropertyFavorite.builder()
-                        .userId(userId)
-                        .propertyId(propertyId)
-                        .createdAt(LocalDateTime.now())
-                        .build();
-                propertyFavoriteRepository.save(favorite);
-                responseData.put("status", "added");
-                responseData.put("favoriteId", favorite.getId());
-            }
+      if (existing.isPresent()) {
+        propertyFavoriteRepository.delete(existing.get());
+        responseData.put("status", "removed");
+      } else {
+        PropertyFavorite favorite =
+            PropertyFavorite.builder()
+                .userId(userId)
+                .propertyId(propertyId)
+                .createdAt(LocalDateTime.now())
+                .build();
+        propertyFavoriteRepository.save(favorite);
+        responseData.put("status", "added");
+        responseData.put("favoriteId", favorite.getId());
+      }
 
-            responseData.put("userId", userId);
-            responseData.put("propertyId", propertyId);
+      responseData.put("userId", userId);
+      responseData.put("propertyId", propertyId);
 
-            return ResponseEntity.ok(ApiResponse.success("Toggle favorite success", responseData));
+      return ResponseEntity.ok(ApiResponse.success("Toggle favorite success", responseData));
 
-        } catch (Exception e) {
-            log.error("❌ Gagal toggle favorite: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Gagal toggle favorite: " + e.getMessage()));
-        }
+    } catch (Exception e) {
+      log.error("❌ Gagal toggle favorite: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal toggle favorite: " + e.getMessage()));
     }
+  }
 
-
-
-    /** Get property by ID */
+  /** Get property by ID */
   @GetMapping("/{id}")
   public ResponseEntity<ApiResponse<PropertyResponse>> getPropertyById(@PathVariable Integer id) {
     try {
