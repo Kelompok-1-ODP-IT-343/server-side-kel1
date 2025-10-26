@@ -17,6 +17,7 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -24,13 +25,14 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 /**
  * Utility class untuk upload file ke IDCloudHost Object Storage menggunakan S3-compatible API
  *
- * <p>IDCloudHost Object Storage S3-compatible endpoint:
- * https://s3-id-jkt-1.kilatstorage.id
+ * <p>IDCloudHost Object Storage S3-compatible endpoint: https://is3.cloudhost.id
  *
- * <p>Refactored version:
+ * <p>Features:
  * - Creates a single S3Client bean instance (thread-safe) on startup via @PostConstruct.
  * - Adds MIME type validation for enhanced security.
  * - Uses Set for more efficient extension validation.
+ * - Uploads files with public-read permissions for direct URL access.
+ * - Generates publicly accessible URLs for uploaded files.
  */
 @Slf4j
 @Component
@@ -92,11 +94,11 @@ public class IDCloudHostS3Util {
   }
 
   /**
-   * Upload file ke IDCloudHost Object Storage
+   * Upload file ke IDCloudHost Object Storage dengan public-read permission
    *
    * @param file MultipartFile yang akan diupload
    * @param folder Folder tujuan di bucket (contoh: "documents", "images", "kpr-docs")
-   * @return URL file yang berhasil diupload
+   * @return URL file yang berhasil diupload (publicly accessible)
    * @throws IOException jika terjadi error saat upload
    * @throws IllegalArgumentException jika file tidak valid
    * @throws IllegalStateException jika client not configured
@@ -120,6 +122,7 @@ public class IDCloudHostS3Util {
                       .key(fileName)
                       .contentType(file.getContentType())
                       .contentLength(file.getSize())
+                      .acl(ObjectCannedACL.PUBLIC_READ) // Set public-read permission
                       .metadata(
                               java.util.Map.of(
                                       "uploaded-at", LocalDateTime.now().toString(),
@@ -202,7 +205,7 @@ public class IDCloudHostS3Util {
   /** Generate nama file yang aman dan unik */
   private String generateSecureFileName(String originalFilename, String folder) {
     String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-    String uuid = UUID.randomUUID().toString().substring(0, 8);
+    String uuid = UUID.randomUUID().toString().replace("-", ""); // Full UUID tanpa dash untuk uniqueness maksimal
 
     String cleanName = originalFilename.replaceAll("[^a-zA-Z0-9._-]", "_");
     String extension = getFileExtension(cleanName);
