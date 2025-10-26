@@ -347,7 +347,7 @@ public class AuthService {
     }
 
     if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-      userService.incrementFailedLoginAttempts(user.getId());
+      userService.incrementFailedLoginAttempts(user);
       throw new RuntimeException("Password salah");
     }
 
