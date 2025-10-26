@@ -131,12 +131,7 @@ public class EmailService {
               </a>
             </p>
 
-            <p>Jika tombol di atas tidak berfungsi, silakan salin dan tempel URL berikut di browser Anda:</p>
-            <p style="word-break:break-all; background:#f1f1f1; padding:10px; border-radius:5px;">
-              %s
-            </p>
-
-            <p style="font-size:12px; color:#777;">
+        <p style="font-size:12px; color:#777;">
               Tautan ini akan kedaluwarsa dalam %d menit. Jika Anda tidak meminta reset password, abaikan email ini.
             </p>
 
@@ -149,7 +144,6 @@ public class EmailService {
     return String.format(
         template,
         forgotPasswordUrl, // %s kedua → link tombol
-        forgotPasswordUrl, // %s ketiga → fallback URL
         expiresInMinutes, // %d menit expired
         Year.now().getValue() // %d tahun sekarang
         );
