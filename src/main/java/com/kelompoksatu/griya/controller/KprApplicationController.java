@@ -21,6 +21,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -563,6 +565,31 @@ public class KprApplicationController {
       // Determine appropriate HTTP status based on error type
       ApiResponse<List<KPRApplicant>> response =
           new ApiResponse<>(false, "Failed to get all KPR applications: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  @PostMapping("/admin/assign")
+  public ResponseEntity<ApiResponse<String>> assignApprovalWorkflow(
+      @RequestBody AssignWorkflowRequest request,
+      @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for assigning KPR application");
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+      Integer adminId = jwtUtil.extractUserId(token);
+      if (adminId == null) {
+        logger.warn("Invalid token - admin ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+      kprApplicationService.assignApprovalWorkflow(request, adminId);
+      logger.info("KPR application assigned successfully");
+      return ResponseEntity.ok(
+          new ApiResponse<String>(true, "KPR application assigned successfully", "ASSIGNED"));
+    } catch (Exception e) {
+      logger.error("Error assigning KPR application: {}", e.getMessage(), e);
+      ApiResponse<String> response =
+          new ApiResponse<>(false, "Failed to assign KPR application: " + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
