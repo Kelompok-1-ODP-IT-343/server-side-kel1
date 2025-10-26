@@ -27,12 +27,10 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
  *
  * <p>IDCloudHost Object Storage S3-compatible endpoint: https://is3.cloudhost.id
  *
- * <p>Features:
- * - Creates a single S3Client bean instance (thread-safe) on startup via @PostConstruct.
- * - Adds MIME type validation for enhanced security.
- * - Uses Set for more efficient extension validation.
- * - Uploads files with public-read permissions for direct URL access.
- * - Generates publicly accessible URLs for uploaded files.
+ * <p>Features: - Creates a single S3Client bean instance (thread-safe) on startup
+ * via @PostConstruct. - Adds MIME type validation for enhanced security. - Uses Set for more
+ * efficient extension validation. - Uploads files with public-read permissions for direct URL
+ * access. - Generates publicly accessible URLs for uploaded files.
  */
 @Slf4j
 @Component
@@ -56,18 +54,18 @@ public class IDCloudHostS3Util {
 
   // --- REFACTORED: S3Client is now an instance variable ---
   /**
-   * S3Client is thread-safe and should be created once and reused.
-   * This client is initialized on bean startup by the initClient() method.
+   * S3Client is thread-safe and should be created once and reused. This client is initialized on
+   * bean startup by the initClient() method.
    */
   private S3Client s3Client;
 
   // Allowed file extensions
-  private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
-          ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx", ".xls", ".xlsx", ".zip"
-  );
+  private static final Set<String> ALLOWED_EXTENSIONS =
+      Set.of(".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx", ".xls", ".xlsx", ".zip");
 
   // Allowed MIME types for corresponding extensions
-  private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
+  private static final Set<String> ALLOWED_MIME_TYPES =
+      Set.of(
           "application/pdf",
           "image/jpeg",
           "image/png",
@@ -75,15 +73,14 @@ public class IDCloudHostS3Util {
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
           "application/vnd.ms-excel",
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "application/zip"
-  );
+          "application/zip");
 
   // Maximum file size (1MB)
   private static final long MAX_FILE_SIZE = 1 * 1024 * 1024;
 
   /**
-   * REFACTORED: Initializes the S3Client bean once after all @Value properties are injected.
-   * This avoids creating a new client for every upload, which is critical for performance.
+   * REFACTORED: Initializes the S3Client bean once after all @Value properties are injected. This
+   * avoids creating a new client for every upload, which is critical for performance.
    */
   @PostConstruct
   public void initClient() {
@@ -117,26 +114,25 @@ public class IDCloudHostS3Util {
     try {
       // S3 client is now reused
       PutObjectRequest putObjectRequest =
-              PutObjectRequest.builder()
-                      .bucket(bucketName)
-                      .key(fileName)
-                      .contentType(file.getContentType())
-                      .contentLength(file.getSize())
-                      .acl(ObjectCannedACL.PUBLIC_READ) // Set public-read permission
-                      .metadata(
-                              java.util.Map.of(
-                                      "uploaded-at", LocalDateTime.now().toString(),
-                                      "original-name", file.getOriginalFilename(),
-                                      "file-size", String.valueOf(file.getSize())))
-                      .build();
+          PutObjectRequest.builder()
+              .bucket(bucketName)
+              .key(fileName)
+              .contentType(file.getContentType())
+              .contentLength(file.getSize())
+              .acl(ObjectCannedACL.PUBLIC_READ) // Set public-read permission
+              .metadata(
+                  java.util.Map.of(
+                      "uploaded-at", LocalDateTime.now().toString(),
+                      "original-name", file.getOriginalFilename(),
+                      "file-size", String.valueOf(file.getSize())))
+              .build();
 
       // Upload file
       PutObjectResponse response =
-              s3Client.putObject(
-                      putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+          s3Client.putObject(
+              putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
       String fileUrl = generateIDCloudHostFileUrl(fileName);
-
 
       return fileUrl;
 
@@ -182,8 +178,8 @@ public class IDCloudHostS3Util {
 
     // Validasi nama file untuk mencegah path traversal
     if (originalFilename.contains("..")
-            || originalFilename.contains("/")
-            || originalFilename.contains("\\")) {
+        || originalFilename.contains("/")
+        || originalFilename.contains("\\")) {
       throw new IllegalArgumentException("Nama file mengandung karakter yang tidak diizinkan");
     }
 
@@ -191,21 +187,24 @@ public class IDCloudHostS3Util {
     String extension = getFileExtension(originalFilename).toLowerCase();
     if (!ALLOWED_EXTENSIONS.contains(extension)) {
       throw new IllegalArgumentException(
-              "Tipe file tidak diizinkan (ekstensi). Hanya mendukung: " + String.join(", ", ALLOWED_EXTENSIONS));
+          "Tipe file tidak diizinkan (ekstensi). Hanya mendukung: "
+              + String.join(", ", ALLOWED_EXTENSIONS));
     }
 
     // REFACTORED: Validate MIME type using Set
     String contentType = file.getContentType();
     if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType.toLowerCase())) {
-      throw new IllegalArgumentException(
-              "Tipe file tidak diizinkan (MIME type).");
+      throw new IllegalArgumentException("Tipe file tidak diizinkan (MIME type).");
     }
   }
 
   /** Generate nama file yang aman dan unik */
   private String generateSecureFileName(String originalFilename, String folder) {
     String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-    String uuid = UUID.randomUUID().toString().replace("-", ""); // Full UUID tanpa dash untuk uniqueness maksimal
+    String uuid =
+        UUID.randomUUID()
+            .toString()
+            .replace("-", ""); // Full UUID tanpa dash untuk uniqueness maksimal
 
     String cleanName = originalFilename.replaceAll("[^a-zA-Z0-9._-]", "_");
     String extension = getFileExtension(cleanName);
@@ -239,15 +238,15 @@ public class IDCloudHostS3Util {
   /** Create S3 client khusus untuk IDCloudHost Object Storage */
   private S3Client createIDCloudHostS3Client() {
     return S3Client.builder()
-            .region(Region.of(region))
-            .credentialsProvider(
-                    StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
-            .endpointOverride(URI.create(endpoint))
-            .serviceConfiguration(
-                    S3Configuration.builder()
-                            .pathStyleAccessEnabled(true) // IDCloudHost menggunakan path-style access
-                            .build())
-            .build();
+        .region(Region.of(region))
+        .credentialsProvider(
+            StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
+        .endpointOverride(URI.create(endpoint))
+        .serviceConfiguration(
+            S3Configuration.builder()
+                .pathStyleAccessEnabled(true) // IDCloudHost menggunakan path-style access
+                .build())
+        .build();
   }
 
   /** Generate URL untuk mengakses file di IDCloudHost */
@@ -258,11 +257,11 @@ public class IDCloudHostS3Util {
   /** Check apakah IDCloudHost S3 client sudah dikonfigurasi dengan benar */
   public boolean isConfigured() {
     return accessKey != null
-            && !accessKey.trim().isEmpty()
-            && secretKey != null
-            && !secretKey.trim().isEmpty()
-            && bucketName != null
-            && !bucketName.trim().isEmpty();
+        && !accessKey.trim().isEmpty()
+        && secretKey != null
+        && !secretKey.trim().isEmpty()
+        && bucketName != null
+        && !bucketName.trim().isEmpty();
   }
 
   /** Get bucket name yang sedang digunakan */
