@@ -53,8 +53,9 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
   /** Unlock user account */
   @Modifying
-  @Query("UPDATE User u SET u.lockedUntil = null, u.failedLoginAttempts = 0 WHERE u.id = :userId")
-  void unlockUserAccount(@Param("userId") Integer userId);
+  @Query(
+      "UPDATE User u SET u.lockedUntil = null, u.failedLoginAttempts = 0, u.lastLoginAt =current timestamp WHERE u.id = :userId")
+  void unlockResetAndSetLastLogin(@Param("userId") Integer userId);
 
   /** Verify phone */
   @Modifying

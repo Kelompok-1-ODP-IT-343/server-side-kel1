@@ -108,8 +108,7 @@ public class AuthService {
       validateAccountStatus(user);
 
       // Reset failed login attempts on successful login
-      userService.resetFailedLoginAttempts(user.getId());
-      userService.updateLastLogin(user.getId());
+      userService.resetLogin(user.getId());
 
       // Generate tokens and create session
       String refreshToken =
