@@ -36,8 +36,14 @@ public class ApplicationDocument {
   @Column(name = "document_name", nullable = false, length = 255)
   private String documentName;
 
+  @Column(name = "original_filename", length = 255)
+  private String originalFilename; // Store original filename from user upload
+
   @Column(name = "file_path", nullable = false, length = 500)
-  private String filePath;
+  private String filePath; // S3 URL for the uploaded file
+
+  @Column(name = "s3_key", length = 500)
+  private String s3Key; // S3 object key for direct S3 operations
 
   @Column(name = "file_size", nullable = false)
   private Integer fileSize; // in bytes
@@ -192,6 +198,23 @@ public class ApplicationDocument {
   /** Get file size in MB */
   public double getFileSizeInMB() {
     return fileSize != null ? fileSize / (1024.0 * 1024.0) : 0;
+  }
+
+  /** Get the S3 object key from file path */
+  public String getS3ObjectKey() {
+    if (s3Key != null && !s3Key.isEmpty()) {
+      return s3Key;
+    }
+    // Extract from URL if s3Key is not set
+    if (filePath != null && filePath.contains("/")) {
+      return filePath.substring(filePath.lastIndexOf("/") + 1);
+    }
+    return null;
+  }
+
+  /** Get the public S3 URL */
+  public String getPublicUrl() {
+    return filePath; // filePath now contains the full S3 URL
   }
 
   /** Check if document requires verification */

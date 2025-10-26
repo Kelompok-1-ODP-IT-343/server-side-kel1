@@ -3,6 +3,7 @@ package com.kelompoksatu.griya.service;
 import com.kelompoksatu.griya.dto.*;
 import com.kelompoksatu.griya.entity.*;
 import com.kelompoksatu.griya.repository.*;
+import com.kelompoksatu.griya.util.IDCloudHostS3Util;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -19,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +37,7 @@ public class KprApplicationService {
   private final ApprovalWorkflowRepository approvalWorkflowRepository;
   private final ApplicationDocumentRepository applicationDocumentRepository;
   private final FileStorageService fileStorageService;
+  private final IDCloudHostS3Util idCloudHostS3Util;
 
   Logger logger = LoggerFactory.getLogger(KprApplicationService.class);
 
@@ -601,40 +604,67 @@ public class KprApplicationService {
       Integer applicationId, KprApplicationFormRequest formRequest) {
     List<ApplicationDocument> documents = new ArrayList<>();
 
-    // Store each document type
-    if (formRequest.getKtpDocument() != null) {
-      ApplicationDocument doc =
-          createDocumentEntity(
-              applicationId, ApplicationDocument.DocumentType.KTP, formRequest.getKtpDocument());
-      documents.add(applicationDocumentRepository.save(doc));
-    }
+    try {
+      // Store each document type
+      if (formRequest.getKtpDocument() != null && !formRequest.getKtpDocument().isEmpty()) {
+        ApplicationDocument doc =
+            createDocumentEntity(
+                applicationId, ApplicationDocument.DocumentType.KTP, formRequest.getKtpDocument());
+        documents.add(applicationDocumentRepository.save(doc));
+        logger.info("Successfully uploaded KTP document for application {}", applicationId);
+      }
 
-    if (formRequest.getNpwpDocument() != null) {
-      ApplicationDocument doc =
-          createDocumentEntity(
-              applicationId, ApplicationDocument.DocumentType.NPWP, formRequest.getNpwpDocument());
-      documents.add(applicationDocumentRepository.save(doc));
-    }
+      if (formRequest.getNpwpDocument() != null && !formRequest.getNpwpDocument().isEmpty()) {
+        ApplicationDocument doc =
+            createDocumentEntity(
+                applicationId,
+                ApplicationDocument.DocumentType.NPWP,
+                formRequest.getNpwpDocument());
+        documents.add(applicationDocumentRepository.save(doc));
+        logger.info("Successfully uploaded NPWP document for application {}", applicationId);
+      }
 
-    if (formRequest.getSalarySlipDocument() != null) {
-      ApplicationDocument doc =
-          createDocumentEntity(
-              applicationId,
-              ApplicationDocument.DocumentType.SLIP_GAJI,
-              formRequest.getSalarySlipDocument());
-      documents.add(applicationDocumentRepository.save(doc));
-    }
+      if (formRequest.getSalarySlipDocument() != null
+          && !formRequest.getSalarySlipDocument().isEmpty()) {
+        ApplicationDocument doc =
+            createDocumentEntity(
+                applicationId,
+                ApplicationDocument.DocumentType.SLIP_GAJI,
+                formRequest.getSalarySlipDocument());
+        documents.add(applicationDocumentRepository.save(doc));
+        logger.info("Successfully uploaded salary slip document for application {}", applicationId);
+      }
 
-    if (formRequest.getOtherDocument() != null) {
-      ApplicationDocument doc =
-          createDocumentEntity(
-              applicationId,
-              ApplicationDocument.DocumentType.OTHER,
-              formRequest.getOtherDocument());
-      documents.add(applicationDocumentRepository.save(doc));
-    }
+      if (formRequest.getOtherDocument() != null && !formRequest.getOtherDocument().isEmpty()) {
+        ApplicationDocument doc =
+            createDocumentEntity(
+                applicationId,
+                ApplicationDocument.DocumentType.OTHER,
+                formRequest.getOtherDocument());
+        documents.add(applicationDocumentRepository.save(doc));
+        logger.info("Successfully uploaded other document for application {}", applicationId);
+      }
 
-    return documents;
+      logger.info(
+          "Successfully stored {} documents for application {}", documents.size(), applicationId);
+      return documents;
+
+    } catch (Exception e) {
+      logger.error(
+          "Error storing documents for application {}: {}", applicationId, e.getMessage(), e);
+      // Clean up any successfully uploaded documents if there's a failure
+      documents.forEach(
+          doc -> {
+            try {
+              // Optionally delete from S3 if needed
+              applicationDocumentRepository.delete(doc);
+            } catch (Exception cleanupException) {
+              logger.error(
+                  "Error cleaning up document {}: {}", doc.getId(), cleanupException.getMessage());
+            }
+          });
+      throw new RuntimeException("Failed to store application documents", e);
+    }
   }
 
   // ========================================
@@ -903,18 +933,52 @@ public class KprApplicationService {
   }
 
   private ApplicationDocument createDocumentEntity(
-      Integer applicationId, ApplicationDocument.DocumentType documentType, Object fileData) {
-    // This is a placeholder - actual implementation would handle file storage
-    return ApplicationDocument.builder()
-        .applicationId(applicationId)
-        .documentType(documentType)
-        .documentName(documentType.name() + "_document")
-        .filePath("/documents/" + applicationId + "/" + documentType.name())
-        .fileSize(1024) // placeholder
-        .mimeType("application/pdf") // placeholder
-        .isVerified(false)
-        .uploadedAt(LocalDateTime.now())
-        .build();
+      Integer applicationId, ApplicationDocument.DocumentType documentType, MultipartFile file) {
+    try {
+      // Validate file
+      if (file == null || file.isEmpty()) {
+        throw new IllegalArgumentException("File cannot be null or empty");
+      }
+
+      // Generate unique filename
+      String originalFilename = file.getOriginalFilename();
+      String fileExtension = "";
+      if (originalFilename != null && originalFilename.contains(".")) {
+        fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+      }
+
+      String fileName =
+          documentType.name()
+              + "_"
+              + applicationId
+              + "_"
+              + System.currentTimeMillis()
+              + fileExtension;
+
+      // Upload file to IDCloudHost S3
+      String fileUrl = idCloudHostS3Util.uploadKprDocument(file, fileName);
+
+      return ApplicationDocument.builder()
+          .applicationId(applicationId)
+          .documentType(documentType)
+          .documentName(fileName)
+          .originalFilename(originalFilename)
+          .filePath(fileUrl)
+          .s3Key(fileName) // Store the S3 key for future operations
+          .fileSize((int) file.getSize())
+          .mimeType(file.getContentType())
+          .isVerified(false)
+          .uploadedAt(LocalDateTime.now())
+          .build();
+    } catch (Exception e) {
+      logger.error(
+          "Error uploading document {} for application {}: {}",
+          documentType,
+          applicationId,
+          e.getMessage(),
+          e);
+      throw new RuntimeException("Failed to upload document: " + documentType.getDescription(), e);
+    }
   }
 
   // Show all KPR for superadmin
