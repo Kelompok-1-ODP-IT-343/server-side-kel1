@@ -761,7 +761,14 @@ public class KprApplicationService {
 
   /** Assign approval workflow to staff members */
   @Transactional
-  public AssignWorkflowResponse assignApprovalWorkflow(AssignWorkflowRequest request) {
+  public AssignWorkflowResponse assignApprovalWorkflow(
+      AssignWorkflowRequest request, Integer adminId) {
+    // Validation Phase
+    User admin = validateUser(adminId);
+    if (!admin.getRole().getName().equalsIgnoreCase("ADMIN")) {
+      throw new IllegalArgumentException("Only admin users can assign approval workflows");
+    }
+
     logger.info(
         "Assigning approval workflow for application: {} to approval staff one: {}",
         request.getApplicationId(),
