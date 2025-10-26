@@ -21,8 +21,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -383,6 +385,86 @@ public class KprApplicationController {
 
       // Determine appropriate HTTP status based on error type
       ApiResponse<List<KprHistoryListResponse>> response =
+          new ApiResponse<>(
+              false, "Failed to get KPR application history: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  @GetMapping("/verifikator/history")
+  public String getMethodName(@RequestParam String param) {
+    return new String();
+  }
+
+  public ResponseEntity<ApiResponse<List<KprHistoryListResponse>>> getHistoryAssignedVerifikator(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for KPR application history assigned to verifikator");
+
+      // Extract and validate JWT token
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+      // Extract user ID from token
+      Integer userId = jwtUtil.extractUserId(token);
+      if (userId == null) {
+        logger.warn("Invalid token - user ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      logger.info("Processing KPR application history request for user ID: {}", userId);
+
+      // Get application history through service
+      List<KprHistoryListResponse> response =
+          kprApplicationService.getAssignedVerifikatorHistory(userId);
+
+      logger.info("KPR application history retrieved successfully for user ID: {}", userId);
+      return ResponseEntity.ok(
+          new ApiResponse<>(true, "KPR application history retrieved successfully", response));
+
+    } catch (Exception e) {
+      logger.error("Error retrieving KPR application history: {}", e.getMessage(), e);
+
+      // Determine appropriate HTTP status based on error type
+      ApiResponse<List<KprHistoryListResponse>> response =
+          new ApiResponse<>(
+              false, "Failed to get KPR application history: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  @GetMapping("/verifikator/progress")
+  public ResponseEntity<ApiResponse<List<KprInProgress>>> getAssignedKprApplicationsOnProgress(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for KPR application history assigned to verifikator");
+
+      // Extract and validate JWT token
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+      // Extract user ID from token
+      Integer userId = jwtUtil.extractUserId(token);
+      if (userId == null) {
+        logger.warn("Invalid token - user ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      logger.info("Processing KPR application history request for user ID: {}", userId);
+
+      // Get application history through service
+      List<KprInProgress> response =
+          kprApplicationService.getAssignedKprApplicationsOnProgress(userId);
+
+      logger.info("KPR application history retrieved successfully for user ID: {}", userId);
+      return ResponseEntity.ok(
+          new ApiResponse<>(true, "KPR application history retrieved successfully", response));
+
+    } catch (Exception e) {
+      logger.error("Error retrieving KPR application history: {}", e.getMessage(), e);
+
+      // Determine appropriate HTTP status based on error type
+      ApiResponse<List<KprInProgress>> response =
           new ApiResponse<>(
               false, "Failed to get KPR application history: " + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
