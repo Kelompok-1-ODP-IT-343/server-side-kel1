@@ -10,6 +10,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -175,18 +176,20 @@ public interface ApprovalWorkflowRepository extends JpaRepository<ApprovalWorkfl
       @Param("applicationId") Integer applicationId);
 
   /** Approve workflow by user ID and application ID */
+  @Modifying
   @Query(
       "UPDATE ApprovalWorkflow aw SET aw.status = 'APPROVED', aw.completedAt = :completedAt, aw.approvalNotes = :approvalNotes WHERE aw.assignedTo = :userId AND aw.applicationId = :applicationId AND aw.status = 'PENDING'")
-  Optional<Boolean> approveByUserIDandApplicationID(
+  int approveByUserIDandApplicationID(
       @Param("userId") Integer userId,
       @Param("applicationId") Integer applicationId,
       @Param("completedAt") LocalDateTime completedAt,
       @Param("approvalNotes") String approvalNotes);
 
   // Reject workflow by user ID and application ID
+  @Modifying
   @Query(
       "UPDATE ApprovalWorkflow aw SET aw.status = 'REJECTED', aw.completedAt = :completedAt, aw.rejectionReason = :rejectionReason WHERE aw.assignedTo = :userId AND aw.applicationId = :applicationId AND aw.status = 'PENDING'")
-  Optional<Boolean> rejectByUserIDandApplicationID(
+  int rejectByUserIDandApplicationID(
       @Param("userId") Integer userId,
       @Param("applicationId") Integer applicationId,
       @Param("completedAt") LocalDateTime completedAt,
