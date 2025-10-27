@@ -79,7 +79,8 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
           + "WHERE k.id IN ("
           + "SELECT DISTINCT aw.applicationId FROM ApprovalWorkflow aw "
           + "WHERE aw.assignedTo = :userId "
-          + "AND aw.status IN ('PENDING', 'IN_PROGRESS')) "
+          + "AND ( aw.status IN ('PENDING', 'IN_PROGRESS')) "
+          + "OR k.status IN ('SUBMITTED', 'DOCUMENT_VERIFICATION', 'PROPERTY_APPRAISAL', 'CREDIT_ANALYSIS', 'APPROVAL_PENDING') )"
           + "ORDER BY k.createdAt ASC")
   List<KprApplication> findKprApplicationsOnProgressByDeveloper(@Param("userId") Integer userId);
 
@@ -117,7 +118,7 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
           + "'') "
           + "FROM KprApplication k WHERE k.id IN "
           + "(SELECT aw.applicationId FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId) "
-          + "AND k.status IN ('APPROVED', 'REJECTED', 'SKIPPED') "
+          + "AND k.status IN ('APPROVED', 'REJECTED', 'CANCELLED', 'DISBURSED') "
           + "ORDER BY k.createdAt DESC")
   List<KprHistoryListResponse> findKprApplicationsHistoryByUserID(@Param("userId") Integer userId);
 
@@ -125,6 +126,9 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
   @Query(
       "SELECT new com.kelompoksatu.griya.dto.KprInProgress("
           + "k.id, "
+          + "k.user.username, "
+          + "k.user.email, "
+          + "k.user.phone, "
           + "k.applicationNumber, "
           + "k.property.title, "
           + "k.property.address, "
@@ -133,7 +137,7 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
           + "k.kprRate.rateName) "
           + "FROM KprApplication k WHERE k.id IN "
           + "(SELECT aw.applicationId FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId) "
-          + "AND k.status IN ('PENDING', 'IN_PROGRESS') "
+          + "AND k.status IN ('SUBMITTED', 'DOCUMENT_VERIFICATION', 'PROPERTY_APPRAISAL', 'CREDIT_ANALYSIS', 'APPROVAL_PENDING') "
           + "ORDER BY k.createdAt ASC")
   List<KprInProgress> findKprApplicationsOnProgressByUserID(@Param("userId") Integer userId);
 }

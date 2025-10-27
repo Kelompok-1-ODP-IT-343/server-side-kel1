@@ -178,7 +178,7 @@ public interface ApprovalWorkflowRepository extends JpaRepository<ApprovalWorkfl
   /** Approve workflow by user ID and application ID */
   @Modifying
   @Query(
-      "UPDATE ApprovalWorkflow aw SET aw.status = 'APPROVED', aw.completedAt = :completedAt, aw.approvalNotes = :approvalNotes WHERE aw.assignedTo = :userId AND aw.applicationId = :applicationId AND aw.status = 'PENDING'")
+      "UPDATE ApprovalWorkflow aw SET aw.status = 'CREDIT_ANALYSIS', aw.completedAt = :completedAt, aw.approvalNotes = :approvalNotes WHERE aw.assignedTo = :userId AND aw.applicationId = :applicationId AND aw.status = 'PENDING'")
   int approveByUserIDandApplicationID(
       @Param("userId") Integer userId,
       @Param("applicationId") Integer applicationId,

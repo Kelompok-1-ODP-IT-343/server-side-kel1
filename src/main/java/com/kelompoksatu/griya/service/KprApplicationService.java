@@ -188,6 +188,9 @@ public class KprApplicationService {
             application ->
                 new KprInProgress(
                     application.getId(),
+                    application.getUser().getUsername(),
+                    application.getUser().getEmail(),
+                    application.getUser().getPhone(),
                     application.getApplicationNumber(),
                     application.getProperty().getTitle(),
                     application.getProperty().getAddress(),

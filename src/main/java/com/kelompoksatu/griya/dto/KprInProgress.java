@@ -9,6 +9,9 @@ import lombok.*;
 @NoArgsConstructor
 public class KprInProgress {
   private Integer id;
+  private String applicantName;
+  private String applicantEmail;
+  private String applicantPhone;
   private String aplikasiKode;
   private String namaProperti;
   private String alamat;
