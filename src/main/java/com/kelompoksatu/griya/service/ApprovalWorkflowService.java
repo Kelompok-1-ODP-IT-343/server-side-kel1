@@ -347,12 +347,14 @@ public class ApprovalWorkflowService {
     if (isApproved) {
       log.info("Approving workflow for user ID: {}", userID);
       int updatedRows =
-          approvalWorkflowRepository.approveByUserIDandApplicationID(userID, userID, now, reason);
+          approvalWorkflowRepository.approveByUserIDandApplicationID(
+              userID, request.getApplicationId(), now, reason);
       return updatedRows > 0;
     }
     log.info("Rejecting workflow for user ID: {}", userID);
     int updatedRows =
-        approvalWorkflowRepository.rejectByUserIDandApplicationID(userID, userID, now, reason);
+        approvalWorkflowRepository.rejectByUserIDandApplicationID(
+            userID, request.getApplicationId(), now, reason);
     return updatedRows > 0;
   }
 
