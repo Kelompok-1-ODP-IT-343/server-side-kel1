@@ -125,6 +125,8 @@ public class FeatureController {
           "maxRequestSize",
           environment.getProperty("spring.servlet.multipart.max-request-size", "50MB"));
 
+      appConfig.put("lastUpdate", "Update query for approve or reject from POV Developer");
+
       features.put("applicationConfiguration", appConfig);
 
       // Available Endpoints
