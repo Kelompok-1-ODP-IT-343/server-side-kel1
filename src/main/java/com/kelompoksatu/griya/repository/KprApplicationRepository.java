@@ -97,8 +97,14 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
 
   // Show list KprApplication history by userID from ApprovalWorkflow
   @Query(
-      "SELECT new com.kelompoksatu.griya.dto.response.KprHistoryListResponse("
-          + "k.applicationNumber, k.purpose, k.status, k.createdAt) "
+      "SELECT new com.kelompoksatu.griya.dto.KprHistoryListResponse("
+          + "k.property.title, "
+          + "CAST(k.status AS string), "
+          + "CONCAT(k.property.district, ', ', k.property.city, ', ', k.property.province), "
+          + "k.applicationNumber, "
+          + "k.loanAmount, "
+          + "CAST(k.createdAt AS string), "
+          + "'') "
           + "FROM KprApplication k WHERE k.id IN "
           + "(SELECT aw.applicationId FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId) "
           + "AND k.status IN ('APPROVED', 'REJECTED', 'SKIPPED') "
@@ -107,8 +113,14 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
 
   // Show list KprApplication on progress by userID from ApprovalWorkflow
   @Query(
-      "SELECT new com.kelompoksatu.griya.dto.response.KprInProgressListResponse("
-          + "k.applicationNumber, k.purpose, k.status, k.createdAt) "
+      "SELECT new com.kelompoksatu.griya.dto.KprInProgress("
+          + "k.id, "
+          + "k.applicationNumber, "
+          + "k.property.title, "
+          + "k.property.address, "
+          + "k.loanAmount, "
+          + "CAST(k.createdAt AS string), "
+          + "k.kprRate.rateName) "
           + "FROM KprApplication k WHERE k.id IN "
           + "(SELECT aw.applicationId FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId) "
           + "AND k.status IN ('PENDING', 'IN_PROGRESS') "
