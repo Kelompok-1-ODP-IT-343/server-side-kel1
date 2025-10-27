@@ -333,29 +333,29 @@ public class ApprovalWorkflowService {
   }
 
   public boolean approveOrRejectWorkflowDeveloper(ApprovalConfirmation request, Integer userID) {
-    var developer =
-        developerRepository
-            .validateDeveloper(userID)
-            .orElseThrow(
-                () -> new IllegalArgumentException("Developer not found with ID: " + userID));
-
+    var user =
+        userRepository
+            .findById(userID)
+            .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + userID));
     log.info(
-        "Processing approval/rejection for developer: {} with request: {}",
-        developer.getCompanyName(),
+        "Processing approval/rejection for user: {} with request: {}",
+        user.getDeveloper().getCompanyName(),
         request);
     Boolean isApproved = request.getIsApproved();
     String reason = request.getReason();
     var now = LocalDateTime.now();
     if (isApproved) {
       log.info("Approving workflow for user ID: {}", userID);
-      return approvalWorkflowRepository
-          .approveByUserIDandApplicationID(userID, userID, now, reason)
-          .orElse(false);
+      int updatedRows =
+          approvalWorkflowRepository.approveByUserIDandApplicationID(
+              userID, request.getApplicationId(), now, reason);
+      return updatedRows > 0;
     }
     log.info("Rejecting workflow for user ID: {}", userID);
-    return approvalWorkflowRepository
-        .rejectByUserIDandApplicationID(userID, userID, now, reason)
-        .orElse(false);
+    int updatedRows =
+        approvalWorkflowRepository.rejectByUserIDandApplicationID(
+            userID, request.getApplicationId(), now, reason);
+    return updatedRows > 0;
   }
 
   public boolean approveOrRejectWorkflowVerifikator(ApprovalConfirmation request, Integer userID) {
@@ -375,14 +375,14 @@ public class ApprovalWorkflowService {
     var now = LocalDateTime.now();
     if (isApproved) {
       log.info("Approving workflow for user ID: {}", userID);
-      return approvalWorkflowRepository
-          .approveByUserIDandApplicationID(userID, userID, now, reason)
-          .orElse(false);
+      int updatedRows =
+          approvalWorkflowRepository.approveByUserIDandApplicationID(userID, userID, now, reason);
+      return updatedRows > 0;
     }
 
     log.info("Rejecting workflow for user ID: {}", userID);
-    return approvalWorkflowRepository
-        .rejectByUserIDandApplicationID(userID, userID, now, reason)
-        .orElse(false);
+    int updatedRows =
+        approvalWorkflowRepository.rejectByUserIDandApplicationID(userID, userID, now, reason);
+    return updatedRows > 0;
   }
 }

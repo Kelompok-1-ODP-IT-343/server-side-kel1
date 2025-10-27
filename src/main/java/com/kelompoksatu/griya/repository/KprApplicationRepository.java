@@ -75,13 +75,13 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
 
   /** Find KPR applications currently on-progress for developer */
   @Query(
-      "SELECT DISTINCT k FROM KprApplication k "
-          + "JOIN ApprovalWorkflow aw ON k.id = aw.applicationId "
-          + "WHERE aw.assignedTo = :developerId "
-          + "AND aw.status IN ('PENDING', 'IN_PROGRESS') "
-          + "ORDER BY aw.createdAt ASC")
-  List<KprApplication> findKprApplicationsOnProgressByDeveloper(
-      @Param("developerId") Integer developerId);
+      "SELECT k FROM KprApplication k "
+          + "WHERE k.id IN ("
+          + "SELECT DISTINCT aw.applicationId FROM ApprovalWorkflow aw "
+          + "WHERE aw.assignedTo = :userId "
+          + "AND aw.status IN ('PENDING', 'IN_PROGRESS')) "
+          + "ORDER BY k.createdAt ASC")
+  List<KprApplication> findKprApplicationsOnProgressByDeveloper(@Param("userId") Integer userId);
 
   /** Find approval workflow details by developer ID */
   @Query(
