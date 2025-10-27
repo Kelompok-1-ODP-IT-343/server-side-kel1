@@ -4,6 +4,7 @@ import com.kelompoksatu.griya.entity.ApprovalWorkflow;
 import com.kelompoksatu.griya.entity.ApprovalWorkflow.PriorityLevel;
 import com.kelompoksatu.griya.entity.ApprovalWorkflow.WorkflowStage;
 import com.kelompoksatu.griya.entity.ApprovalWorkflow.WorkflowStatus;
+import com.kelompoksatu.griya.entity.KprApplication.ApplicationStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -178,12 +179,29 @@ public interface ApprovalWorkflowRepository extends JpaRepository<ApprovalWorkfl
   /** Approve workflow by user ID and application ID */
   @Modifying
   @Query(
-      "UPDATE ApprovalWorkflow aw SET aw.status = 'CREDIT_ANALYSIS', aw.completedAt = :completedAt, aw.approvalNotes = :approvalNotes WHERE aw.assignedTo = :userId AND aw.applicationId = :applicationId AND aw.status = 'PENDING'")
+      "UPDATE ApprovalWorkflow aw SET aw.status = 'APPROVED', aw.completedAt = :completedAt, aw.approvalNotes = :approvalNotes, aw.updatedAt = :completedAt "
+          + "WHERE aw.assignedTo = :assignedTo AND aw.applicationId = :applicationId")
   int approveByUserIDandApplicationID(
-      @Param("userId") Integer userId,
+      @Param("assignedTo") Integer assignedTo,
       @Param("applicationId") Integer applicationId,
       @Param("completedAt") LocalDateTime completedAt,
       @Param("approvalNotes") String approvalNotes);
+
+  @Modifying
+  @Query(
+      "UPDATE KprApplication k SET k.status = 'PROPERTY_APPRAISAL', k.updatedAt = :updatedAt "
+          + "WHERE k.id = :applicationId")
+  int updateKprApplicationStatusToPropertyAppraisal(
+      @Param("applicationId") Integer applicationId, @Param("updatedAt") LocalDateTime updatedAt);
+
+  @Modifying
+  @Query(
+      "UPDATE KprApplication k SET k.status = :status, k.updatedAt = :updatedAt "
+          + "WHERE k.id = :applicationId")
+  int updateStatusKPRApplication(
+      @Param("applicationId") Integer applicationId,
+      @Param("status") ApplicationStatus status,
+      @Param("updatedAt") LocalDateTime updatedAt);
 
   // Reject workflow by user ID and application ID
   @Modifying

@@ -1080,9 +1080,9 @@ public class KprApplicationService {
                 || currentUser.getRole().getName().contains("STAFF")
                 || currentUser.getRole().getName().contains("MANAGER"));
 
-    if (!isOwner && !isStaff) {
-      throw new RuntimeException("Unauthorized to view this application");
-    }
+    // if (!isOwner && !isStaff) {
+    //   throw new RuntimeException("Unauthorized to view this application");
+    // }
 
     // 3. Fetch user profile for comprehensive user data
     UserProfile userProfile =
