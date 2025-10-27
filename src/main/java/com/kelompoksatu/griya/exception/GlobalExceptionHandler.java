@@ -6,6 +6,7 @@ import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.server.ResponseStatusException;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -87,7 +89,6 @@ public class GlobalExceptionHandler {
   }
 
   /* ========== DUPLICATE / DB CONSTRAINT ========== */
-
   @ExceptionHandler(DataIntegrityViolationException.class)
   public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(
       DataIntegrityViolationException ex, WebRequest req) {
@@ -134,6 +135,7 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex, WebRequest req) {
+    log.info("Unhandled exception: {}", ex.getMessage(), ex);
     return apiError(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", req, null);
   }
 

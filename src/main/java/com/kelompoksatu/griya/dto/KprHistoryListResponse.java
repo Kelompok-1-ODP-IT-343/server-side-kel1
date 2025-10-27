@@ -9,6 +9,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class KprHistoryListResponse {
+  private Integer id;
   // Return Nama rumah, Lokasi Rumah, Aplikasi Kode, Jumlah Pinjaman,  Tanggal Pengajuan, Foto
   // Properti
   private String namaRumah;

@@ -1,10 +1,12 @@
 package com.kelompoksatu.griya.controller;
 
-import com.kelompoksatu.griya.dto.ApiResponse;
-import com.kelompoksatu.griya.dto.DeveloperResponse;
-import com.kelompoksatu.griya.dto.PaginatedResponse;
-import com.kelompoksatu.griya.dto.PaginationRequest;
-import com.kelompoksatu.griya.dto.UpdateDeveloperRequest;
+import com.kelompoksatu.griya.dto.*;
+import com.kelompoksatu.griya.entity.ImageAdmin;
+import com.kelompoksatu.griya.entity.ImageCategory;
+import com.kelompoksatu.griya.entity.ImageType;
+import com.kelompoksatu.griya.repository.ImageAdminRepository;
+import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
+import com.kelompoksatu.griya.service.AdminService;
 import com.kelompoksatu.griya.service.DeveloperService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,26 +15,37 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /** REST Controller for Admin operations */
 @Tag(name = "Admin Management", description = "Administrative operations for system management")
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/admin")
 @Validated
+@RequiredArgsConstructor
 public class AdminController {
 
   private final DeveloperService developerService;
-
-  @Autowired
-  public AdminController(DeveloperService developerService) {
-    this.developerService = developerService;
-  }
+  private final ImageAdminRepository imageAdminRepository;
+  private final AdminService adminService;
+  private final PropertyFavoriteRepository propertyFavoriteRepository;
 
   // ==================== DEVELOPER MANAGEMENT ====================
 
@@ -65,6 +78,28 @@ public class AdminController {
                     mediaType = "application/json",
                     schema = @Schema(implementation = ApiResponse.class)))
       })
+  @GetMapping("/users/{userId}/favorites")
+  public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUserFavorites(
+      @PathVariable Integer userId) {
+
+    try {
+      List<Map<String, Object>> favorites =
+          propertyFavoriteRepository.findFavoritesByUserId(userId);
+
+      if (favorites.isEmpty()) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error("No favorites found for user ID " + userId));
+      }
+
+      return ResponseEntity.ok(ApiResponse.success("Favorites retrieved successfully", favorites));
+
+    } catch (Exception e) {
+      log.error("❌ Gagal mengambil favorites user: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal mengambil favorites: " + e.getMessage()));
+    }
+  }
+
   @PutMapping("/developers/{id}")
   public ResponseEntity<ApiResponse<DeveloperResponse>> updateDeveloper(
       @PathVariable Integer id,
@@ -81,6 +116,85 @@ public class AdminController {
     ApiResponse<DeveloperResponse> response =
         new ApiResponse<>(true, "Developer updated successfully", developer);
     return ResponseEntity.ok(response);
+  }
+
+  @PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ResponseEntity<ApiResponse<ImageAdminResponse>> uploadAdminImage(
+      @RequestPart("image") MultipartFile image, @RequestPart("data") ImageAdminRequest request) {
+    try {
+      log.info("Mulai upload image: {}", image.getOriginalFilename());
+
+      // ✅ 1️⃣ Validasi input
+      if (image == null || image.isEmpty()) {
+        return ResponseEntity.badRequest().body(ApiResponse.error("Image file tidak boleh kosong"));
+      }
+      if (request == null || request.getImageType() == null || request.getImageCategory() == null) {
+        return ResponseEntity.badRequest()
+            .body(ApiResponse.error("Field imageType dan imageCategory wajib diisi"));
+      }
+
+      // ✅ 2️⃣ Convert ENUM (handle invalid enum)
+      ImageType imageType;
+      ImageCategory imageCategory;
+      try {
+        imageType = ImageType.valueOf(request.getImageType().name());
+        imageCategory = ImageCategory.valueOf(request.getImageCategory().name());
+      } catch (IllegalArgumentException ex) {
+        return ResponseEntity.badRequest()
+            .body(ApiResponse.error("Nilai imageType atau imageCategory tidak valid"));
+      }
+
+      // ✅ 3️⃣ Simpan file (langsung di root project)
+      Path filePath = Paths.get(image.getOriginalFilename());
+      Files.copy(image.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+      log.debug("File path: {}", filePath);
+
+      // ✅ 4️⃣ Generate public URL
+      String imageUrl = "http://localhost:18080/" + image.getOriginalFilename();
+
+      // ✅ 5️⃣ Simpan metadata ke database
+      ImageAdmin imageAdmin =
+          ImageAdmin.builder()
+              .propertyId(request.getPropertyId())
+              .imageType(imageType)
+              .imageCategory(imageCategory)
+              .fileName(UUID.randomUUID().toString())
+              .filePath(filePath.toString())
+              .fileSize((int) image.getSize())
+              .mimeType(image.getContentType())
+              .caption(request.getCaption())
+              .build();
+
+      imageAdminRepository.save(imageAdmin);
+      log.info("✅ Image berhasil disimpan di DB: {}", imageAdmin.getFileName());
+
+      // ✅ 6️⃣ Build response data
+      ImageAdminResponse responseData =
+          ImageAdminResponse.builder()
+              .id(imageAdmin.getId())
+              .propertyId(imageAdmin.getPropertyId())
+              .imageUrl(imageUrl)
+              .fileName(imageAdmin.getFileName())
+              .imageType(imageType.name())
+              .imageCategory(imageCategory.name())
+              .caption(imageAdmin.getCaption())
+              .fileSize(imageAdmin.getFileSize())
+              .mimeType(imageAdmin.getMimeType())
+              .build();
+
+      ApiResponse<ImageAdminResponse> response =
+          ApiResponse.success("Image uploaded successfully", responseData);
+      return ResponseEntity.ok(response);
+
+    } catch (IOException e) {
+      log.error("❌ Gagal menyimpan file: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal menyimpan file: " + e.getMessage()));
+    } catch (Exception e) {
+      log.error("❌ Gagal upload image: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal upload image: " + e.getMessage()));
+    }
   }
 
   /** Get developer by ID (admin only) */
@@ -332,5 +446,34 @@ public class AdminController {
             developers, "Search results retrieved successfully", "/api/v1/admin/developers/search");
 
     return ResponseEntity.ok(response);
+  }
+
+  @Operation(
+      summary = "Get All Admin",
+      description = "Get All Admin. This endpoint is restricted to admin users only.")
+  @ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Get All successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class)))
+      })
+  @GetMapping("/simple")
+  public ResponseEntity<ApiResponse<List<AdminSimpleResponse>>> getAllSimple() {
+
+    List<AdminSimpleResponse> admin = adminService.getAllAdminSimple();
+    var apiResponse = new ApiResponse<>(true, "", admin);
+
+    return ResponseEntity.ok(apiResponse);
   }
 }

@@ -165,25 +165,23 @@ public class UserService {
   }
 
   /** Increment failed login attempts */
-  public void incrementFailedLoginAttempts(Integer userId) {
-    User user = userRepository.findById(userId).orElse(null);
+  public void incrementFailedLoginAttempts(User user) {
     if (user != null) {
       int attempts = user.getFailedLoginAttempts() + 1;
-      userRepository.updateFailedLoginAttempts(userId, attempts);
+      userRepository.updateFailedLoginAttempts(user.getId(), attempts);
 
       // Lock account after 5 failed attempts for 30 minutes
       if (attempts >= 5) {
         LocalDateTime lockUntil = LocalDateTime.now().plusMinutes(30);
-        userRepository.lockUserAccount(userId, lockUntil);
-        logger.warn("Account locked for user ID: {} until {}", userId, lockUntil);
+        userRepository.lockUserAccount(user.getId(), lockUntil);
+        logger.warn("Account locked for user ID: {} until {}", user.getId(), lockUntil);
       }
     }
   }
 
-  /** Reset failed login attempts */
-  public void resetFailedLoginAttempts(Integer userId) {
-    userRepository.updateFailedLoginAttempts(userId, 0);
-    userRepository.unlockUserAccount(userId);
+  /** 1. Reset failed login attempts 2. Reset last login time 3. Unlock account */
+  public void resetLogin(Integer userId) {
+    userRepository.unlockResetAndSetLastLogin(userId);
   }
 
   /** Check if user account is locked */

@@ -1,5 +1,7 @@
 package com.kelompoksatu.griya.repository;
 
+import com.kelompoksatu.griya.dto.KprHistoryListResponse;
+import com.kelompoksatu.griya.dto.KprInProgress;
 import com.kelompoksatu.griya.entity.ApprovalWorkflow;
 import com.kelompoksatu.griya.entity.KprApplication;
 import java.util.List;
@@ -47,10 +49,19 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
           + "FROM KprApplication k WHERE k.applicationNumber LIKE :yearPrefix")
   Long getNextSequenceNumber(@Param("yearPrefix") String yearPrefix);
 
-  /** Find applications requiring approval at specific level */
+  /** Find KPR application by ID with all relationships eagerly loaded */
   @Query(
-      "SELECT k FROM KprApplication k WHERE k.currentApprovalLevel = :levelId AND k.status = 'APPROVAL_PENDING'")
-  List<KprApplication> findApplicationsRequiringApproval(@Param("levelId") Integer levelId);
+      "SELECT k FROM KprApplication k "
+          + "LEFT JOIN FETCH k.user u "
+          + "LEFT JOIN FETCH u.role "
+          + "LEFT JOIN FETCH k.property p "
+          + "LEFT JOIN FETCH p.developer d "
+          + "LEFT JOIN FETCH k.kprRate kr "
+          + "WHERE k.id = :id")
+  Optional<KprApplication> findByIdWithAllRelations(@Param("id") Integer id);
+
+  /** Find applications with APPROVAL_PENDING status */
+  List<KprApplication> findByStatusOrderByCreatedAtAsc(KprApplication.ApplicationStatus status);
 
   /** Find KPR applications history handled by developer (completed workflows) */
   @Query(
@@ -88,4 +99,41 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
   List<ApprovalWorkflow> findApprovalWorkflowByDeveloperAndStatus(
       @Param("developerId") Integer developerId,
       @Param("status") ApprovalWorkflow.WorkflowStatus status);
+
+  // Show list semua KPR untuk superadmin
+  @Query("SELECT k FROM KprApplication k ORDER BY k.createdAt DESC")
+  List<KprApplication> findAllKprApplications();
+
+  // Show list KprApplication history by userID from ApprovalWorkflow
+  @Query(
+      "SELECT new com.kelompoksatu.griya.dto.KprHistoryListResponse("
+          + "k.id, "
+          + "k.property.title, "
+          + "CAST(k.status AS string), "
+          + "CONCAT(k.property.district, ', ', k.property.city, ', ', k.property.province), "
+          + "k.applicationNumber, "
+          + "k.loanAmount, "
+          + "CAST(k.createdAt AS string), "
+          + "'') "
+          + "FROM KprApplication k WHERE k.id IN "
+          + "(SELECT aw.applicationId FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId) "
+          + "AND k.status IN ('APPROVED', 'REJECTED', 'SKIPPED') "
+          + "ORDER BY k.createdAt DESC")
+  List<KprHistoryListResponse> findKprApplicationsHistoryByUserID(@Param("userId") Integer userId);
+
+  // Show list KprApplication on progress by userID from ApprovalWorkflow
+  @Query(
+      "SELECT new com.kelompoksatu.griya.dto.KprInProgress("
+          + "k.id, "
+          + "k.applicationNumber, "
+          + "k.property.title, "
+          + "k.property.address, "
+          + "k.loanAmount, "
+          + "CAST(k.createdAt AS string), "
+          + "k.kprRate.rateName) "
+          + "FROM KprApplication k WHERE k.id IN "
+          + "(SELECT aw.applicationId FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId) "
+          + "AND k.status IN ('PENDING', 'IN_PROGRESS') "
+          + "ORDER BY k.createdAt ASC")
+  List<KprInProgress> findKprApplicationsOnProgressByUserID(@Param("userId") Integer userId);
 }
