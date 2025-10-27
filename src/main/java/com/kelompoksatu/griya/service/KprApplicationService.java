@@ -419,9 +419,9 @@ public class KprApplicationService {
     BigDecimal propertyValue = formRequest.getSimulationData().getPropertyValue();
     BigDecimal loanAmount = formRequest.getSimulationData().getLoanAmount();
 
-    return loanAmount
-        .divide(propertyValue, 4, RoundingMode.HALF_UP)
-        .multiply(new BigDecimal("100"));
+    // Calculate LTV ratio as decimal (not percentage) to fit database precision (5,4)
+    // Database expects values like 0.8000 (80%) not 80.0000
+    return loanAmount.divide(propertyValue, 4, RoundingMode.HALF_UP);
   }
 
   // ========================================
@@ -515,7 +515,6 @@ public class KprApplicationService {
         .developerName(property.getDeveloper().getCompanyName())
         .purpose(KprApplication.ApplicationPurpose.PRIMARY_RESIDENCE)
         .status(KprApplication.ApplicationStatus.SUBMITTED)
-        .currentApprovalLevel(currentApprovalLevel)
         .submittedAt(LocalDateTime.now())
         .createdAt(LocalDateTime.now())
         .updatedAt(LocalDateTime.now())
@@ -532,6 +531,9 @@ public class KprApplicationService {
       String applicationNumber,
       Integer currentApprovalLevel) {
 
+    // Calculate LTV ratio
+    BigDecimal ltvRatio = calculateLtvRatio(formRequest);
+
     return KprApplication.builder()
         .applicationNumber(applicationNumber)
         .userId(userId)
@@ -544,12 +546,12 @@ public class KprApplicationService {
         .interestRate(selectedRate.getEffectiveRate())
         .monthlyInstallment(monthlyInstallment)
         .downPayment(formRequest.getSimulationData().getDownPayment())
+        .ltvRatio(ltvRatio)
         .propertyAddress(property.getAddress())
         .propertyCertificateType(convertToCertificateType(property.getCertificateType()))
         .developerName(property.getDeveloper().getCompanyName())
         .purpose(determinePurpose(formRequest.getPersonalData()))
         .status(KprApplication.ApplicationStatus.SUBMITTED)
-        .currentApprovalLevel(currentApprovalLevel)
         .submittedAt(LocalDateTime.now())
         .createdAt(LocalDateTime.now())
         .updatedAt(LocalDateTime.now())
@@ -648,7 +650,6 @@ public class KprApplicationService {
       logger.info(
           "Successfully stored {} documents for application {}", documents.size(), applicationId);
       return documents;
-
     } catch (Exception e) {
       logger.error(
           "Error storing documents for application {}: {}", applicationId, e.getMessage(), e);

@@ -14,10 +14,6 @@ import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 @Table(name = "properties")
 public class Property {
 
-  // Media & Assets
-  @Column(name = "file_name", length = 255)
-  private String fileName;
-
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Integer id;
@@ -262,14 +258,6 @@ public class Property {
   // Getters and Setters
   public Integer getId() {
     return id;
-  }
-
-  public String getFileName() {
-    return fileName;
-  }
-
-  public void setFileName(String fileName) {
-    this.fileName = fileName;
   }
 
   public void setId(Integer id) {
