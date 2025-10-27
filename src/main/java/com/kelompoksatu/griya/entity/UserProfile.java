@@ -35,7 +35,7 @@ public class UserProfile {
   @Column(name = "full_name", length = 100, nullable = false)
   private String fullName;
 
-  @Column(name = "nik", length = 16, unique = true, nullable = false)
+  @Column(name = "nik", length = 16, unique = true, nullable = true)
   private String nik; // NIK (Nomor Induk Kependudukan)
 
   @Column(name = "npwp", length = 16, unique = true)
@@ -49,27 +49,27 @@ public class UserProfile {
 
   @Enumerated(EnumType.STRING)
   @JdbcType(PostgreSQLEnumJdbcType.class)
-  @Column(name = "gender", columnDefinition = "gender", nullable = false)
+  @Column(name = "gender", columnDefinition = "gender")
   private Gender gender;
 
   @Enumerated(EnumType.STRING)
   @JdbcType(PostgreSQLEnumJdbcType.class)
-  @Column(name = "marital_status", columnDefinition = "marital_status", nullable = false)
+  @Column(name = "marital_status", columnDefinition = "marital_status")
   private MaritalStatus maritalStatus;
 
-  @Column(name = "address", columnDefinition = "TEXT", nullable = false)
+  @Column(name = "address", columnDefinition = "TEXT")
   private String address;
 
-  @Column(name = "city", length = 100, nullable = false)
+  @Column(name = "city", length = 100)
   private String city;
 
-  @Column(name = "province", length = 100, nullable = false)
+  @Column(name = "province", length = 100)
   private String province;
 
-  @Column(name = "postal_code", length = 10, nullable = false)
+  @Column(name = "postal_code", length = 10)
   private String postalCode;
 
-  @Column(name = "occupation", length = 100, nullable = false)
+  @Column(name = "occupation", length = 100)
   private String occupation;
 
   @Column(name = "company_name", length = 100)

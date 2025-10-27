@@ -17,17 +17,35 @@
 
 	<properties>
 		<java.version>21</java.version>
+		<aws.sdk.version>2.25.46</aws.sdk.version>
 		<!-- Properti untuk versi JJWT agar mudah dikelola -->
 		<jjwt.version>0.12.5</jjwt.version>
 		<!-- MapStruct version -->
 		<mapstruct.version>1.5.5.Final</mapstruct.version>
 	</properties>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${aws.sdk.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
 		<!-- CORE: Untuk membuat REST API -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
 		</dependency>
 
 		<!-- ACTUATOR: Health and metrics endpoints for liveness/readiness probes -->
@@ -92,12 +110,12 @@
 		</dependency>
 
 		<!-- Development Tool: Untuk auto-reload saat development -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-devtools</artifactId>
-			<scope>runtime</scope>
-			<optional>true</optional>
-		</dependency>
+<!--		<dependency>-->
+<!--			<groupId>org.springframework.boot</groupId>-->
+<!--			<artifactId>spring-boot-devtools</artifactId>-->
+<!--			<scope>runtime</scope>-->
+<!--			<optional>true</optional>-->
+<!--		</dependency>-->
 
 		<!-- Jackson JavaTime module to support java.time types serialization -->
 		<dependency>
@@ -138,7 +156,6 @@
             <artifactId>commons-codec</artifactId>
             <version>1.16.0</version>
         </dependency>
-        
         <!-- MapStruct: For clean object mapping -->
         <dependency>
             <groupId>org.mapstruct</groupId>
@@ -162,7 +179,7 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
-			
+
 			<!-- Maven Surefire Plugin untuk menjalankan unit tests -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -179,7 +196,7 @@
 					<testFailureIgnore>false</testFailureIgnore>
 				</configuration>
 			</plugin>
-			
+
 			<!-- Google Java Format Plugin untuk formatting kode -->
 <!--			<plugin>-->
 <!--				<groupId>com.coveo</groupId>-->
@@ -193,7 +210,7 @@
 <!--					</execution>-->
 <!--				</executions>-->
 <!--			</plugin>-->
-			
+
 			<!-- Spotless Plugin untuk code formatting dan linting -->
 			<plugin>
 				<groupId>com.diffplug.spotless</groupId>
@@ -218,7 +235,7 @@
 					</execution>
 				</executions>
 			</plugin>
-			
+
 			<!-- MapStruct Annotation Processor Plugin -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

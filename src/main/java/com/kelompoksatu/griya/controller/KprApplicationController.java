@@ -1,12 +1,6 @@
 package com.kelompoksatu.griya.controller;
 
-import com.kelompoksatu.griya.dto.ApiResponse;
-import com.kelompoksatu.griya.dto.EmploymentData;
-import com.kelompoksatu.griya.dto.KprApplicationDetailResponse;
-import com.kelompoksatu.griya.dto.KprApplicationFormRequest;
-import com.kelompoksatu.griya.dto.KprApplicationResponse;
-import com.kelompoksatu.griya.dto.PersonalData;
-import com.kelompoksatu.griya.dto.SimulationData;
+import com.kelompoksatu.griya.dto.*;
 import com.kelompoksatu.griya.service.KprApplicationService;
 import com.kelompoksatu.griya.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,6 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -26,6 +21,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -168,20 +167,20 @@ public class KprApplicationController {
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
 
     try {
-      log.info("Received KPR application form-data request for property ID: {}", propertyId);
+      logger.info("Received KPR application form-data request for property ID: {}", propertyId);
 
       // Extract and validate JWT token
-      var token = extractTokenFromHeader(authHeader);
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
 
       // Extract user ID from token
       Integer userId = jwtUtil.extractUserId(token);
       if (userId == null) {
-        log.warn("Invalid token - user ID not found");
+        logger.warn("Invalid token - user ID not found");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-            .body(createErrorResponse("Token tidak valid"));
+            .body(ApiResponse.error("Token tidak valid"));
       }
 
-      log.info("Processing KPR application for user ID: {}", userId);
+      logger.info("Processing KPR application for user ID: {}", userId);
 
       // Build form request object
       var formRequest =
@@ -232,87 +231,20 @@ public class KprApplicationController {
       KprApplicationResponse response =
           kprApplicationService.submitApplicationWithDocuments(userId, formRequest);
 
-      log.info("KPR application submitted successfully with ID: {}", response.getApplicationId());
+      logger.info(
+          "KPR application submitted successfully with ID: {}", response.getApplicationId());
+
       return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
     } catch (Exception e) {
-      log.error("Error processing KPR application: {}", e.getMessage(), e);
-
-      // Determine appropriate HTTP status based on error type
-      HttpStatus status = determineErrorStatus(e.getMessage());
-
-      return ResponseEntity.status(status).body(createErrorResponse(e.getMessage()));
+      logger.error("Error processing KPR application: {}", e.getMessage(), e);
+      ApiResponse<KprApplicationResponse> response =
+          new ApiResponse<>(false, "Failed to submit KPR application: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
-  }
-
-  // ========================================
-  // PRIVATE HELPER METHODS
-  // ========================================
-
-  /** Extract JWT token from Authorization header */
-  private String extractTokenFromHeader(String authHeader) {
-    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-      throw new RuntimeException("Header Authorization tidak valid");
-    }
-    return authHeader.substring(7);
   }
 
   /** Create standardized error response */
-  private Object createErrorResponse(String message) {
-    return new ErrorResponse(message, System.currentTimeMillis());
-  }
-
-  /** Determine HTTP status code based on error message */
-  private HttpStatus determineErrorStatus(String errorMessage) {
-    String lowerMessage = errorMessage.toLowerCase();
-
-    if (lowerMessage.contains("tidak ditemukan") || lowerMessage.contains("not found")) {
-      return HttpStatus.NOT_FOUND;
-    }
-    if (lowerMessage.contains("sudah ada")
-        || lowerMessage.contains("already exists")
-        || lowerMessage.contains("pending")) {
-      return HttpStatus.CONFLICT;
-    }
-    if (lowerMessage.contains("tidak valid")
-        || lowerMessage.contains("invalid")
-        || lowerMessage.contains("authorization")) {
-      return HttpStatus.UNAUTHORIZED;
-    }
-    if (lowerMessage.contains("tidak memenuhi") || lowerMessage.contains("validation")) {
-      return HttpStatus.BAD_REQUEST;
-    }
-    if (lowerMessage.contains("terlalu besar") || lowerMessage.contains("too large")) {
-      return HttpStatus.PAYLOAD_TOO_LARGE;
-    }
-    if (lowerMessage.contains("tipe file")
-        || lowerMessage.contains("file type")
-        || lowerMessage.contains("unsupported")) {
-      return HttpStatus.UNSUPPORTED_MEDIA_TYPE;
-    }
-
-    return HttpStatus.INTERNAL_SERVER_ERROR;
-  }
-
-  /** Error response DTO */
-  private static class ErrorResponse {
-    private final String message;
-    private final long timestamp;
-
-    public ErrorResponse(String message, long timestamp) {
-      this.message = message;
-      this.timestamp = timestamp;
-    }
-
-    public String getMessage() {
-      return message;
-    }
-
-    public long getTimestamp() {
-      return timestamp;
-    }
-  }
-
   /**
    * Get KPR application detail with documents
    *
@@ -355,38 +287,392 @@ public class KprApplicationController {
   public ResponseEntity<ApiResponse<?>> getKprApplicationDetail(
       @PathVariable("applicationId") Integer applicationId,
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
-
     try {
-      log.info("Received request for KPR application detail ID: {}", applicationId);
+      logger.info("Received request for KPR application detail ID: {}", applicationId);
 
       // Extract and validate JWT token
-      var token = extractTokenFromHeader(authHeader);
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
 
       // Extract user ID from token
       Integer userId = jwtUtil.extractUserId(token);
       if (userId == null) {
-        log.warn("Invalid token - user ID not found");
+        logger.warn("Invalid token - user ID not found");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(new ApiResponse<>(false, "Token tidak valid", null));
       }
 
-      log.info("Processing KPR application detail request for user ID: {}", userId);
+      logger.info("Processing KPR application detail request for user ID: {}", userId);
 
       // Get application detail through service
       KprApplicationDetailResponse response =
           kprApplicationService.getApplicationDetail(applicationId, userId);
 
-      log.info("KPR application detail retrieved successfully for ID: {}", applicationId);
+      logger.info("KPR application detail retrieved successfully for ID: {}", applicationId);
       return ResponseEntity.ok(
           new ApiResponse<>(true, "KPR application detail retrieved successfully", response));
 
     } catch (Exception e) {
-      log.error("Error retrieving KPR application detail: {}", e.getMessage(), e);
+      logger.error("Error retrieving KPR application detail: {}", e.getMessage(), e);
 
       // Determine appropriate HTTP status based on error type
-      HttpStatus status = determineErrorStatus(e.getMessage());
+      ApiResponse<KprApplicationDetailResponse> response =
+          new ApiResponse<>(false, "Failed to get KPR application detail: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
 
-      return ResponseEntity.status(status).body(new ApiResponse<>(false, e.getMessage(), null));
+  /**
+   * Get KPR application history for a user
+   *
+   * @param authHeader JWT token in Authorization header
+   * @return List of KprHistoryListResponse with application history
+   */
+  @GetMapping("/user/history")
+  @Operation(
+      summary = "Get KPR Application History",
+      description =
+          "Retrieve the history of KPR applications for the authenticated user. "
+              + "Users can only access their own history.")
+  @io.swagger.v3.oas.annotations.responses.ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "KPR application history retrieved successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = KprHistoryListResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized - Invalid or missing JWT token",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            description = "Forbidden - User does not have access to this history",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(mediaType = "application/json"))
+      })
+  public ResponseEntity<ApiResponse<List<KprHistoryListResponse>>> getHistoryUser(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for KPR application history");
+
+      // Extract and validate JWT token
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+      // Extract user ID from token
+      Integer userId = jwtUtil.extractUserId(token);
+      if (userId == null) {
+        logger.warn("Invalid token - user ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      logger.info("Processing KPR application history request for user ID: {}", userId);
+
+      // Get application history through service
+      List<KprHistoryListResponse> response = kprApplicationService.getApplicationHistory(userId);
+
+      logger.info("KPR application history retrieved successfully for user ID: {}", userId);
+      return ResponseEntity.ok(
+          new ApiResponse<>(true, "KPR application history retrieved successfully", response));
+
+    } catch (Exception e) {
+      logger.error("Error retrieving KPR application history: {}", e.getMessage(), e);
+
+      // Determine appropriate HTTP status based on error type
+      ApiResponse<List<KprHistoryListResponse>> response =
+          new ApiResponse<>(
+              false, "Failed to get KPR application history: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  @GetMapping("/verifikator/history")
+  public String getMethodName(@RequestParam String param) {
+    return new String();
+  }
+
+  public ResponseEntity<ApiResponse<List<KprHistoryListResponse>>> getHistoryAssignedVerifikator(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for KPR application history assigned to verifikator");
+
+      // Extract and validate JWT token
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+      // Extract user ID from token
+      Integer userId = jwtUtil.extractUserId(token);
+      if (userId == null) {
+        logger.warn("Invalid token - user ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      logger.info("Processing KPR application history request for user ID: {}", userId);
+
+      // Get application history through service
+      List<KprHistoryListResponse> response =
+          kprApplicationService.getAssignedVerifikatorHistory(userId);
+
+      logger.info("KPR application history retrieved successfully for user ID: {}", userId);
+      return ResponseEntity.ok(
+          new ApiResponse<>(true, "KPR application history retrieved successfully", response));
+
+    } catch (Exception e) {
+      logger.error("Error retrieving KPR application history: {}", e.getMessage(), e);
+
+      // Determine appropriate HTTP status based on error type
+      ApiResponse<List<KprHistoryListResponse>> response =
+          new ApiResponse<>(
+              false, "Failed to get KPR application history: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  @GetMapping("/verifikator/progress")
+  public ResponseEntity<ApiResponse<List<KprInProgress>>> getAssignedKprApplicationsOnProgress(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for KPR application history assigned to verifikator");
+
+      // Extract and validate JWT token
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+      // Extract user ID from token
+      Integer userId = jwtUtil.extractUserId(token);
+      if (userId == null) {
+        logger.warn("Invalid token - user ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      logger.info("Processing KPR application history request for user ID: {}", userId);
+
+      // Get application history through service
+      List<KprInProgress> response =
+          kprApplicationService.getAssignedKprApplicationsOnProgress(userId);
+
+      logger.info("KPR application history retrieved successfully for user ID: {}", userId);
+      return ResponseEntity.ok(
+          new ApiResponse<>(true, "KPR application history retrieved successfully", response));
+
+    } catch (Exception e) {
+      logger.error("Error retrieving KPR application history: {}", e.getMessage(), e);
+
+      // Determine appropriate HTTP status based on error type
+      ApiResponse<List<KprInProgress>> response =
+          new ApiResponse<>(
+              false, "Failed to get KPR application history: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  /**
+   * Get KPR application approval history for a developer
+   *
+   * @param authHeader JWT token in Authorization header
+   * @return List of KprHistoryListResponse with approval history
+   */
+  @GetMapping("/developer/history")
+  @Operation(
+      summary = "Get KPR Application Approval History",
+      description =
+          "Retrieve the approval history of KPR applications for the authenticated developer. "
+              + "Developers can only access their own approval history.")
+  @io.swagger.v3.oas.annotations.responses.ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "KPR application approval history retrieved successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = KprHistoryListResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized - Invalid or missing JWT token",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            description = "Forbidden - Developer does not have access to this history",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(mediaType = "application/json"))
+      })
+  public ResponseEntity<ApiResponse<List<KprHistoryListResponse>>> getApprovalDeveloper(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for KPR application approval history");
+
+      // Extract and validate JWT token
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+      // Extract developer ID from token
+      Integer developerId = jwtUtil.extractUserId(token);
+      if (developerId == null) {
+        logger.warn("Invalid token - developer ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      logger.info(
+          "Processing KPR application approval history request for developer ID: {}", developerId);
+
+      // Get approval history through service
+      List<KprHistoryListResponse> response =
+          kprApplicationService.getApprovalDeveloper(developerId);
+
+      logger.info(
+          "KPR application approval history retrieved successfully for developer ID: {}",
+          developerId);
+      return ResponseEntity.ok(
+          new ApiResponse<List<KprHistoryListResponse>>(
+              true, "KPR application approval history retrieved successfully", response));
+    } catch (Exception e) {
+      logger.error("Error retrieving KPR application approval history: {}", e.getMessage(), e);
+
+      // Determine appropriate HTTP status based on error type
+      ApiResponse<List<KprHistoryListResponse>> response =
+          new ApiResponse<>(
+              false, "Failed to get KPR application approval history: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  /**
+   * Get KPR applications on progress for a developer
+   *
+   * @param authHeader JWT token in Authorization header
+   * @return List of KprInProgress with applications on progress
+   */
+  @GetMapping("/developer/progress")
+  @Operation(
+      summary = "Get KPR Applications On Progress",
+      description =
+          "Retrieve the KPR applications that are currently in progress for the authenticated developer. "
+              + "Developers can only access their own applications on progress.")
+  @io.swagger.v3.oas.annotations.responses.ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "KPR applications on progress retrieved successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = KprInProgress.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized - Invalid or missing JWT token",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            description = "Forbidden - Developer does not have access to this progress",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(mediaType = "application/json"))
+      })
+  public ResponseEntity<ApiResponse<List<KprInProgress>>> getKprApplicationsOnProgressByDeveloper(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for KPR applications on progress");
+
+      // Extract and validate JWT token
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+      // Extract developer ID from token
+      Integer developerId = jwtUtil.extractUserId(token);
+      if (developerId == null) {
+        logger.warn("Invalid token - developer ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      logger.info(
+          "Processing KPR applications on progress request for developer ID: {}", developerId);
+
+      // Get KPR applications on progress through service
+      List<KprInProgress> response =
+          kprApplicationService.getKprApplicationsOnProgressByDeveloper(developerId);
+
+      logger.info(
+          "KPR applications on progress retrieved successfully for developer ID: {}", developerId);
+      return ResponseEntity.ok(
+          new ApiResponse<List<KprInProgress>>(
+              true, "KPR applications on progress retrieved successfully", response));
+    } catch (Exception e) {
+      logger.error("Error retrieving KPR applications on progress: {}", e.getMessage(), e);
+
+      // Determine appropriate HTTP status based on error type
+      ApiResponse<List<KprInProgress>> response =
+          new ApiResponse<>(
+              false, "Failed to get KPR applications on progress: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  @GetMapping("/applicant")
+  public ResponseEntity<ApiResponse<List<KPRApplicant>>> getAllKprApplications(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for all KPR applications");
+      // Extract and validate JWT token
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+      // Extract user ID from token
+      Integer userID = jwtUtil.extractUserId(token);
+      if (userID == null) {
+        logger.warn("Invalid token - user ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      // Get all KPR applications through service
+      List<KPRApplicant> response = kprApplicationService.getAllKprApplications(userID);
+
+      logger.info("All KPR applications retrieved successfully");
+      return ResponseEntity.ok(
+          new ApiResponse<List<KPRApplicant>>(
+              true, "All KPR applications retrieved successfully", response));
+    } catch (Exception e) {
+      logger.error("Error retrieving all KPR applications: {}", e.getMessage(), e);
+
+      // Determine appropriate HTTP status based on error type
+      ApiResponse<List<KPRApplicant>> response =
+          new ApiResponse<>(false, "Failed to get all KPR applications: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  @PostMapping("/admin/assign")
+  public ResponseEntity<ApiResponse<String>> assignApprovalWorkflow(
+      @RequestBody AssignWorkflowRequest request,
+      @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for assigning KPR application");
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+      Integer adminId = jwtUtil.extractUserId(token);
+      if (adminId == null) {
+        logger.warn("Invalid token - admin ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+      kprApplicationService.assignApprovalWorkflow(request, adminId);
+      logger.info("KPR application assigned successfully");
+      return ResponseEntity.ok(
+          new ApiResponse<String>(true, "KPR application assigned successfully", "ASSIGNED"));
+    } catch (Exception e) {
+      logger.error("Error assigning KPR application: {}", e.getMessage(), e);
+      ApiResponse<String> response =
+          new ApiResponse<>(false, "Failed to assign KPR application: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
 }

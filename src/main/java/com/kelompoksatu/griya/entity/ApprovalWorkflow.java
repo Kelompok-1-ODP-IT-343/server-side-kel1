@@ -3,10 +3,13 @@ package com.kelompoksatu.griya.entity;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 /** Approval workflow tracking for KPR applications */
 @Entity
@@ -14,6 +17,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class ApprovalWorkflow {
 
   @Id
@@ -24,17 +28,20 @@ public class ApprovalWorkflow {
   private Integer applicationId;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "stage", nullable = false)
-  private WorkflowStage stage;
+  private WorkflowStage stage = WorkflowStage.PROPERTY_APPRAISAL;
 
   @Column(name = "assigned_to", nullable = false)
   private Integer assignedTo;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "status", nullable = false)
   private WorkflowStatus status = WorkflowStatus.PENDING;
 
   @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "priority", nullable = false)
   private PriorityLevel priority = PriorityLevel.NORMAL;
 
@@ -68,15 +75,15 @@ public class ApprovalWorkflow {
   private LocalDateTime updatedAt;
 
   // Relationships
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "application_id", insertable = false, updatable = false)
   private KprApplication kprApplication;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "assigned_to", insertable = false, updatable = false)
   private User assignedUser;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "escalated_to", insertable = false, updatable = false)
   private User escalatedUser;
 

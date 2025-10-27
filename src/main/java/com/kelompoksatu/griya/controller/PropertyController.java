@@ -4,12 +4,17 @@ import com.kelompoksatu.griya.dto.ApiResponse;
 import com.kelompoksatu.griya.dto.CreatePropertyRequest;
 import com.kelompoksatu.griya.dto.PropertyResponse;
 import com.kelompoksatu.griya.entity.Property;
+import com.kelompoksatu.griya.entity.PropertyFavorite;
+import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
 import com.kelompoksatu.griya.service.PropertyService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -19,16 +24,20 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 /** REST Controller for Property operations */
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/properties")
 @Validated
 public class PropertyController {
 
   private final PropertyService propertyService;
+  private final PropertyFavoriteRepository propertyFavoriteRepository;
 
   @Autowired
-  public PropertyController(PropertyService propertyService) {
+  public PropertyController(
+      PropertyService propertyService, PropertyFavoriteRepository propertyFavoriteRepository) {
     this.propertyService = propertyService;
+    this.propertyFavoriteRepository = propertyFavoriteRepository;
   }
 
   /** Create a new property */
@@ -78,6 +87,43 @@ public class PropertyController {
           new ApiResponse<>(false, "Failed to retrieve properties: " + e.getMessage(), null);
 
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  @PostMapping("/favorites")
+  public ResponseEntity<ApiResponse<Map<String, Object>>> toggleFavorite(
+      @RequestParam Integer userId, @RequestParam Integer propertyId) {
+
+    try {
+      Optional<PropertyFavorite> existing =
+          propertyFavoriteRepository.findByUserIdAndPropertyId(userId, propertyId);
+
+      Map<String, Object> responseData = new HashMap<>();
+
+      if (existing.isPresent()) {
+        propertyFavoriteRepository.delete(existing.get());
+        responseData.put("status", "removed");
+      } else {
+        PropertyFavorite favorite =
+            PropertyFavorite.builder()
+                .userId(userId)
+                .propertyId(propertyId)
+                .createdAt(LocalDateTime.now())
+                .build();
+        propertyFavoriteRepository.save(favorite);
+        responseData.put("status", "added");
+        responseData.put("favoriteId", favorite.getId());
+      }
+
+      responseData.put("userId", userId);
+      responseData.put("propertyId", propertyId);
+
+      return ResponseEntity.ok(ApiResponse.success("Toggle favorite success", responseData));
+
+    } catch (Exception e) {
+      log.error("❌ Gagal toggle favorite: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal toggle favorite: " + e.getMessage()));
     }
   }
 
@@ -451,14 +497,14 @@ public class PropertyController {
           Property.PropertyStatus.valueOf(status.toUpperCase());
       PropertyResponse property = propertyService.updatePropertyStatus(id, propertyStatus);
       ApiResponse<PropertyResponse> response =
-          new ApiResponse<>(true, "Property status updated successfully", property);
+          ApiResponse.success("Property status updated successfully", property);
       return ResponseEntity.ok(response);
     } catch (IllegalArgumentException e) {
       ApiResponse<PropertyResponse> response = new ApiResponse<>(false, e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     } catch (Exception e) {
       ApiResponse<PropertyResponse> response =
-          new ApiResponse<>(false, "Failed to update property status: " + e.getMessage(), null);
+          ApiResponse.error("Failed to update property status: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -508,14 +554,14 @@ public class PropertyController {
     try {
       PropertyResponse property = propertyService.updateFeaturedStatus(id, isFeatured);
       ApiResponse<PropertyResponse> response =
-          new ApiResponse<>(true, "Property featured status updated successfully", property);
+          ApiResponse.success("Property featured status updated successfully", property);
       return ResponseEntity.ok(response);
     } catch (IllegalArgumentException e) {
       ApiResponse<PropertyResponse> response = new ApiResponse<>(false, e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     } catch (Exception e) {
       ApiResponse<PropertyResponse> response =
-          new ApiResponse<>(false, "Failed to update featured status: " + e.getMessage(), null);
+          ApiResponse.error("Failed to update featured status: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }

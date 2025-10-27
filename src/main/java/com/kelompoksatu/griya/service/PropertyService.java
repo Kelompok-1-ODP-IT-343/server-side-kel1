@@ -32,99 +32,30 @@ public class PropertyService {
     this.developerRepository = developerRepository;
   }
 
+  // ========================================
+  // CRUD OPERATIONS
+  // ========================================
+
   /** Create a new property */
   public PropertyResponse createProperty(CreatePropertyRequest request) {
-    // Validate developer exists
-    Developer developer =
-        developerRepository
-            .findById(request.getDeveloperId())
-            .orElseThrow(
-                () ->
-                    new IllegalArgumentException(
-                        "Developer not found with id: " + request.getDeveloperId()));
+    validateCreatePropertyRequest(request);
+    Developer developer = validateAndGetDeveloper(request.getDeveloperId());
 
-    // Validate unique constraints
-    if (propertyRepository.existsByPropertyCode(request.getPropertyCode())) {
-      throw new IllegalArgumentException(
-          "Property code already exists: " + request.getPropertyCode());
-    }
-
-    if (propertyRepository.existsBySlug(request.getSlug())) {
-      throw new IllegalArgumentException("Slug already exists: " + request.getSlug());
-    }
-
-    // Create new property entity
-    Property property = new Property();
-    property.setDeveloperId(request.getDeveloperId());
-    property.setPropertyCode(request.getPropertyCode());
-    property.setDeveloper(developer);
-    property.setPropertyType(request.getPropertyType());
-    property.setListingType(request.getListingType());
-    property.setTitle(request.getTitle());
-    property.setDescription(request.getDescription());
-
-    // Location details
-    property.setAddress(request.getAddress());
-    property.setCity(request.getCity());
-    property.setProvince(request.getProvince());
-    property.setPostalCode(request.getPostalCode());
-    property.setDistrict(request.getDistrict());
-    property.setVillage(request.getVillage());
-    property.setLatitude(request.getLatitude());
-    property.setLongitude(request.getLongitude());
-
-    // Property specifications
-    property.setLandArea(request.getLandArea());
-    property.setBuildingArea(request.getBuildingArea());
-    property.setBedrooms(request.getBedrooms());
-    property.setBathrooms(request.getBathrooms());
-    property.setFloors(request.getFloors());
-    property.setGarage(request.getGarage());
-    property.setYearBuilt(request.getYearBuilt());
-
-    // Pricing
-    property.setPrice(request.getPrice());
-    property.setPricePerSqm(request.getPricePerSqm());
-    property.setMaintenanceFee(request.getMaintenanceFee());
-
-    // Legal & certificates
-    property.setCertificateType(request.getCertificateType());
-    property.setCertificateNumber(request.getCertificateNumber());
-    property.setCertificateArea(request.getCertificateArea());
-    property.setPbbValue(request.getPbbValue());
-
-    // Availability
-    property.setStatus(request.getStatus());
-    property.setAvailabilityDate(request.getAvailabilityDate());
-    property.setHandoverDate(request.getHandoverDate());
-
-    // Marketing
-    property.setIsFeatured(request.getIsFeatured());
-    property.setIsKprEligible(request.getIsKprEligible());
-    property.setMinDownPaymentPercent(request.getMinDownPaymentPercent());
-    property.setMaxLoanTermYears(request.getMaxLoanTermYears());
-
-    // SEO & marketing
-    property.setSlug(request.getSlug());
-    property.setMetaTitle(request.getMetaTitle());
-    property.setMetaDescription(request.getMetaDescription());
-    property.setKeywords(request.getKeywords());
-
-    // Tracking (initialize with provided values or defaults)
-    property.setViewCount(request.getViewCount() != null ? request.getViewCount() : 0);
-    property.setInquiryCount(request.getInquiryCount() != null ? request.getInquiryCount() : 0);
-    property.setFavoriteCount(request.getFavoriteCount() != null ? request.getFavoriteCount() : 0);
-
-    // Set published date if status is available
-    if (property.getStatus() == Property.PropertyStatus.AVAILABLE) {
-      property.setPublishedAt(LocalDateTime.now());
-    }
-
-    // Save the property
+    Property property = createPropertyEntity(request, developer);
     Property savedProperty = propertyRepository.save(property);
 
     return new PropertyResponse(savedProperty);
   }
+
+  /** Delete property */
+  public void deleteProperty(Integer id) {
+    validatePropertyExists(id);
+    propertyRepository.deleteById(id);
+  }
+
+  // ========================================
+  // QUERY METHODS - BASIC RETRIEVAL
+  // ========================================
 
   /** Get property by ID */
   @Transactional(readOnly = true)
@@ -152,6 +83,10 @@ public class PropertyService {
         .collect(Collectors.toList());
   }
 
+  // ========================================
+  // QUERY METHODS - BY DEVELOPER AND TYPE
+  // ========================================
+
   /** Get properties by developer ID */
   @Transactional(readOnly = true)
   public List<PropertyResponse> getPropertiesByDeveloperId(Integer developerId) {
@@ -176,6 +111,10 @@ public class PropertyService {
         .collect(Collectors.toList());
   }
 
+  // ========================================
+  // QUERY METHODS - BY STATUS AND AVAILABILITY
+  // ========================================
+
   /** Get properties by status */
   @Transactional(readOnly = true)
   public List<PropertyResponse> getPropertiesByStatus(Property.PropertyStatus status) {
@@ -192,6 +131,10 @@ public class PropertyService {
         .collect(Collectors.toList());
   }
 
+  // ========================================
+  // QUERY METHODS - BY LOCATION
+  // ========================================
+
   /** Get properties by city */
   @Transactional(readOnly = true)
   public List<PropertyResponse> getPropertiesByCity(String city) {
@@ -207,6 +150,10 @@ public class PropertyService {
         .map(PropertyResponse::new)
         .collect(Collectors.toList());
   }
+
+  // ========================================
+  // QUERY METHODS - BY PRICE AND AREA
+  // ========================================
 
   /** Get properties by price range */
   @Transactional(readOnly = true)
@@ -225,6 +172,10 @@ public class PropertyService {
         .collect(Collectors.toList());
   }
 
+  // ========================================
+  // QUERY METHODS - BY SPECIFICATIONS
+  // ========================================
+
   /** Get properties by bedrooms */
   @Transactional(readOnly = true)
   public List<PropertyResponse> getPropertiesByBedrooms(Integer bedrooms) {
@@ -240,6 +191,10 @@ public class PropertyService {
         .map(PropertyResponse::new)
         .collect(Collectors.toList());
   }
+
+  // ========================================
+  // QUERY METHODS - FEATURED AND SPECIAL
+  // ========================================
 
   /** Get featured properties */
   @Transactional(readOnly = true)
@@ -257,6 +212,18 @@ public class PropertyService {
         .collect(Collectors.toList());
   }
 
+  /** Get popular properties (sorted by view count) */
+  @Transactional(readOnly = true)
+  public List<PropertyResponse> getPopularProperties(Pageable pageable) {
+    return propertyRepository.findMostViewedProperties().stream()
+        .map(PropertyResponse::new)
+        .collect(Collectors.toList());
+  }
+
+  // ========================================
+  // SEARCH METHODS
+  // ========================================
+
   /** Search properties by title or description */
   @Transactional(readOnly = true)
   public List<PropertyResponse> searchProperties(String keyword) {
@@ -268,38 +235,62 @@ public class PropertyService {
     return titleResults.stream().distinct().map(PropertyResponse::new).collect(Collectors.toList());
   }
 
-  /** Get popular properties (sorted by view count) */
+  // ========================================
+  // ADVANCED QUERY METHODS
+  // ========================================
+
   @Transactional(readOnly = true)
-  public List<PropertyResponse> getPopularProperties(Pageable pageable) {
-    return propertyRepository.findMostViewedProperties().stream()
-        .map(PropertyResponse::new)
-        .collect(Collectors.toList());
+  public List<Map<String, Object>> getPropertiesWithFilter(
+      String city,
+      BigDecimal minPrice,
+      BigDecimal maxPrice,
+      String propertyType,
+      int offset,
+      int limit) {
+
+    List<Map<String, Object>> rows =
+        propertyRepository.findPropertiesWithFilter(
+            city, minPrice, maxPrice, propertyType, offset, limit);
+
+    return processFilterResults(rows);
   }
+
+  @Transactional(readOnly = true)
+  public Map<String, Object> getPropertyDetails(Integer id) {
+    return propertyRepository.findPropertyDetailsById(id);
+  }
+
+  // ========================================
+  // UPDATE OPERATIONS
+  // ========================================
 
   /** Update property status */
   public PropertyResponse updatePropertyStatus(Integer id, Property.PropertyStatus status) {
-    Property property =
-        propertyRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Property not found with id: " + id));
+    Property property = validateAndGetProperty(id);
 
     property.setStatus(status);
-
-    // Set published date if status is available and not already set
-    if (status == Property.PropertyStatus.AVAILABLE && property.getPublishedAt() == null) {
-      property.setPublishedAt(LocalDateTime.now());
-    }
+    setPublishedDateIfAvailable(property, status);
 
     Property updatedProperty = propertyRepository.save(property);
     return new PropertyResponse(updatedProperty);
   }
 
+  /** Update featured status */
+  public PropertyResponse updateFeaturedStatus(Integer id, Boolean isFeatured) {
+    Property property = validateAndGetProperty(id);
+
+    property.setIsFeatured(isFeatured);
+    Property updatedProperty = propertyRepository.save(property);
+    return new PropertyResponse(updatedProperty);
+  }
+
+  // ========================================
+  // COUNTER OPERATIONS
+  // ========================================
+
   /** Increment view count */
   public PropertyResponse incrementViewCount(Integer id) {
-    Property property =
-        propertyRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Property not found with id: " + id));
+    Property property = validateAndGetProperty(id);
 
     property.setViewCount(property.getViewCount() + 1);
     Property updatedProperty = propertyRepository.save(property);
@@ -308,10 +299,7 @@ public class PropertyService {
 
   /** Increment inquiry count */
   public PropertyResponse incrementInquiryCount(Integer id) {
-    Property property =
-        propertyRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Property not found with id: " + id));
+    Property property = validateAndGetProperty(id);
 
     property.setInquiryCount(property.getInquiryCount() + 1);
     Property updatedProperty = propertyRepository.save(property);
@@ -320,35 +308,16 @@ public class PropertyService {
 
   /** Increment favorite count */
   public PropertyResponse incrementFavoriteCount(Integer id) {
-    Property property =
-        propertyRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Property not found with id: " + id));
+    Property property = validateAndGetProperty(id);
 
     property.setFavoriteCount(property.getFavoriteCount() + 1);
     Property updatedProperty = propertyRepository.save(property);
     return new PropertyResponse(updatedProperty);
   }
 
-  /** Update featured status */
-  public PropertyResponse updateFeaturedStatus(Integer id, Boolean isFeatured) {
-    Property property =
-        propertyRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Property not found with id: " + id));
-
-    property.setIsFeatured(isFeatured);
-    Property updatedProperty = propertyRepository.save(property);
-    return new PropertyResponse(updatedProperty);
-  }
-
-  /** Delete property */
-  public void deleteProperty(Integer id) {
-    if (!propertyRepository.existsById(id)) {
-      throw new IllegalArgumentException("Property not found with id: " + id);
-    }
-    propertyRepository.deleteById(id);
-  }
+  // ========================================
+  // VALIDATION AND EXISTENCE CHECKS
+  // ========================================
 
   /** Check if property code exists */
   @Transactional(readOnly = true)
@@ -362,20 +331,171 @@ public class PropertyService {
     return propertyRepository.existsBySlug(slug);
   }
 
-  @Transactional(readOnly = true)
-  public List<Map<String, Object>> getPropertiesWithFilter(
-      String city,
-      BigDecimal minPrice,
-      BigDecimal maxPrice,
-      String propertyType,
-      int offset,
-      int limit) {
-    return propertyRepository.findPropertiesWithFilter(
-        city, minPrice, maxPrice, propertyType, offset, limit);
+  // ========================================
+  // PRIVATE VALIDATION METHODS
+  // ========================================
+
+  private void validateCreatePropertyRequest(CreatePropertyRequest request) {
+    if (propertyRepository.existsByPropertyCode(request.getPropertyCode())) {
+      throw new IllegalArgumentException(
+          "Property code already exists: " + request.getPropertyCode());
+    }
+
+    if (propertyRepository.existsBySlug(request.getSlug())) {
+      throw new IllegalArgumentException("Slug already exists: " + request.getSlug());
+    }
   }
 
-  @Transactional(readOnly = true)
-  public Map<String, Object> getPropertyDetails(Integer id) {
-    return propertyRepository.findPropertyDetailsById(id);
+  private Developer validateAndGetDeveloper(Integer developerId) {
+    return developerRepository
+        .findById(developerId)
+        .orElseThrow(
+            () -> new IllegalArgumentException("Developer not found with id: " + developerId));
+  }
+
+  private Property validateAndGetProperty(Integer id) {
+    return propertyRepository
+        .findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Property not found with id: " + id));
+  }
+
+  private void validatePropertyExists(Integer id) {
+    if (!propertyRepository.existsById(id)) {
+      throw new IllegalArgumentException("Property not found with id: " + id);
+    }
+  }
+
+  // ========================================
+  // PRIVATE BUSINESS LOGIC METHODS
+  // ========================================
+
+  private Property createPropertyEntity(CreatePropertyRequest request, Developer developer) {
+    Property property = new Property();
+
+    // Basic information
+    setBasicPropertyInfo(property, request, developer);
+
+    // Location details
+    setLocationDetails(property, request);
+
+    // Property specifications
+    setPropertySpecifications(property, request);
+
+    // Pricing information
+    setPricingInfo(property, request);
+
+    // Legal & certificates
+    setLegalInfo(property, request);
+
+    // Availability information
+    setAvailabilityInfo(property, request);
+
+    // Marketing information
+    setMarketingInfo(property, request);
+
+    // SEO & marketing
+    setSeoInfo(property, request);
+
+    // Initialize tracking counters
+    initializeTrackingCounters(property, request);
+
+    // Set published date if status is available
+    if (property.getStatus() == Property.PropertyStatus.AVAILABLE) {
+      property.setPublishedAt(LocalDateTime.now());
+    }
+
+    return property;
+  }
+
+  private void setBasicPropertyInfo(
+      Property property, CreatePropertyRequest request, Developer developer) {
+    property.setDeveloperId(request.getDeveloperId());
+    property.setPropertyCode(request.getPropertyCode());
+    property.setDeveloper(developer);
+    property.setPropertyType(request.getPropertyType());
+    property.setListingType(request.getListingType());
+    property.setTitle(request.getTitle());
+    property.setDescription(request.getDescription());
+  }
+
+  private void setLocationDetails(Property property, CreatePropertyRequest request) {
+    property.setAddress(request.getAddress());
+    property.setCity(request.getCity());
+    property.setProvince(request.getProvince());
+    property.setPostalCode(request.getPostalCode());
+    property.setDistrict(request.getDistrict());
+    property.setVillage(request.getVillage());
+    property.setLatitude(request.getLatitude());
+    property.setLongitude(request.getLongitude());
+  }
+
+  private void setPropertySpecifications(Property property, CreatePropertyRequest request) {
+    property.setLandArea(request.getLandArea());
+    property.setBuildingArea(request.getBuildingArea());
+    property.setBedrooms(request.getBedrooms());
+    property.setBathrooms(request.getBathrooms());
+    property.setFloors(request.getFloors());
+    property.setGarage(request.getGarage());
+    property.setYearBuilt(request.getYearBuilt());
+  }
+
+  private void setPricingInfo(Property property, CreatePropertyRequest request) {
+    property.setPrice(request.getPrice());
+    property.setPricePerSqm(request.getPricePerSqm());
+    property.setMaintenanceFee(request.getMaintenanceFee());
+  }
+
+  private void setLegalInfo(Property property, CreatePropertyRequest request) {
+    property.setCertificateType(request.getCertificateType());
+    property.setCertificateNumber(request.getCertificateNumber());
+    property.setCertificateArea(request.getCertificateArea());
+    property.setPbbValue(request.getPbbValue());
+  }
+
+  private void setAvailabilityInfo(Property property, CreatePropertyRequest request) {
+    property.setStatus(request.getStatus());
+    property.setAvailabilityDate(request.getAvailabilityDate());
+    property.setHandoverDate(request.getHandoverDate());
+  }
+
+  private void setMarketingInfo(Property property, CreatePropertyRequest request) {
+    property.setIsFeatured(request.getIsFeatured());
+    property.setIsKprEligible(request.getIsKprEligible());
+    property.setMinDownPaymentPercent(request.getMinDownPaymentPercent());
+    property.setMaxLoanTermYears(request.getMaxLoanTermYears());
+  }
+
+  private void setSeoInfo(Property property, CreatePropertyRequest request) {
+    property.setSlug(request.getSlug());
+    property.setMetaTitle(request.getMetaTitle());
+    property.setMetaDescription(request.getMetaDescription());
+    property.setKeywords(request.getKeywords());
+  }
+
+  private void initializeTrackingCounters(Property property, CreatePropertyRequest request) {
+    property.setViewCount(request.getViewCount() != null ? request.getViewCount() : 0);
+    property.setInquiryCount(request.getInquiryCount() != null ? request.getInquiryCount() : 0);
+    property.setFavoriteCount(request.getFavoriteCount() != null ? request.getFavoriteCount() : 0);
+  }
+
+  private void setPublishedDateIfAvailable(Property property, Property.PropertyStatus status) {
+    if (status == Property.PropertyStatus.AVAILABLE && property.getPublishedAt() == null) {
+      property.setPublishedAt(LocalDateTime.now());
+    }
+  }
+
+  // ========================================
+  // PRIVATE UTILITY METHODS
+  // ========================================
+
+  private List<Map<String, Object>> processFilterResults(List<Map<String, Object>> rows) {
+    for (Map<String, Object> row : rows) {
+      Object fn = row.get("file_name");
+      if (fn != null) row.put("fileName", fn);
+
+      Object fp = row.get("file_path");
+      if (fp != null) row.put("filePath", fp);
+    }
+    return rows;
   }
 }

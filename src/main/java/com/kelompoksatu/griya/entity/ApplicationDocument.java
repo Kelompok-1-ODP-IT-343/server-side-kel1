@@ -3,6 +3,7 @@ package com.kelompoksatu.griya.entity;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcType;
@@ -17,6 +18,7 @@ import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class ApplicationDocument {
 
   @Id
@@ -34,8 +36,11 @@ public class ApplicationDocument {
   @Column(name = "document_name", nullable = false, length = 255)
   private String documentName;
 
+  @Column(name = "original_filename", length = 255)
+  private String originalFilename; // Store original filename from user upload
+
   @Column(name = "file_path", nullable = false, length = 500)
-  private String filePath;
+  private String filePath; // S3 URL for the uploaded file
 
   @Column(name = "file_size", nullable = false)
   private Integer fileSize; // in bytes
@@ -62,11 +67,11 @@ public class ApplicationDocument {
   // RELATIONSHIPS
   // ========================================
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "application_id", insertable = false, updatable = false)
   private KprApplication kprApplication;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "verified_by", insertable = false, updatable = false)
   private User verifier;
 
@@ -190,6 +195,11 @@ public class ApplicationDocument {
   /** Get file size in MB */
   public double getFileSizeInMB() {
     return fileSize != null ? fileSize / (1024.0 * 1024.0) : 0;
+  }
+
+  /** Get the public S3 URL */
+  public String getPublicUrl() {
+    return filePath; // filePath now contains the full S3 URL
   }
 
   /** Check if document requires verification */
