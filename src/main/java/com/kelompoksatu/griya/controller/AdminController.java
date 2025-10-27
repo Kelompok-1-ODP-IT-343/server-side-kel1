@@ -5,8 +5,10 @@ import com.kelompoksatu.griya.entity.ImageAdmin;
 import com.kelompoksatu.griya.entity.ImageCategory;
 import com.kelompoksatu.griya.entity.ImageType;
 import com.kelompoksatu.griya.repository.ImageAdminRepository;
+import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
 import com.kelompoksatu.griya.service.AdminService;
 import com.kelompoksatu.griya.service.DeveloperService;
+import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -20,6 +22,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +46,7 @@ public class AdminController {
   private final DeveloperService developerService;
   private final ImageAdminRepository imageAdminRepository;
   private final AdminService adminService;
+  private final PropertyFavoriteRepository propertyFavoriteRepository;
 
   // ==================== DEVELOPER MANAGEMENT ====================
 
@@ -75,7 +79,29 @@ public class AdminController {
                     mediaType = "application/json",
                     schema = @Schema(implementation = ApiResponse.class)))
       })
-  @PutMapping("/developers/{id}")
+
+  @GetMapping("/users/{userId}/favorites")
+  public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUserFavorites(
+          @PathVariable Integer userId) {
+
+      try {
+          List<Map<String, Object>> favorites = propertyFavoriteRepository.findFavoritesByUserId(userId);
+
+          if (favorites.isEmpty()) {
+              return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                      .body(ApiResponse.error("No favorites found for user ID " + userId));
+          }
+
+          return ResponseEntity.ok(ApiResponse.success("Favorites retrieved successfully", favorites));
+
+      } catch (Exception e) {
+          log.error("❌ Gagal mengambil favorites user: ", e);
+          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                  .body(ApiResponse.error("Gagal mengambil favorites: " + e.getMessage()));
+      }
+  }
+
+    @PutMapping("/developers/{id}")
   public ResponseEntity<ApiResponse<DeveloperResponse>> updateDeveloper(
       @PathVariable Integer id,
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
