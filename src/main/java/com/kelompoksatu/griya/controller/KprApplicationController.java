@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -83,7 +82,7 @@ public class KprApplicationController {
    */
   @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @Operation(
-      summary = "Submit KPR Application with Documents",
+      summary = "Submit KPR Application w`ith Documents",
       description =
           "Submit a new KPR (Home Loan) application with property details, personal data, "
               + "employment information, and required documents. Supports file uploads for KTP, NPWP, "
@@ -223,9 +222,6 @@ public class KprApplicationController {
               .salarySlipDocument(salarySlipDocument)
               .otherDocument(otherDocument)
               .build();
-
-      // Validate form request
-      formRequest.validate();
 
       // Submit application through service
       KprApplicationResponse response =
@@ -392,10 +388,33 @@ public class KprApplicationController {
   }
 
   @GetMapping("/verifikator/history")
-  public String getMethodName(@RequestParam String param) {
-    return new String();
-  }
-
+  @Operation(
+      summary = "Get KPR Applications Assigned to Verifikator",
+      description =
+          "Retrieve the history of KPR applications assigned to the authenticated verifikator. "
+              + "Verifikators can only access applications assigned to them.")
+  @io.swagger.v3.oas.annotations.responses.ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "KPR application history retrieved successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = KprHistoryListResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized - Invalid or missing JWT token",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            description = "Forbidden - User does not have verifikator access",
+            content = @Content(mediaType = "application/json")),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(mediaType = "application/json"))
+      })
   public ResponseEntity<ApiResponse<List<KprHistoryListResponse>>> getHistoryAssignedVerifikator(
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
     try {

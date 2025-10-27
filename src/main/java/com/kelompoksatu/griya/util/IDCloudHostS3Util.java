@@ -37,13 +37,13 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 public class IDCloudHostS3Util {
 
   // IDCloudHost Object Storage Configuration
-  @Value("${IDCLOUDHOST_S3_ACCESS_KEY:}")
+  @Value("${IDCLOUDHOST_S3_ACCESS_KEY:HHNXIN643A0LD0F2GIFX}")
   private String accessKey;
 
-  @Value("${IDCLOUDHOST_S3_SECRET_KEY:}")
+  @Value("${IDCLOUDHOST_S3_SECRET_KEY:lsAlIOWj2HBdeCjOCM987l3z7W73pEj9APUJ1R1O}")
   private String secretKey;
 
-  @Value("${IDCLOUDHOST_S3_BUCKET_NAME:}")
+  @Value("${IDCLOUDHOST_S3_BUCKET_NAME:griya-app}")
   private String bucketName;
 
   @Value("${IDCLOUDHOST_S3_REGION:id-jkt-1}")
@@ -101,6 +101,9 @@ public class IDCloudHostS3Util {
    * @throws IllegalStateException jika client not configured
    */
   public String uploadFile(MultipartFile file, String folder) throws IOException {
+    if (this.s3Client == null) {
+      this.s3Client = createIDCloudHostS3Client();
+    }
     if (this.s3Client == null) {
       throw new IllegalStateException("Object Storage (S3) is not configured.");
     }

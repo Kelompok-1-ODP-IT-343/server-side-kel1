@@ -137,6 +137,10 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/user/**")
                     .authenticated()
 
+                    // KPR Application endpoints (require verifikator role)
+                    .requestMatchers("/api/v1/kpr-applications/**")
+                    .authenticated()
+
                     // All other endpoints require authentication
                     .anyRequest()
                     .authenticated())

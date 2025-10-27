@@ -49,10 +49,8 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
           + "FROM KprApplication k WHERE k.applicationNumber LIKE :yearPrefix")
   Long getNextSequenceNumber(@Param("yearPrefix") String yearPrefix);
 
-  /** Find applications requiring approval at specific level */
-  @Query(
-      "SELECT k FROM KprApplication k WHERE k.currentApprovalLevel = :levelId AND k.status = 'APPROVAL_PENDING'")
-  List<KprApplication> findApplicationsRequiringApproval(@Param("levelId") Integer levelId);
+  /** Find applications with APPROVAL_PENDING status */
+  List<KprApplication> findByStatusOrderByCreatedAtAsc(KprApplication.ApplicationStatus status);
 
   /** Find KPR applications history handled by developer (completed workflows) */
   @Query(

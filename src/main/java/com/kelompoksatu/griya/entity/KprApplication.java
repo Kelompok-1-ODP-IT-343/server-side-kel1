@@ -84,9 +84,6 @@ public class KprApplication {
   @Column(name = "status", nullable = false)
   private ApplicationStatus status = ApplicationStatus.SUBMITTED;
 
-  @Column(name = "current_approval_level")
-  private Integer currentApprovalLevel;
-
   @Column(name = "submitted_at", nullable = false)
   private LocalDateTime submittedAt;
 
