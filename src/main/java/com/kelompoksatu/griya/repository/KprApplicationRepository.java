@@ -49,6 +49,17 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
           + "FROM KprApplication k WHERE k.applicationNumber LIKE :yearPrefix")
   Long getNextSequenceNumber(@Param("yearPrefix") String yearPrefix);
 
+  /** Find KPR application by ID with all relationships eagerly loaded */
+  @Query(
+      "SELECT k FROM KprApplication k "
+          + "LEFT JOIN FETCH k.user u "
+          + "LEFT JOIN FETCH u.role "
+          + "LEFT JOIN FETCH k.property p "
+          + "LEFT JOIN FETCH p.developer d "
+          + "LEFT JOIN FETCH k.kprRate kr "
+          + "WHERE k.id = :id")
+  Optional<KprApplication> findByIdWithAllRelations(@Param("id") Integer id);
+
   /** Find applications with APPROVAL_PENDING status */
   List<KprApplication> findByStatusOrderByCreatedAtAsc(KprApplication.ApplicationStatus status);
 
@@ -96,6 +107,7 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
   // Show list KprApplication history by userID from ApprovalWorkflow
   @Query(
       "SELECT new com.kelompoksatu.griya.dto.KprHistoryListResponse("
+          + "k.id, "
           + "k.property.title, "
           + "CAST(k.status AS string), "
           + "CONCAT(k.property.district, ', ', k.property.city, ', ', k.property.province), "
