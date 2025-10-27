@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import lombok.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -145,6 +146,7 @@ public class KprApplicationService {
         .map(
             application ->
                 new KprHistoryListResponse(
+                    application.getId(),
                     application.getProperty().getTitle(),
                     application.getStatus().toString(),
                     String.format(
@@ -858,6 +860,7 @@ public class KprApplicationService {
         .map(
             application ->
                 new KprHistoryListResponse(
+                    application.getId(),
                     application.getProperty().getTitle(),
                     application.getStatus().toString(),
                     String.format(
@@ -870,33 +873,6 @@ public class KprApplicationService {
                     application.getCreatedAt().toString(),
                     ""))
         .collect(Collectors.toList());
-  }
-
-  /** Get application detail */
-  @Transactional(readOnly = true)
-  public KprApplicationDetailResponse getApplicationDetail(Integer applicationId, Integer userId) {
-    // Validation Phase
-    validateUser(userId);
-    KprApplication application = validateApplicationExists(applicationId);
-
-    // Authorization check - user can only view their own applications
-    if (!application.getUserId().equals(userId)) {
-      throw new IllegalArgumentException("You are not authorized to view this application");
-    }
-
-    // Response Building Phase
-    return KprApplicationDetailResponse.builder()
-        .applicationId(application.getId())
-        .applicationNumber(application.getApplicationNumber())
-        .status(application.getStatus())
-        .propertyAddress(application.getPropertyAddress())
-        .loanAmount(application.getLoanAmount())
-        .monthlyInstallment(application.getMonthlyInstallment())
-        .interestRate(application.getInterestRate())
-        .loanTermYears(application.getLoanTermYears())
-        .downPayment(application.getDownPayment())
-        .submittedAt(application.getSubmittedAt())
-        .build();
   }
 
   // ========================================
@@ -1054,5 +1030,329 @@ public class KprApplicationService {
           "Retrieved {} KPR application history records for user ID: {}", history.size(), userId);
     }
     return history;
+  }
+
+  /**
+   * Get detailed KPR application information with all related entities
+   *
+   * @param applicationId Application ID
+   * @param currentUserId Current user ID for authorization
+   * @return Comprehensive application details
+   */
+  @Transactional(readOnly = true)
+  public KprApplicationDetailResponse getApplicationDetail(
+      Integer applicationId, Integer currentUserId) {
+    log.info(
+        "Fetching comprehensive application detail for ID: {} by user: {}",
+        applicationId,
+        currentUserId);
+
+    // 1. Fetch application with all relationships eagerly loaded
+    KprApplication application =
+        kprApplicationRepository
+            .findByIdWithAllRelations(applicationId)
+            .orElseThrow(
+                () -> new RuntimeException("Application not found with ID: " + applicationId));
+
+    // 2. Authorization check - user can only view their own applications or admin/staff can view
+    // all
+    User currentUser =
+        userRepository
+            .findById(currentUserId)
+            .orElseThrow(() -> new RuntimeException("Current user not found"));
+
+    boolean isOwner = application.getUserId().equals(currentUserId);
+    boolean isStaff =
+        currentUser.getRole() != null
+            && (currentUser.getRole().getName().contains("ADMIN")
+                || currentUser.getRole().getName().contains("STAFF")
+                || currentUser.getRole().getName().contains("MANAGER"));
+
+    if (!isOwner && !isStaff) {
+      throw new RuntimeException("Unauthorized to view this application");
+    }
+
+    // 3. Fetch user profile for comprehensive user data
+    UserProfile userProfile =
+        userProfileRepository.findByUserId(application.getUserId()).orElse(null);
+
+    // 4. Fetch all approval workflows for this application
+    List<ApprovalWorkflow> approvalWorkflows =
+        approvalWorkflowRepository.findByApplicationIdOrderByCreatedAtAsc(applicationId);
+
+    // 5. Fetch all application documents
+    List<ApplicationDocument> documents =
+        applicationDocumentRepository.findByApplicationIdOrderByUploadedAtDesc(applicationId);
+
+    // 6. Calculate LTV ratio
+    double ltvRatio = 0.0;
+    if (application.getPropertyValue() != null
+        && application.getPropertyValue().compareTo(BigDecimal.ZERO) > 0) {
+      ltvRatio =
+          application
+              .getLoanAmount()
+              .divide(application.getPropertyValue(), 4, RoundingMode.HALF_UP)
+              .multiply(BigDecimal.valueOf(100))
+              .doubleValue();
+    }
+
+    // 7. Build comprehensive response
+    return KprApplicationDetailResponse.builder()
+        // Basic application info
+        .applicationId(application.getId())
+        .applicationNumber(application.getApplicationNumber())
+        .status(application.getStatus())
+
+        // User information with profile
+        .userInfo(buildUserInfo(application.getUser(), userProfile))
+
+        // Property information
+        .propertyInfo(buildPropertyInfo(application.getProperty()))
+
+        // Developer information
+        .developerInfo(
+            buildDeveloperInfo(
+                application.getProperty() != null
+                    ? application.getProperty().getDeveloper()
+                    : null))
+
+        // KPR Rate information
+        .kprRateInfo(buildKprRateInfo(application.getKprRate()))
+
+        // Loan details
+        .propertyType(application.getPropertyType())
+        .propertyValue(application.getPropertyValue())
+        .loanAmount(application.getLoanAmount())
+        .loanTermYears(application.getLoanTermYears())
+        .interestRate(application.getInterestRate())
+        .monthlyInstallment(application.getMonthlyInstallment())
+        .downPayment(application.getDownPayment())
+        .ltvRatio(BigDecimal.valueOf(ltvRatio))
+
+        // Property details
+        .propertyAddress(application.getPropertyAddress())
+        .propertyCertificateType(application.getPropertyCertificateType())
+        .developerName(application.getDeveloperName())
+        .purpose(application.getPurpose())
+
+        // Application status and timestamps
+        .submittedAt(application.getSubmittedAt())
+        .approvedAt(application.getApprovedAt())
+        .rejectedAt(application.getRejectedAt())
+        .rejectionReason(application.getRejectionReason())
+        .notes(application.getNotes())
+        .createdAt(application.getCreatedAt())
+        .updatedAt(application.getUpdatedAt())
+
+        // Approval workflows
+        .approvalWorkflows(buildApprovalWorkflowInfoList(approvalWorkflows))
+
+        // Documents
+        .documents(buildDocumentInfoList(documents))
+        .build();
+  }
+
+  /** Build comprehensive user information including profile data */
+  private KprApplicationDetailResponse.UserInfo buildUserInfo(User user, UserProfile profile) {
+    if (user == null) return null;
+
+    return KprApplicationDetailResponse.UserInfo.builder()
+        .userId(user.getId())
+        .username(user.getUsername())
+        .email(user.getEmail())
+        .phone(user.getPhone())
+        .fullName(profile != null ? profile.getFullName() : null)
+        .nik(profile != null ? profile.getNik() : null)
+        .npwp(profile != null ? profile.getNpwp() : null)
+        .birthPlace(profile != null ? profile.getBirthPlace() : null)
+        .gender(profile != null && profile.getGender() != null ? profile.getGender().name() : null)
+        .maritalStatus(
+            profile != null && profile.getMaritalStatus() != null
+                ? profile.getMaritalStatus().name()
+                : null)
+        .address(profile != null ? profile.getAddress() : null)
+        .city(profile != null ? profile.getCity() : null)
+        .province(profile != null ? profile.getProvince() : null)
+        .postalCode(profile != null ? profile.getPostalCode() : null)
+        .occupation(profile != null ? profile.getOccupation() : null)
+        .companyName(profile != null ? profile.getCompanyName() : null)
+        .monthlyIncome(profile != null ? profile.getMonthlyIncome() : null)
+        .build();
+  }
+
+  /** Build comprehensive property information */
+  private KprApplicationDetailResponse.PropertyInfo buildPropertyInfo(Property property) {
+    if (property == null) return null;
+
+    return KprApplicationDetailResponse.PropertyInfo.builder()
+        .propertyId(property.getId())
+        .propertyCode(property.getPropertyCode())
+        .title(property.getTitle())
+        .description(property.getDescription())
+        .address(property.getAddress())
+        .city(property.getCity())
+        .province(property.getProvince())
+        .postalCode(property.getPostalCode())
+        .district(property.getDistrict())
+        .village(property.getVillage())
+        .landArea(property.getLandArea())
+        .buildingArea(property.getBuildingArea())
+        .bedrooms(property.getBedrooms())
+        .bathrooms(property.getBathrooms())
+        .floors(property.getFloors())
+        .garage(property.getGarage())
+        .yearBuilt(property.getYearBuilt())
+        .price(property.getPrice())
+        .pricePerSqm(property.getPricePerSqm())
+        .certificateType(property.getCertificateType())
+        .certificateNumber(property.getCertificateNumber())
+        .pbbValue(property.getPbbValue())
+        .status(property.getStatus())
+        .minDownPaymentPercent(property.getMinDownPaymentPercent())
+        .maxLoanTermYears(property.getMaxLoanTermYears())
+        .build();
+  }
+
+  /** Build comprehensive developer information */
+  private KprApplicationDetailResponse.DeveloperInfo buildDeveloperInfo(Developer developer) {
+    if (developer == null) return null;
+
+    return KprApplicationDetailResponse.DeveloperInfo.builder()
+        .developerId(developer.getId())
+        .companyName(developer.getCompanyName())
+        .companyCode(developer.getCompanyCode())
+        .businessLicense(developer.getBusinessLicense())
+        .developerLicense(developer.getDeveloperLicense())
+        .contactPerson(developer.getContactPerson())
+        .phone(developer.getPhone())
+        .email(developer.getEmail())
+        .website(developer.getWebsite())
+        .address(developer.getAddress())
+        .city(developer.getCity())
+        .province(developer.getProvince())
+        .postalCode(developer.getPostalCode())
+        .establishedYear(developer.getEstablishedYear())
+        .description(developer.getDescription())
+        .specialization(
+            developer.getSpecialization() != null ? developer.getSpecialization().name() : null)
+        .isPartner(developer.getIsPartner())
+        .partnershipLevel(
+            developer.getPartnershipLevel() != null ? developer.getPartnershipLevel().name() : null)
+        .commissionRate(developer.getCommissionRate())
+        .status(developer.getStatus().name())
+        .verifiedAt(developer.getVerifiedAt())
+        .build();
+  }
+
+  /** Build comprehensive KPR rate information */
+  private KprApplicationDetailResponse.KprRateInfo buildKprRateInfo(KprRate kprRate) {
+    if (kprRate == null) return null;
+
+    return KprApplicationDetailResponse.KprRateInfo.builder()
+        .rateName(kprRate.getRateName())
+        .rateType(kprRate.getRateType().name())
+        .propertyType(kprRate.getPropertyType().name())
+        .customerSegment(kprRate.getCustomerSegment().name())
+        .baseRate(kprRate.getBaseRate())
+        .margin(kprRate.getMargin())
+        .effectiveRate(kprRate.getEffectiveRate())
+        .minLoanAmount(kprRate.getMinLoanAmount())
+        .maxLoanAmount(kprRate.getMaxLoanAmount())
+        .minTermYears(kprRate.getMinTermYears())
+        .maxTermYears(kprRate.getMaxTermYears())
+        .maxLtvRatio(kprRate.getMaxLtvRatio())
+        .minIncome(kprRate.getMinIncome())
+        .maxAge(kprRate.getMaxAge())
+        .minDownPaymentPercent(kprRate.getMinDownPaymentPercent())
+        .adminFee(kprRate.getAdminFee())
+        .adminFeePercent(kprRate.getAdminFeePercent())
+        .appraisalFee(kprRate.getAppraisalFee())
+        .insuranceRate(kprRate.getInsuranceRate())
+        .notaryFeePercent(kprRate.getNotaryFeePercent())
+        .isPromotional(kprRate.getIsPromotional())
+        .promoDescription(kprRate.getPromoDescription())
+        .build();
+  }
+
+  /** Build comprehensive approval workflow information list */
+  private List<KprApplicationDetailResponse.ApprovalWorkflowInfo> buildApprovalWorkflowInfoList(
+      List<ApprovalWorkflow> workflows) {
+    if (workflows == null || workflows.isEmpty()) {
+      return new ArrayList<>();
+    }
+
+    return workflows.stream().map(this::buildApprovalWorkflowInfo).collect(Collectors.toList());
+  }
+
+  /** Build comprehensive approval workflow information */
+  private KprApplicationDetailResponse.ApprovalWorkflowInfo buildApprovalWorkflowInfo(
+      ApprovalWorkflow workflow) {
+    if (workflow == null) return null;
+
+    // Fetch assigned user details
+    User assignedUser = null;
+    if (workflow.getAssignedTo() != null) {
+      assignedUser = userRepository.findById(workflow.getAssignedTo()).orElse(null);
+    }
+
+    // Fetch escalated user details
+    User escalatedUser = null;
+    if (workflow.getEscalatedTo() != null) {
+      escalatedUser = userRepository.findById(workflow.getEscalatedTo()).orElse(null);
+    }
+
+    return KprApplicationDetailResponse.ApprovalWorkflowInfo.builder()
+        .workflowId(workflow.getId())
+        .applicationId(workflow.getApplicationId())
+        .stage(workflow.getStage())
+        .status(workflow.getStatus())
+        .priority(workflow.getPriority())
+        .assignedTo(workflow.getAssignedTo())
+        .escalatedTo(workflow.getEscalatedTo())
+        .dueDate(workflow.getDueDate())
+        .startedAt(workflow.getStartedAt())
+        .completedAt(workflow.getCompletedAt())
+        .approvalNotes(workflow.getApprovalNotes())
+        .rejectionReason(workflow.getRejectionReason())
+        .approvalNotes(workflow.getApprovalNotes())
+        .createdAt(workflow.getCreatedAt())
+        .updatedAt(workflow.getUpdatedAt())
+        .build();
+  }
+
+  /** Build comprehensive document information list */
+  private List<KprApplicationDetailResponse.DocumentInfo> buildDocumentInfoList(
+      List<ApplicationDocument> documents) {
+    if (documents == null || documents.isEmpty()) {
+      return new ArrayList<>();
+    }
+
+    return documents.stream().map(this::buildDocumentInfo).collect(Collectors.toList());
+  }
+
+  /** Build comprehensive document information */
+  private KprApplicationDetailResponse.DocumentInfo buildDocumentInfo(
+      ApplicationDocument document) {
+    if (document == null) return null;
+
+    // Fetch verifier details
+    User verifier = null;
+    if (document.getVerifiedBy() != null) {
+      verifier = userRepository.findById(document.getVerifiedBy()).orElse(null);
+    }
+
+    return KprApplicationDetailResponse.DocumentInfo.builder()
+        .documentId(document.getId())
+        .documentType(document.getDocumentType())
+        .documentName(document.getDocumentName())
+        .filePath(document.getFilePath())
+        .fileSize(document.getFileSize())
+        .mimeType(document.getMimeType())
+        .isVerified(document.getIsVerified())
+        .verifiedBy(document.getVerifiedBy())
+        .verifiedAt(document.getVerifiedAt())
+        .verificationNotes(document.getVerificationNotes())
+        .uploadedAt(document.getUploadedAt())
+        .build();
   }
 }
