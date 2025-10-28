@@ -55,6 +55,7 @@ public class AuthService {
   // ========================================
 
   /** Register a new user */
+  @Transactional
   public RegisterResponse register(RegisterRequest request) {
     logger.info("Processing registration for username: {}", request.getUsername());
 
