@@ -3,6 +3,7 @@ package com.kelompoksatu.griya.service;
 import com.kelompoksatu.griya.dto.*;
 import com.kelompoksatu.griya.entity.*;
 import com.kelompoksatu.griya.repository.*;
+import com.kelompoksatu.griya.util.IDCloudHostS3Util;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -13,12 +14,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import lombok.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +38,7 @@ public class KprApplicationService {
   private final ApprovalWorkflowRepository approvalWorkflowRepository;
   private final ApplicationDocumentRepository applicationDocumentRepository;
   private final FileStorageService fileStorageService;
+  private final IDCloudHostS3Util idCloudHostS3Util;
 
   Logger logger = LoggerFactory.getLogger(KprApplicationService.class);
 
@@ -129,11 +133,16 @@ public class KprApplicationService {
     }
   }
 
-  public List<KprHistoryListResponse> getApprovalDeveloper(Integer developerId) {
-    logger.info("Validate developer: {}", developerId);
+  public List<KprHistoryListResponse> getApprovalDeveloper(Integer userID) {
+    logger.info("Validate user: {}", userID);
+    User user =
+        userRepository
+            .findById(userID)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    logger.info("Validate developer: {}", user.getDeveloper().getId());
     Developer developer =
         developerRepository
-            .findById(developerId)
+            .findById(user.getDeveloper().getId())
             .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
     List<KprApplication> applications =
         kprApplicationRepository.findKprApplicationsByDeveloperIDHistory(developer.getId());
@@ -142,6 +151,7 @@ public class KprApplicationService {
         .map(
             application ->
                 new KprHistoryListResponse(
+                    application.getId(),
                     application.getProperty().getTitle(),
                     application.getStatus().toString(),
                     String.format(
@@ -156,24 +166,31 @@ public class KprApplicationService {
         .collect(Collectors.toList());
   }
 
-  public List<KprInProgress> getKprApplicationsOnProgressByDeveloper(Integer developerId) {
-    logger.info("Validate developer: {}", developerId);
-
-    developerRepository
-        .findById(developerId)
-        .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
-
-    logger.info("KPR In Progress search started by {}", developerId);
+  public List<KprInProgress> getKprApplicationsOnProgressByDeveloper(Integer userID) {
+    logger.info("Validate user: {}", userID);
+    User user =
+        userRepository
+            .findById(userID)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    logger.info("Validate developer: {}", user.getDeveloper().getId());
+    Developer developer =
+        developerRepository
+            .findById(user.getDeveloper().getId())
+            .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
+    logger.info("KPR In Progress search started by {}", developer.getId());
 
     List<KprApplication> applications =
-        kprApplicationRepository.findKprApplicationsOnProgressByDeveloper(developerId);
+        kprApplicationRepository.findKprApplicationsOnProgressByDeveloper(userID);
 
-    logger.info("KPR In Progress search completed by {}", developerId);
+    logger.info("KPR In Progress search completed by {}", developer.getId());
     return applications.stream()
         .map(
             application ->
                 new KprInProgress(
                     application.getId(),
+                    application.getUser().getUsername(),
+                    application.getUser().getEmail(),
+                    application.getUser().getPhone(),
                     application.getApplicationNumber(),
                     application.getProperty().getTitle(),
                     application.getProperty().getAddress(),
@@ -416,9 +433,9 @@ public class KprApplicationService {
     BigDecimal propertyValue = formRequest.getSimulationData().getPropertyValue();
     BigDecimal loanAmount = formRequest.getSimulationData().getLoanAmount();
 
-    return loanAmount
-        .divide(propertyValue, 4, RoundingMode.HALF_UP)
-        .multiply(new BigDecimal("100"));
+    // Calculate LTV ratio as decimal (not percentage) to fit database precision (5,4)
+    // Database expects values like 0.8000 (80%) not 80.0000
+    return loanAmount.divide(propertyValue, 4, RoundingMode.HALF_UP);
   }
 
   // ========================================
@@ -512,7 +529,6 @@ public class KprApplicationService {
         .developerName(property.getDeveloper().getCompanyName())
         .purpose(KprApplication.ApplicationPurpose.PRIMARY_RESIDENCE)
         .status(KprApplication.ApplicationStatus.SUBMITTED)
-        .currentApprovalLevel(currentApprovalLevel)
         .submittedAt(LocalDateTime.now())
         .createdAt(LocalDateTime.now())
         .updatedAt(LocalDateTime.now())
@@ -529,6 +545,9 @@ public class KprApplicationService {
       String applicationNumber,
       Integer currentApprovalLevel) {
 
+    // Calculate LTV ratio
+    BigDecimal ltvRatio = calculateLtvRatio(formRequest);
+
     return KprApplication.builder()
         .applicationNumber(applicationNumber)
         .userId(userId)
@@ -541,12 +560,12 @@ public class KprApplicationService {
         .interestRate(selectedRate.getEffectiveRate())
         .monthlyInstallment(monthlyInstallment)
         .downPayment(formRequest.getSimulationData().getDownPayment())
+        .ltvRatio(ltvRatio)
         .propertyAddress(property.getAddress())
         .propertyCertificateType(convertToCertificateType(property.getCertificateType()))
         .developerName(property.getDeveloper().getCompanyName())
         .purpose(determinePurpose(formRequest.getPersonalData()))
         .status(KprApplication.ApplicationStatus.SUBMITTED)
-        .currentApprovalLevel(currentApprovalLevel)
         .submittedAt(LocalDateTime.now())
         .createdAt(LocalDateTime.now())
         .updatedAt(LocalDateTime.now())
@@ -601,40 +620,66 @@ public class KprApplicationService {
       Integer applicationId, KprApplicationFormRequest formRequest) {
     List<ApplicationDocument> documents = new ArrayList<>();
 
-    // Store each document type
-    if (formRequest.getKtpDocument() != null) {
-      ApplicationDocument doc =
-          createDocumentEntity(
-              applicationId, ApplicationDocument.DocumentType.KTP, formRequest.getKtpDocument());
-      documents.add(applicationDocumentRepository.save(doc));
-    }
+    try {
+      // Store each document type
+      if (formRequest.getKtpDocument() != null && !formRequest.getKtpDocument().isEmpty()) {
+        ApplicationDocument doc =
+            createDocumentEntity(
+                applicationId, ApplicationDocument.DocumentType.KTP, formRequest.getKtpDocument());
+        documents.add(applicationDocumentRepository.save(doc));
+        logger.info("Successfully uploaded KTP document for application {}", applicationId);
+      }
 
-    if (formRequest.getNpwpDocument() != null) {
-      ApplicationDocument doc =
-          createDocumentEntity(
-              applicationId, ApplicationDocument.DocumentType.NPWP, formRequest.getNpwpDocument());
-      documents.add(applicationDocumentRepository.save(doc));
-    }
+      if (formRequest.getNpwpDocument() != null && !formRequest.getNpwpDocument().isEmpty()) {
+        ApplicationDocument doc =
+            createDocumentEntity(
+                applicationId,
+                ApplicationDocument.DocumentType.NPWP,
+                formRequest.getNpwpDocument());
+        documents.add(applicationDocumentRepository.save(doc));
+        logger.info("Successfully uploaded NPWP document for application {}", applicationId);
+      }
 
-    if (formRequest.getSalarySlipDocument() != null) {
-      ApplicationDocument doc =
-          createDocumentEntity(
-              applicationId,
-              ApplicationDocument.DocumentType.SLIP_GAJI,
-              formRequest.getSalarySlipDocument());
-      documents.add(applicationDocumentRepository.save(doc));
-    }
+      if (formRequest.getSalarySlipDocument() != null
+          && !formRequest.getSalarySlipDocument().isEmpty()) {
+        ApplicationDocument doc =
+            createDocumentEntity(
+                applicationId,
+                ApplicationDocument.DocumentType.SLIP_GAJI,
+                formRequest.getSalarySlipDocument());
+        documents.add(applicationDocumentRepository.save(doc));
+        logger.info("Successfully uploaded salary slip document for application {}", applicationId);
+      }
 
-    if (formRequest.getOtherDocument() != null) {
-      ApplicationDocument doc =
-          createDocumentEntity(
-              applicationId,
-              ApplicationDocument.DocumentType.OTHER,
-              formRequest.getOtherDocument());
-      documents.add(applicationDocumentRepository.save(doc));
-    }
+      if (formRequest.getOtherDocument() != null && !formRequest.getOtherDocument().isEmpty()) {
+        ApplicationDocument doc =
+            createDocumentEntity(
+                applicationId,
+                ApplicationDocument.DocumentType.OTHER,
+                formRequest.getOtherDocument());
+        documents.add(applicationDocumentRepository.save(doc));
+        logger.info("Successfully uploaded other document for application {}", applicationId);
+      }
 
-    return documents;
+      logger.info(
+          "Successfully stored {} documents for application {}", documents.size(), applicationId);
+      return documents;
+    } catch (Exception e) {
+      logger.error(
+          "Error storing documents for application {}: {}", applicationId, e.getMessage(), e);
+      // Clean up any successfully uploaded documents if there's a failure
+      documents.forEach(
+          doc -> {
+            try {
+              // Optionally delete from S3 if needed
+              applicationDocumentRepository.delete(doc);
+            } catch (Exception cleanupException) {
+              logger.error(
+                  "Error cleaning up document {}: {}", doc.getId(), cleanupException.getMessage());
+            }
+          });
+      throw new RuntimeException("Failed to store application documents", e);
+    }
   }
 
   // ========================================
@@ -761,7 +806,14 @@ public class KprApplicationService {
 
   /** Assign approval workflow to staff members */
   @Transactional
-  public AssignWorkflowResponse assignApprovalWorkflow(AssignWorkflowRequest request) {
+  public AssignWorkflowResponse assignApprovalWorkflow(
+      AssignWorkflowRequest request, Integer adminId) {
+    // Validation Phase
+    User admin = validateUser(adminId);
+    if (!admin.getRole().getName().equalsIgnoreCase("ADMIN")) {
+      throw new IllegalArgumentException("Only admin users can assign approval workflows");
+    }
+
     logger.info(
         "Assigning approval workflow for application: {} to approval staff one: {}",
         request.getApplicationId(),
@@ -820,6 +872,7 @@ public class KprApplicationService {
         .map(
             application ->
                 new KprHistoryListResponse(
+                    application.getId(),
                     application.getProperty().getTitle(),
                     application.getStatus().toString(),
                     String.format(
@@ -832,33 +885,6 @@ public class KprApplicationService {
                     application.getCreatedAt().toString(),
                     ""))
         .collect(Collectors.toList());
-  }
-
-  /** Get application detail */
-  @Transactional(readOnly = true)
-  public KprApplicationDetailResponse getApplicationDetail(Integer applicationId, Integer userId) {
-    // Validation Phase
-    validateUser(userId);
-    KprApplication application = validateApplicationExists(applicationId);
-
-    // Authorization check - user can only view their own applications
-    if (!application.getUserId().equals(userId)) {
-      throw new IllegalArgumentException("You are not authorized to view this application");
-    }
-
-    // Response Building Phase
-    return KprApplicationDetailResponse.builder()
-        .applicationId(application.getId())
-        .applicationNumber(application.getApplicationNumber())
-        .status(application.getStatus())
-        .propertyAddress(application.getPropertyAddress())
-        .loanAmount(application.getLoanAmount())
-        .monthlyInstallment(application.getMonthlyInstallment())
-        .interestRate(application.getInterestRate())
-        .loanTermYears(application.getLoanTermYears())
-        .downPayment(application.getDownPayment())
-        .submittedAt(application.getSubmittedAt())
-        .build();
   }
 
   // ========================================
@@ -896,17 +922,452 @@ public class KprApplicationService {
   }
 
   private ApplicationDocument createDocumentEntity(
-      Integer applicationId, ApplicationDocument.DocumentType documentType, Object fileData) {
-    // This is a placeholder - actual implementation would handle file storage
-    return ApplicationDocument.builder()
-        .applicationId(applicationId)
-        .documentType(documentType)
-        .documentName(documentType.name() + "_document")
-        .filePath("/documents/" + applicationId + "/" + documentType.name())
-        .fileSize(1024) // placeholder
-        .mimeType("application/pdf") // placeholder
-        .isVerified(false)
-        .uploadedAt(LocalDateTime.now())
+      Integer applicationId, ApplicationDocument.DocumentType documentType, MultipartFile file) {
+    try {
+      // Validate file
+      if (file == null || file.isEmpty()) {
+        throw new IllegalArgumentException("File cannot be null or empty");
+      }
+
+      // Generate unique filename
+      String originalFilename = file.getOriginalFilename();
+      String fileExtension = "";
+      if (originalFilename != null && originalFilename.contains(".")) {
+        fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+      }
+
+      String fileName =
+          documentType.name()
+              + "_"
+              + applicationId
+              + "_"
+              + System.currentTimeMillis()
+              + fileExtension;
+
+      // Upload file to IDCloudHost S3
+      String fileUrl = idCloudHostS3Util.uploadKprDocument(file, fileName);
+
+      return ApplicationDocument.builder()
+          .applicationId(applicationId)
+          .documentType(documentType)
+          .documentName(fileName)
+          .originalFilename(originalFilename)
+          .filePath(fileUrl)
+          .fileSize((int) file.getSize())
+          .mimeType(file.getContentType())
+          .isVerified(false)
+          .uploadedAt(LocalDateTime.now())
+          .build();
+    } catch (Exception e) {
+      logger.error(
+          "Error uploading document {} for application {}: {}",
+          documentType,
+          applicationId,
+          e.getMessage(),
+          e);
+      throw new RuntimeException("Failed to upload document: " + documentType.getDescription(), e);
+    }
+  }
+
+  // Show all KPR for superadmin
+  public List<KPRApplicant> getAllKprApplications(Integer userID) {
+    var user =
+        userRepository
+            .findById(userID)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    if (!user.getRole().toString().equalsIgnoreCase("ADMIN")) {
+      throw new IllegalArgumentException("You are not authorized to view this application");
+    }
+
+    var applications = kprApplicationRepository.findAllKprApplications();
+
+    List<KPRApplicant> kprApplicants = new ArrayList<>();
+
+    for (var application : applications) {
+      var kprApplicant =
+          KPRApplicant.builder()
+              .name(application.getUser().getUsername())
+              .email(application.getUser().getEmail())
+              .phone(application.getUser().getPhone())
+              .KprApplicationCode(application.getApplicationNumber())
+              .build();
+
+      kprApplicants.add(kprApplicant);
+    }
+    return kprApplicants;
+  }
+
+  public List<KprHistoryListResponse> getAssignedVerifikatorHistory(Integer userId) {
+    // Validate user role
+    var user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    if (!user.getRole().toString().equalsIgnoreCase("VERIFIKATOR")) {
+      throw new IllegalArgumentException("You are not authorized to view this history");
+    }
+
+    // Get history from repository
+    List<KprHistoryListResponse> history =
+        kprApplicationRepository.findKprApplicationsHistoryByUserID(userId);
+
+    if (history.isEmpty()) {
+      logger.info("No KPR application history found for user ID: {}", userId);
+    } else {
+      logger.info(
+          "Retrieved {} KPR application history records for user ID: {}", history.size(), userId);
+    }
+    return history;
+  }
+
+  // Show list KprApplication on progress by userID from ApprovalWorkflow
+  public List<KprInProgress> getAssignedKprApplicationsOnProgress(Integer userId) {
+    // Validate user role
+    var user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    if (!user.getRole().toString().equalsIgnoreCase("VERIFIKATOR")) {
+      throw new IllegalArgumentException("You are not authorized to view this history");
+    }
+
+    // Get history from repository
+    List<KprInProgress> history =
+        kprApplicationRepository.findKprApplicationsOnProgressByUserID(userId);
+
+    if (history.isEmpty()) {
+      logger.info("No KPR application history found for user ID: {}", userId);
+    } else {
+      logger.info(
+          "Retrieved {} KPR application history records for user ID: {}", history.size(), userId);
+    }
+    return history;
+  }
+
+  /**
+   * Get detailed KPR application information with all related entities
+   *
+   * @param applicationId Application ID
+   * @param currentUserId Current user ID for authorization
+   * @return Comprehensive application details
+   */
+  @Transactional(readOnly = true)
+  public KprApplicationDetailResponse getApplicationDetail(
+      Integer applicationId, Integer currentUserId) {
+    log.info(
+        "Fetching comprehensive application detail for ID: {} by user: {}",
+        applicationId,
+        currentUserId);
+
+    // 1. Fetch application with all relationships eagerly loaded
+    KprApplication application =
+        kprApplicationRepository
+            .findByIdWithAllRelations(applicationId)
+            .orElseThrow(
+                () -> new RuntimeException("Application not found with ID: " + applicationId));
+
+    // 2. Authorization check - user can only view their own applications or admin/staff can view
+    // all
+    User currentUser =
+        userRepository
+            .findById(currentUserId)
+            .orElseThrow(() -> new RuntimeException("Current user not found"));
+
+    boolean isOwner = application.getUserId().equals(currentUserId);
+    boolean isStaff =
+        currentUser.getRole() != null
+            && (currentUser.getRole().getName().contains("ADMIN")
+                || currentUser.getRole().getName().contains("STAFF")
+                || currentUser.getRole().getName().contains("MANAGER"));
+
+    boolean isDeveloper =
+        application.getProperty().getDeveloper().getUser().getId() == currentUserId;
+
+    if (!isOwner && !isStaff && !isDeveloper) {
+      throw new RuntimeException("Unauthorized to view this application");
+    }
+
+    // 3. Fetch user profile for comprehensive user data
+    UserProfile userProfile =
+        userProfileRepository.findByUserId(application.getUserId()).orElse(null);
+
+    // 4. Fetch all approval workflows for this application
+    List<ApprovalWorkflow> approvalWorkflows =
+        approvalWorkflowRepository.findByApplicationIdOrderByCreatedAtAsc(applicationId);
+
+    // 5. Fetch all application documents
+    List<ApplicationDocument> documents =
+        applicationDocumentRepository.findByApplicationIdOrderByUploadedAtDesc(applicationId);
+
+    // 6. Calculate LTV ratio
+    double ltvRatio = 0.0;
+    if (application.getPropertyValue() != null
+        && application.getPropertyValue().compareTo(BigDecimal.ZERO) > 0) {
+      ltvRatio =
+          application
+              .getLoanAmount()
+              .divide(application.getPropertyValue(), 4, RoundingMode.HALF_UP)
+              .multiply(BigDecimal.valueOf(100))
+              .doubleValue();
+    }
+
+    // 7. Build comprehensive response
+    return KprApplicationDetailResponse.builder()
+        // Basic application info
+        .applicationId(application.getId())
+        .applicationNumber(application.getApplicationNumber())
+        .status(application.getStatus())
+
+        // User information with profile
+        .userInfo(buildUserInfo(application.getUser(), userProfile))
+
+        // Property information
+        .propertyInfo(buildPropertyInfo(application.getProperty()))
+
+        // Developer information
+        .developerInfo(
+            buildDeveloperInfo(
+                application.getProperty() != null
+                    ? application.getProperty().getDeveloper()
+                    : null))
+
+        // KPR Rate information
+        .kprRateInfo(buildKprRateInfo(application.getKprRate()))
+
+        // Loan details
+        .propertyType(application.getPropertyType())
+        .propertyValue(application.getPropertyValue())
+        .loanAmount(application.getLoanAmount())
+        .loanTermYears(application.getLoanTermYears())
+        .interestRate(application.getInterestRate())
+        .monthlyInstallment(application.getMonthlyInstallment())
+        .downPayment(application.getDownPayment())
+        .ltvRatio(BigDecimal.valueOf(ltvRatio))
+
+        // Property details
+        .propertyAddress(application.getPropertyAddress())
+        .propertyCertificateType(application.getPropertyCertificateType())
+        .developerName(application.getDeveloperName())
+        .purpose(application.getPurpose())
+
+        // Application status and timestamps
+        .submittedAt(application.getSubmittedAt())
+        .approvedAt(application.getApprovedAt())
+        .rejectedAt(application.getRejectedAt())
+        .rejectionReason(application.getRejectionReason())
+        .notes(application.getNotes())
+        .createdAt(application.getCreatedAt())
+        .updatedAt(application.getUpdatedAt())
+
+        // Approval workflows
+        .approvalWorkflows(buildApprovalWorkflowInfoList(approvalWorkflows))
+
+        // Documents
+        .documents(buildDocumentInfoList(documents))
+        .build();
+  }
+
+  /** Build comprehensive user information including profile data */
+  private KprApplicationDetailResponse.UserInfo buildUserInfo(User user, UserProfile profile) {
+    if (user == null) return null;
+
+    return KprApplicationDetailResponse.UserInfo.builder()
+        .userId(user.getId())
+        .username(user.getUsername())
+        .email(user.getEmail())
+        .phone(user.getPhone())
+        .fullName(profile != null ? profile.getFullName() : null)
+        .nik(profile != null ? profile.getNik() : null)
+        .npwp(profile != null ? profile.getNpwp() : null)
+        .birthPlace(profile != null ? profile.getBirthPlace() : null)
+        .gender(profile != null && profile.getGender() != null ? profile.getGender().name() : null)
+        .maritalStatus(
+            profile != null && profile.getMaritalStatus() != null
+                ? profile.getMaritalStatus().name()
+                : null)
+        .address(profile != null ? profile.getAddress() : null)
+        .city(profile != null ? profile.getCity() : null)
+        .province(profile != null ? profile.getProvince() : null)
+        .postalCode(profile != null ? profile.getPostalCode() : null)
+        .occupation(profile != null ? profile.getOccupation() : null)
+        .companyName(profile != null ? profile.getCompanyName() : null)
+        .monthlyIncome(profile != null ? profile.getMonthlyIncome() : null)
+        .build();
+  }
+
+  /** Build comprehensive property information */
+  private KprApplicationDetailResponse.PropertyInfo buildPropertyInfo(Property property) {
+    if (property == null) return null;
+
+    return KprApplicationDetailResponse.PropertyInfo.builder()
+        .propertyId(property.getId())
+        .propertyCode(property.getPropertyCode())
+        .title(property.getTitle())
+        .description(property.getDescription())
+        .address(property.getAddress())
+        .city(property.getCity())
+        .province(property.getProvince())
+        .postalCode(property.getPostalCode())
+        .district(property.getDistrict())
+        .village(property.getVillage())
+        .landArea(property.getLandArea())
+        .buildingArea(property.getBuildingArea())
+        .bedrooms(property.getBedrooms())
+        .bathrooms(property.getBathrooms())
+        .floors(property.getFloors())
+        .garage(property.getGarage())
+        .yearBuilt(property.getYearBuilt())
+        .price(property.getPrice())
+        .pricePerSqm(property.getPricePerSqm())
+        .certificateType(property.getCertificateType())
+        .certificateNumber(property.getCertificateNumber())
+        .pbbValue(property.getPbbValue())
+        .status(property.getStatus())
+        .minDownPaymentPercent(property.getMinDownPaymentPercent())
+        .maxLoanTermYears(property.getMaxLoanTermYears())
+        .build();
+  }
+
+  /** Build comprehensive developer information */
+  private KprApplicationDetailResponse.DeveloperInfo buildDeveloperInfo(Developer developer) {
+    if (developer == null) return null;
+
+    return KprApplicationDetailResponse.DeveloperInfo.builder()
+        .developerId(developer.getId())
+        .companyName(developer.getCompanyName())
+        .companyCode(developer.getCompanyCode())
+        .businessLicense(developer.getBusinessLicense())
+        .developerLicense(developer.getDeveloperLicense())
+        .contactPerson(developer.getContactPerson())
+        .phone(developer.getPhone())
+        .email(developer.getEmail())
+        .website(developer.getWebsite())
+        .address(developer.getAddress())
+        .city(developer.getCity())
+        .province(developer.getProvince())
+        .postalCode(developer.getPostalCode())
+        .establishedYear(developer.getEstablishedYear())
+        .description(developer.getDescription())
+        .specialization(
+            developer.getSpecialization() != null ? developer.getSpecialization().name() : null)
+        .isPartner(developer.getIsPartner())
+        .partnershipLevel(
+            developer.getPartnershipLevel() != null ? developer.getPartnershipLevel().name() : null)
+        .commissionRate(developer.getCommissionRate())
+        .status(developer.getStatus().name())
+        .verifiedAt(developer.getVerifiedAt())
+        .build();
+  }
+
+  /** Build comprehensive KPR rate information */
+  private KprApplicationDetailResponse.KprRateInfo buildKprRateInfo(KprRate kprRate) {
+    if (kprRate == null) return null;
+
+    return KprApplicationDetailResponse.KprRateInfo.builder()
+        .rateName(kprRate.getRateName())
+        .rateType(kprRate.getRateType().name())
+        .propertyType(kprRate.getPropertyType().name())
+        .customerSegment(kprRate.getCustomerSegment().name())
+        .baseRate(kprRate.getBaseRate())
+        .margin(kprRate.getMargin())
+        .effectiveRate(kprRate.getEffectiveRate())
+        .minLoanAmount(kprRate.getMinLoanAmount())
+        .maxLoanAmount(kprRate.getMaxLoanAmount())
+        .minTermYears(kprRate.getMinTermYears())
+        .maxTermYears(kprRate.getMaxTermYears())
+        .maxLtvRatio(kprRate.getMaxLtvRatio())
+        .minIncome(kprRate.getMinIncome())
+        .maxAge(kprRate.getMaxAge())
+        .minDownPaymentPercent(kprRate.getMinDownPaymentPercent())
+        .adminFee(kprRate.getAdminFee())
+        .adminFeePercent(kprRate.getAdminFeePercent())
+        .appraisalFee(kprRate.getAppraisalFee())
+        .insuranceRate(kprRate.getInsuranceRate())
+        .notaryFeePercent(kprRate.getNotaryFeePercent())
+        .isPromotional(kprRate.getIsPromotional())
+        .promoDescription(kprRate.getPromoDescription())
+        .build();
+  }
+
+  /** Build comprehensive approval workflow information list */
+  private List<KprApplicationDetailResponse.ApprovalWorkflowInfo> buildApprovalWorkflowInfoList(
+      List<ApprovalWorkflow> workflows) {
+    if (workflows == null || workflows.isEmpty()) {
+      return new ArrayList<>();
+    }
+
+    return workflows.stream().map(this::buildApprovalWorkflowInfo).collect(Collectors.toList());
+  }
+
+  /** Build comprehensive approval workflow information */
+  private KprApplicationDetailResponse.ApprovalWorkflowInfo buildApprovalWorkflowInfo(
+      ApprovalWorkflow workflow) {
+    if (workflow == null) return null;
+
+    // Fetch assigned user details
+    User assignedUser = null;
+    if (workflow.getAssignedTo() != null) {
+      assignedUser = userRepository.findById(workflow.getAssignedTo()).orElse(null);
+    }
+
+    // Fetch escalated user details
+    User escalatedUser = null;
+    if (workflow.getEscalatedTo() != null) {
+      escalatedUser = userRepository.findById(workflow.getEscalatedTo()).orElse(null);
+    }
+
+    return KprApplicationDetailResponse.ApprovalWorkflowInfo.builder()
+        .workflowId(workflow.getId())
+        .applicationId(workflow.getApplicationId())
+        .stage(workflow.getStage())
+        .status(workflow.getStatus())
+        .priority(workflow.getPriority())
+        .assignedTo(workflow.getAssignedTo())
+        .escalatedTo(workflow.getEscalatedTo())
+        .dueDate(workflow.getDueDate())
+        .startedAt(workflow.getStartedAt())
+        .completedAt(workflow.getCompletedAt())
+        .approvalNotes(workflow.getApprovalNotes())
+        .rejectionReason(workflow.getRejectionReason())
+        .approvalNotes(workflow.getApprovalNotes())
+        .createdAt(workflow.getCreatedAt())
+        .updatedAt(workflow.getUpdatedAt())
+        .build();
+  }
+
+  /** Build comprehensive document information list */
+  private List<KprApplicationDetailResponse.DocumentInfo> buildDocumentInfoList(
+      List<ApplicationDocument> documents) {
+    if (documents == null || documents.isEmpty()) {
+      return new ArrayList<>();
+    }
+
+    return documents.stream().map(this::buildDocumentInfo).collect(Collectors.toList());
+  }
+
+  /** Build comprehensive document information */
+  private KprApplicationDetailResponse.DocumentInfo buildDocumentInfo(
+      ApplicationDocument document) {
+    if (document == null) return null;
+
+    // Fetch verifier details
+    User verifier = null;
+    if (document.getVerifiedBy() != null) {
+      verifier = userRepository.findById(document.getVerifiedBy()).orElse(null);
+    }
+
+    return KprApplicationDetailResponse.DocumentInfo.builder()
+        .documentId(document.getId())
+        .documentType(document.getDocumentType())
+        .documentName(document.getDocumentName())
+        .filePath(document.getFilePath())
+        .fileSize(document.getFileSize())
+        .mimeType(document.getMimeType())
+        .isVerified(document.getIsVerified())
+        .verifiedBy(document.getVerifiedBy())
+        .verifiedAt(document.getVerifiedAt())
+        .verificationNotes(document.getVerificationNotes())
+        .uploadedAt(document.getUploadedAt())
         .build();
   }
 }

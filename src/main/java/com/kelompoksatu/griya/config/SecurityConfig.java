@@ -114,6 +114,7 @@ public class SecurityConfig {
                         "/api/v1/auth/validate",
                         "/api/v1/auth/verify",
                         "/api/v1/properties/**",
+                        "/api/v1/features/**",
                         "/actuator/health",
                         "/actuator/health/liveness",
                         "/actuator/health/readiness",
@@ -134,6 +135,10 @@ public class SecurityConfig {
 
                     // User endpoints (require authentication)
                     .requestMatchers("/api/v1/user/**")
+                    .authenticated()
+
+                    // KPR Application endpoints (require verifikator role)
+                    .requestMatchers("/api/v1/kpr-applications/**")
                     .authenticated()
 
                     // All other endpoints require authentication

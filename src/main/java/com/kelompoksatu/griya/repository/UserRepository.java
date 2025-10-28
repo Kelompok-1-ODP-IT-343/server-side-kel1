@@ -1,7 +1,9 @@
 package com.kelompoksatu.griya.repository;
 
+import com.kelompoksatu.griya.dto.AdminSimpleResponse;
 import com.kelompoksatu.griya.entity.User;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -18,9 +20,6 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
   /** Find user by email */
   Optional<User> findByEmail(String email);
-
-  /** Find user by phone */
-  Optional<User> findByPhone(String phone);
 
   /** Find user by username or email */
   @Query("SELECT u FROM User u WHERE u.username = :identifier OR u.email = :identifier")
@@ -58,18 +57,14 @@ public interface UserRepository extends JpaRepository<User, Integer> {
       "UPDATE User u SET u.lockedUntil = null, u.failedLoginAttempts = 0, u.lastLoginAt =current timestamp WHERE u.id = :userId")
   void unlockResetAndSetLastLogin(@Param("userId") Integer userId);
 
-  /** Verify email */
-  @Modifying
-  @Query("UPDATE User u SET u.emailVerifiedAt = :verificationTime WHERE u.id = :userId")
-  void verifyEmail(
-      @Param("userId") Integer userId, @Param("verificationTime") LocalDateTime verificationTime);
-
   /** Verify phone */
   @Modifying
   @Query("UPDATE User u SET u.phoneVerifiedAt = :verificationTime WHERE u.id = :userId")
   void verifyPhone(
       @Param("userId") Integer userId, @Param("verificationTime") LocalDateTime verificationTime);
 
-  @Query("SELECT u FROM User u JOIN FETCH u.role WHERE u.username = :username")
-  Optional<User> findByUsernameWithRole(@Param("username") String username);
+  /** Get All Admin Simple */
+  @Query(
+      "SELECT new com.kelompoksatu.griya.dto.AdminSimpleResponse(u.id, up.fullName) FROM User u join UserProfile up on u.id=up.userId where u.role.id = 1")
+  List<AdminSimpleResponse> findAllAdminSimple();
 }

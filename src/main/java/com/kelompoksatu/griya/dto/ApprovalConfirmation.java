@@ -16,4 +16,5 @@ import lombok.NoArgsConstructor;
 public class ApprovalConfirmation {
   private Boolean isApproved;
   private String reason;
+  private Integer applicationId;
 }

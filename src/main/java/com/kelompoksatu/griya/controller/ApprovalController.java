@@ -40,4 +40,22 @@ public class ApprovalController {
       return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
     }
   }
+
+  @PostMapping("/verifikator")
+  public ResponseEntity<ApiResponse<Boolean>> approveOrRejectWorkflowVerifikator(
+      @Valid @RequestBody ApprovalConfirmation request,
+      @RequestHeader("Authorization") String authHeader) {
+    try {
+      log.info("Processing workflow approval/rejection for verifikator");
+      String token = authHeader.replace("Bearer ", "");
+      Integer userId = jwtUtil.extractUserId(token);
+      approvalWorkflowService.approveOrRejectWorkflowVerifikator(request, userId);
+      String action = request.getIsApproved() ? "APPROVED" : "REJECTED";
+      String message = "Workflow berhasil " + action;
+      ApiResponse<Boolean> response = ApiResponse.success(message);
+      return ResponseEntity.ok(response);
+    } catch (Exception e) {
+      return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+    }
+  }
 }

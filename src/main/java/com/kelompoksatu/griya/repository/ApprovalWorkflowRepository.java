@@ -4,12 +4,14 @@ import com.kelompoksatu.griya.entity.ApprovalWorkflow;
 import com.kelompoksatu.griya.entity.ApprovalWorkflow.PriorityLevel;
 import com.kelompoksatu.griya.entity.ApprovalWorkflow.WorkflowStage;
 import com.kelompoksatu.griya.entity.ApprovalWorkflow.WorkflowStatus;
+import com.kelompoksatu.griya.entity.KprApplication.ApplicationStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -175,18 +177,37 @@ public interface ApprovalWorkflowRepository extends JpaRepository<ApprovalWorkfl
       @Param("applicationId") Integer applicationId);
 
   /** Approve workflow by user ID and application ID */
+  @Modifying
   @Query(
-      "UPDATE ApprovalWorkflow aw SET aw.status = 'APPROVED', aw.completedAt = :completedAt, aw.approvalNotes = :approvalNotes WHERE aw.assignedTo = :userId AND aw.applicationId = :applicationId AND aw.status = 'PENDING'")
-  Optional<Boolean> approveByUserIDandApplicationID(
-      @Param("userId") Integer userId,
+      "UPDATE ApprovalWorkflow aw SET aw.status = 'APPROVED', aw.completedAt = :completedAt, aw.approvalNotes = :approvalNotes, aw.updatedAt = :completedAt "
+          + "WHERE aw.assignedTo = :assignedTo AND aw.applicationId = :applicationId")
+  int approveByUserIDandApplicationID(
+      @Param("assignedTo") Integer assignedTo,
       @Param("applicationId") Integer applicationId,
       @Param("completedAt") LocalDateTime completedAt,
       @Param("approvalNotes") String approvalNotes);
 
+  @Modifying
+  @Query(
+      "UPDATE KprApplication k SET k.status = 'PROPERTY_APPRAISAL', k.updatedAt = :updatedAt "
+          + "WHERE k.id = :applicationId")
+  int updateKprApplicationStatusToPropertyAppraisal(
+      @Param("applicationId") Integer applicationId, @Param("updatedAt") LocalDateTime updatedAt);
+
+  @Modifying
+  @Query(
+      "UPDATE KprApplication k SET k.status = :status, k.updatedAt = :updatedAt "
+          + "WHERE k.id = :applicationId")
+  int updateStatusKPRApplication(
+      @Param("applicationId") Integer applicationId,
+      @Param("status") ApplicationStatus status,
+      @Param("updatedAt") LocalDateTime updatedAt);
+
   // Reject workflow by user ID and application ID
+  @Modifying
   @Query(
       "UPDATE ApprovalWorkflow aw SET aw.status = 'REJECTED', aw.completedAt = :completedAt, aw.rejectionReason = :rejectionReason WHERE aw.assignedTo = :userId AND aw.applicationId = :applicationId AND aw.status = 'PENDING'")
-  Optional<Boolean> rejectByUserIDandApplicationID(
+  int rejectByUserIDandApplicationID(
       @Param("userId") Integer userId,
       @Param("applicationId") Integer applicationId,
       @Param("completedAt") LocalDateTime completedAt,

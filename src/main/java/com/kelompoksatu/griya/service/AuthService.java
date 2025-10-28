@@ -65,7 +65,7 @@ public class AuthService {
     User user = result.getFirst();
     Role role = result.getSecond();
 
-    UserResponse userResponse = userService.convertToUserResponse(user, role);
+    UserResponse userResponse = userService.convertToUserResponse(user, role, null);
 
     logger.info("User registered successfully: {}", user.getUsername());
     return new RegisterResponse(userResponse);
@@ -81,7 +81,7 @@ public class AuthService {
 
       User savedUser = createDeveloperUser(request, developerRole);
       DeveloperResponse developerResponse = createDeveloperProfile(request, savedUser);
-      UserResponse userResponse = userService.convertToUserResponse(savedUser, developerRole);
+      UserResponse userResponse = userService.convertToUserResponse(savedUser, null, null);
 
       logger.info("Developer registered successfully: {}", savedUser.getUsername());
       return new RegisterDeveloperResponse(userResponse, developerResponse);

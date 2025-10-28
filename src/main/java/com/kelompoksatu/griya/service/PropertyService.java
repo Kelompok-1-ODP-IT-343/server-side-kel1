@@ -8,6 +8,8 @@ import com.kelompoksatu.griya.repository.DeveloperRepository;
 import com.kelompoksatu.griya.repository.PropertyRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -489,13 +491,20 @@ public class PropertyService {
   // ========================================
 
   private List<Map<String, Object>> processFilterResults(List<Map<String, Object>> rows) {
-    for (Map<String, Object> row : rows) {
-      Object fn = row.get("file_name");
-      if (fn != null) row.put("fileName", fn);
+    List<Map<String, Object>> processedRows = new ArrayList<>();
 
-      Object fp = row.get("file_path");
-      if (fp != null) row.put("filePath", fp);
+    for (Map<String, Object> row : rows) {
+      // Create a new mutable HashMap from the immutable TupleBackedMap
+      Map<String, Object> mutableRow = new HashMap<>(row);
+
+      Object fn = mutableRow.get("file_name");
+      if (fn != null) mutableRow.put("fileName", fn);
+
+      Object fp = mutableRow.get("file_path");
+      if (fp != null) mutableRow.put("filePath", fp);
+
+      processedRows.add(mutableRow);
     }
-    return rows;
+    return processedRows;
   }
 }
