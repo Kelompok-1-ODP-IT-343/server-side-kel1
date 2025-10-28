@@ -9,6 +9,7 @@ import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
 import com.kelompoksatu.griya.service.AdminService;
 import com.kelompoksatu.griya.service.DeveloperService;
 import com.kelompoksatu.griya.service.PropertyService;
+import com.kelompoksatu.griya.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -49,6 +50,7 @@ public class AdminController {
   private final AdminService adminService;
   private final PropertyFavoriteRepository propertyFavoriteRepository;
   private final PropertyService propertyService;
+  private final UserService userService;
 
   // ==================== DEVELOPER MANAGEMENT ====================
 
@@ -499,5 +501,28 @@ public class AdminController {
     var apiResponse = new ApiResponse<>(true, "", admin);
 
     return ResponseEntity.ok(apiResponse);
+  }
+
+  @GetMapping("/users")
+  public ResponseEntity<ApiResponse<PaginatedResponse<UserResponse>>> getAllUsers(
+      @Parameter(description = "Page number (0-based)", example = "0")
+          @RequestParam(defaultValue = "0")
+          int page,
+      @Parameter(description = "Number of items per page", example = "10")
+          @RequestParam(defaultValue = "10")
+          int size,
+      @Parameter(description = "Sort field name", example = "fullName")
+          @RequestParam(defaultValue = "createdAt")
+          String sortBy,
+      @Parameter(description = "Sort direction", example = "desc")
+          @RequestParam(defaultValue = "desc")
+          String sortDirection) {
+    PaginationRequest paginationRequest = new PaginationRequest(page, size, sortBy, sortDirection);
+    PaginatedResponse<UserResponse> users = userService.getAllUsers(paginationRequest);
+
+    ApiResponse<PaginatedResponse<UserResponse>> response =
+        ApiResponse.success(users, "All users retrieved successfully", "/api/v1/admin/users");
+
+    return ResponseEntity.ok(response);
   }
 }

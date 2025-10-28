@@ -6,9 +6,13 @@ import com.kelompoksatu.griya.entity.UserStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 /** DTO for user response (without sensitive information) */
 public class UserResponse {
 
