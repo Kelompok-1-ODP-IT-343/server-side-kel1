@@ -223,10 +223,11 @@ GROUP BY p.id
       nativeQuery = true)
   Map<String, Object> findPropertyDetailsById(@Param("id") Integer id);
 
-    @Query(
-            value = """
+  @Query(
+      value =
+          """
     SELECT
-      p.id, 
+      p.id,
       p.property_type,
       p.title,
       p.description,
@@ -272,14 +273,10 @@ GROUP BY p.id
       AND (:propertyType IS NULL OR LOWER(p.property_type::text) = LOWER(:propertyType))
     ORDER BY p.id
     """,
-            nativeQuery = true)
-    List<Map<String, Object>> findPropertiesSimpleByFilters(
-            @Param("city") String city,
-            @Param("minPrice") BigDecimal minPrice,
-            @Param("maxPrice") BigDecimal maxPrice,
-            @Param("propertyType") String propertyType);
-
-
+      nativeQuery = true)
+  List<Map<String, Object>> findPropertiesSimpleByFilters(
+      @Param("city") String city,
+      @Param("minPrice") BigDecimal minPrice,
+      @Param("maxPrice") BigDecimal maxPrice,
+      @Param("propertyType") String propertyType);
 }
-
-
