@@ -178,6 +178,12 @@ public class PropertyService {
   // QUERY METHODS - BY SPECIFICATIONS
   // ========================================
 
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getPropertiesSimpleByFilters(
+            String city, BigDecimal minPrice, BigDecimal maxPrice, String propertyType) {
+        return propertyRepository.findPropertiesSimpleByFilters(city, minPrice, maxPrice, propertyType);
+    }
+
   /** Get properties by bedrooms */
   @Transactional(readOnly = true)
   public List<PropertyResponse> getPropertiesByBedrooms(Integer bedrooms) {
