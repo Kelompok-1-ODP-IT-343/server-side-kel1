@@ -60,44 +60,73 @@ public class EmailService {
     String template =
         """
         <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="UTF-8">
-            <title>Email Verification</title>
-          </head>
-          <body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px;">
-            <table width="100%%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
-              <tr>
-                <td style="background-color: #FF6040; padding: 16px; text-align: center;">
-                  <h1 style="color: #ffffff; margin: 0;">Verify Your Email</h1>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 24px;">
-                  <p style="font-size: 16px; color: #333;">Hello <b>%s</b>,</p>
-                  <p style="font-size: 15px; color: #555;">
-                    Thank you for registering with us! To complete your sign-up and activate your account,
-                    please confirm your email address by clicking the button below:
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Email Verification</title>
+          <style>
+              body {
+                  font-family: Arial, sans-serif;
+                  background-color: #f4f4f4;
+                  margin: 0;
+                  padding: 0;
+              }
+              .email-container {
+                  max-width: 600px;
+                  margin: 0 auto;
+                  background-color: #ffffff;
+                  padding: 20px;
+                  border-radius: 10px;
+                  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+              }
+              .email-header {
+                  text-align: center;
+                  margin-bottom: 20px;
+              }
+              .email-header h1 {
+                  color: #333333;
+              }
+              .email-content {
+                  margin-bottom: 30px;
+                  color: #555555;
+                  line-height: 1.6;
+              }
+              .verify-button {
+                  display: inline-block;
+                  padding: 10px 20px;
+                  font-size: 16px;
+                  color: #ffffff;
+                  background-color: #28a745;
+                  text-decoration: none;
+                  border-radius: 5px;
+              }
+              .email-footer {
+                  text-align: center;
+                  margin-top: 20px;
+                  color: #999999;
+                  font-size: 12px;
+              }
+          </style>
+        </head>
+        <body>
+          <div class="email-container">
+              <div class="email-header">
+                  <h1>Email Verification</h1>
+              </div>
+              <div class="email-content">
+                  <p>Hi, %s,</p>
+                  <p>Thank you for registering on our website. To complete your registration, please verify your email address by clicking the button below:</p>
+                  <p style="text-align: center;">
+                      <a href="%s" class="verify-button">Verify Email</a>
                   </p>
-                  <p style="text-align: center; margin: 32px 0;">
-                    <a href="%s"
-                       style="background-color: #FF6040; color: #fff; text-decoration: none;\s
-                              padding: 12px 24px; border-radius: 6px; font-size: 16px; display: inline-block;">
-                      Verify Email
-                    </a>
-                  </p>
-                  <p style="font-size: 13px; color: #999; margin-top: 24px;">
-                    If you did not sign up for this account, you can safely ignore this email.
-                  </p>
-                </td>
-              </tr>
-              <tr>
-                <td style="background-color: #f1f1f1; padding: 12px; text-align: center; font-size: 12px; color: #666;">
-                  &copy; %d Satu Atap. All rights reserved.
-                </td>
-              </tr>
-            </table>
-          </body>
+                  <p>If you did not register on our website, please ignore this email.</p>
+              </div>
+              <div class="email-footer">
+                  <p>© %d Satu Atap. All rights reserved.</p>
+              </div>
+          </div>
+        </body>
         </html>
         """;
 
@@ -157,6 +186,7 @@ public class EmailService {
   private void sendHtmlEmail(String to, String subject, String htmlBody) {
     MimeMessage message = mailSender.createMimeMessage();
     MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+    helper.setFrom("adityarizky.ramadhan@clips.id"); // Set the sender email
     helper.setTo(to);
     helper.setSubject(subject);
     helper.setText(htmlBody, true);

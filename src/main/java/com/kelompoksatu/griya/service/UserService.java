@@ -48,6 +48,7 @@ public class UserService {
   // ========================================
 
   /** Register a new user with comprehensive profile information */
+  @Transactional
   public Pair<User, Role> registerUser(RegisterRequest request) {
     logger.info("Attempting to register user: {}", request.getUsername());
 
@@ -255,7 +256,9 @@ public class UserService {
 
     // Check if user is a developer
     boolean isDeveloper = user.getDeveloper() != null;
-    response.setDeveloper(isDeveloper); // User profile information (only for non-developers)
+    response.setDeveloper(isDeveloper);
+
+    // User profile information (only for non-developers)
     if (!isDeveloper && userProfile != null) {
       response.setFullName(userProfile.getFullName());
       response.setNik(userProfile.getNik());
@@ -272,12 +275,15 @@ public class UserService {
       response.setCompanyName(userProfile.getCompanyName());
       response.setMonthlyIncome(userProfile.getMonthlyIncome());
       response.setWorkExperience(userProfile.getWorkExperience());
-    } else {
+    } else if (isDeveloper) {
+      // Developer information (only if developer exists)
       Developer developer = user.getDeveloper();
-      response.setFullName(developer.getCompanyName());
-      response.setAddress(developer.getAddress());
-      response.setCompanyName(developer.getCompanyName());
-      response.setOccupation("-");
+      if (developer != null) {
+        response.setFullName(developer.getCompanyName());
+        response.setAddress(developer.getAddress());
+        response.setCompanyName(developer.getCompanyName());
+        response.setOccupation("-");
+      }
     }
 
     return response;
