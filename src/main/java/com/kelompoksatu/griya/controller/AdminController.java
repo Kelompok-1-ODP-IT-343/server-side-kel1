@@ -9,6 +9,7 @@ import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
 import com.kelompoksatu.griya.service.AdminService;
 import com.kelompoksatu.griya.service.DeveloperService;
 import com.kelompoksatu.griya.service.PropertyService;
+import com.kelompoksatu.griya.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -17,6 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -33,8 +35,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import java.math.BigDecimal;
-
 
 /** REST Controller for Admin operations */
 @Tag(name = "Admin Management", description = "Administrative operations for system management")
@@ -50,9 +50,9 @@ public class AdminController {
   private final AdminService adminService;
   private final PropertyFavoriteRepository propertyFavoriteRepository;
   private final PropertyService propertyService;
+  private final UserService userService;
 
-
-    // ==================== DEVELOPER MANAGEMENT ====================
+  // ==================== DEVELOPER MANAGEMENT ====================
 
   /** Update developer information (admin only) */
   @Operation(
@@ -85,24 +85,25 @@ public class AdminController {
       })
   @GetMapping("/properties")
   public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAdminProperties(
-          @RequestParam(required = false) String city,
-          @RequestParam(required = false) BigDecimal minPrice,
-          @RequestParam(required = false) BigDecimal maxPrice,
-          @RequestParam(required = false) String propertyType) {
+      @RequestParam(required = false) String city,
+      @RequestParam(required = false) BigDecimal minPrice,
+      @RequestParam(required = false) BigDecimal maxPrice,
+      @RequestParam(required = false) String propertyType) {
 
-      try {
-          List<Map<String, Object>> properties =
-                  propertyService.getPropertiesSimpleByFilters(city, minPrice, maxPrice, propertyType);
+    try {
+      List<Map<String, Object>> properties =
+          propertyService.getPropertiesSimpleByFilters(city, minPrice, maxPrice, propertyType);
 
-          return ResponseEntity.ok(
-                  ApiResponse.success("Properties retrieved successfully", properties));
+      return ResponseEntity.ok(
+          ApiResponse.success("Properties retrieved successfully", properties));
 
-      } catch (Exception e) {
-          log.error("❌ Gagal mengambil properties: ", e);
-          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                  .body(ApiResponse.error("Gagal mengambil properties: " + e.getMessage()));
-      }
+    } catch (Exception e) {
+      log.error("❌ Gagal mengambil properties: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal mengambil properties: " + e.getMessage()));
+    }
   }
+
   @GetMapping("/users/{userId}/favorites")
   public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUserFavorites(
       @PathVariable Integer userId) {
@@ -500,5 +501,28 @@ public class AdminController {
     var apiResponse = new ApiResponse<>(true, "", admin);
 
     return ResponseEntity.ok(apiResponse);
+  }
+
+  @GetMapping("/users")
+  public ResponseEntity<ApiResponse<PaginatedResponse<UserResponse>>> getAllUsers(
+      @Parameter(description = "Page number (0-based)", example = "0")
+          @RequestParam(defaultValue = "0")
+          int page,
+      @Parameter(description = "Number of items per page", example = "10")
+          @RequestParam(defaultValue = "10")
+          int size,
+      @Parameter(description = "Sort field name", example = "fullName")
+          @RequestParam(defaultValue = "createdAt")
+          String sortBy,
+      @Parameter(description = "Sort direction", example = "desc")
+          @RequestParam(defaultValue = "desc")
+          String sortDirection) {
+    PaginationRequest paginationRequest = new PaginationRequest(page, size, sortBy, sortDirection);
+    PaginatedResponse<UserResponse> users = userService.getAllUsers(paginationRequest);
+
+    ApiResponse<PaginatedResponse<UserResponse>> response =
+        ApiResponse.success(users, "All users retrieved successfully", "/api/v1/admin/users");
+
+    return ResponseEntity.ok(response);
   }
 }
