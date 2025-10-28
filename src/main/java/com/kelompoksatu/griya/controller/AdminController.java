@@ -8,6 +8,7 @@ import com.kelompoksatu.griya.repository.ImageAdminRepository;
 import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
 import com.kelompoksatu.griya.service.AdminService;
 import com.kelompoksatu.griya.service.DeveloperService;
+import com.kelompoksatu.griya.service.PropertyService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -32,6 +33,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import java.math.BigDecimal;
+
 
 /** REST Controller for Admin operations */
 @Tag(name = "Admin Management", description = "Administrative operations for system management")
@@ -46,8 +49,10 @@ public class AdminController {
   private final ImageAdminRepository imageAdminRepository;
   private final AdminService adminService;
   private final PropertyFavoriteRepository propertyFavoriteRepository;
+  private final PropertyService propertyService;
 
-  // ==================== DEVELOPER MANAGEMENT ====================
+
+    // ==================== DEVELOPER MANAGEMENT ====================
 
   /** Update developer information (admin only) */
   @Operation(
@@ -78,6 +83,26 @@ public class AdminController {
                     mediaType = "application/json",
                     schema = @Schema(implementation = ApiResponse.class)))
       })
+  @GetMapping("/properties")
+  public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAdminProperties(
+          @RequestParam(required = false) String city,
+          @RequestParam(required = false) BigDecimal minPrice,
+          @RequestParam(required = false) BigDecimal maxPrice,
+          @RequestParam(required = false) String propertyType) {
+
+      try {
+          List<Map<String, Object>> properties =
+                  propertyService.getPropertiesSimpleByFilters(city, minPrice, maxPrice, propertyType);
+
+          return ResponseEntity.ok(
+                  ApiResponse.success("Properties retrieved successfully", properties));
+
+      } catch (Exception e) {
+          log.error("❌ Gagal mengambil properties: ", e);
+          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                  .body(ApiResponse.error("Gagal mengambil properties: " + e.getMessage()));
+      }
+  }
   @GetMapping("/users/{userId}/favorites")
   public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUserFavorites(
       @PathVariable Integer userId) {
