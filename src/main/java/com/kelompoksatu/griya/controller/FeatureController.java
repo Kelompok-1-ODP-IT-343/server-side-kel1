@@ -125,6 +125,8 @@ public class FeatureController {
           "maxRequestSize",
           environment.getProperty("spring.servlet.multipart.max-request-size", "50MB"));
 
+      appConfig.put("lastUpdate", "Reset password for developer");
+
       features.put("applicationConfiguration", appConfig);
 
       // Available Endpoints

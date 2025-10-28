@@ -3,6 +3,7 @@ package com.kelompoksatu.griya.service;
 import com.kelompoksatu.griya.dto.RegisterRequest;
 import com.kelompoksatu.griya.dto.UpdateUserRequest;
 import com.kelompoksatu.griya.dto.UserResponse;
+import com.kelompoksatu.griya.entity.Developer;
 import com.kelompoksatu.griya.entity.Role;
 import com.kelompoksatu.griya.entity.User;
 import com.kelompoksatu.griya.entity.UserProfile;
@@ -47,6 +48,7 @@ public class UserService {
   // ========================================
 
   /** Register a new user with comprehensive profile information */
+  @Transactional
   public Pair<User, Role> registerUser(RegisterRequest request) {
     logger.info("Attempting to register user: {}", request.getUsername());
 
@@ -87,7 +89,16 @@ public class UserService {
   /** Get user profile by user ID */
   public UserResponse getUserProfile(Integer userId) {
     User user = validateAndGetUser(userId);
-    return convertToUserResponse(user, user.getRole());
+
+    // Check if user is a developer - developers don't have UserProfile
+    if (user.getDeveloper() != null) {
+      // For developers, return user info without profile data
+      return convertToUserResponse(user, user.getRole(), null);
+    }
+
+    // For regular users, try to get their profile
+    UserProfile userProfile = userProfileRepository.findByUserId(userId).orElse(null);
+    return convertToUserResponse(user, user.getRole(), userProfile);
   }
 
   // ========================================
@@ -222,20 +233,58 @@ public class UserService {
   // ========================================
 
   /** Convert User entity to UserResponse DTO */
-  public UserResponse convertToUserResponse(User user, Role role) {
+  public UserResponse convertToUserResponse(User user, Role role, UserProfile userProfile) {
     UserResponse response = new UserResponse();
+
+    // Basic user information
     response.setId(user.getId());
     response.setUsername(user.getUsername());
     response.setEmail(user.getEmail());
     response.setPhone(user.getPhone());
-    response.setRoleId(role.getId());
-    response.setRoleName(role.getName());
     response.setStatus(user.getStatus());
     response.setEmailVerified(user.getEmailVerifiedAt() != null);
     response.setPhoneVerified(user.getPhoneVerifiedAt() != null);
     response.setLastLoginAt(user.getLastLoginAt());
     response.setCreatedAt(user.getCreatedAt());
     response.setUpdatedAt(user.getUpdatedAt());
+
+    // Role information
+    if (role != null) {
+      response.setRoleId(role.getId());
+      response.setRoleName(role.getName());
+    }
+
+    // Check if user is a developer
+    boolean isDeveloper = user.getDeveloper() != null;
+    response.setDeveloper(isDeveloper);
+
+    // User profile information (only for non-developers)
+    if (!isDeveloper && userProfile != null) {
+      response.setFullName(userProfile.getFullName());
+      response.setNik(userProfile.getNik());
+      response.setNpwp(userProfile.getNpwp());
+      response.setBirthDate(userProfile.getBirthDate());
+      response.setBirthPlace(userProfile.getBirthPlace());
+      response.setGender(userProfile.getGender());
+      response.setMaritalStatus(userProfile.getMaritalStatus());
+      response.setAddress(userProfile.getAddress());
+      response.setCity(userProfile.getCity());
+      response.setProvince(userProfile.getProvince());
+      response.setPostalCode(userProfile.getPostalCode());
+      response.setOccupation(userProfile.getOccupation());
+      response.setCompanyName(userProfile.getCompanyName());
+      response.setMonthlyIncome(userProfile.getMonthlyIncome());
+      response.setWorkExperience(userProfile.getWorkExperience());
+    } else if (isDeveloper) {
+      // Developer information (only if developer exists)
+      Developer developer = user.getDeveloper();
+      if (developer != null) {
+        response.setFullName(developer.getCompanyName());
+        response.setAddress(developer.getAddress());
+        response.setCompanyName(developer.getCompanyName());
+        response.setOccupation("-");
+      }
+    }
 
     return response;
   }

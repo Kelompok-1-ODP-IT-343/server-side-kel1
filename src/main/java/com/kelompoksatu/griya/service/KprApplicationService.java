@@ -133,11 +133,16 @@ public class KprApplicationService {
     }
   }
 
-  public List<KprHistoryListResponse> getApprovalDeveloper(Integer developerId) {
-    logger.info("Validate developer: {}", developerId);
+  public List<KprHistoryListResponse> getApprovalDeveloper(Integer userID) {
+    logger.info("Validate user: {}", userID);
+    User user =
+        userRepository
+            .findById(userID)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    logger.info("Validate developer: {}", user.getDeveloper().getId());
     Developer developer =
         developerRepository
-            .findById(developerId)
+            .findById(user.getDeveloper().getId())
             .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
     List<KprApplication> applications =
         kprApplicationRepository.findKprApplicationsByDeveloperIDHistory(developer.getId());
@@ -161,24 +166,31 @@ public class KprApplicationService {
         .collect(Collectors.toList());
   }
 
-  public List<KprInProgress> getKprApplicationsOnProgressByDeveloper(Integer developerId) {
-    logger.info("Validate developer: {}", developerId);
-
-    developerRepository
-        .findById(developerId)
-        .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
-
-    logger.info("KPR In Progress search started by {}", developerId);
+  public List<KprInProgress> getKprApplicationsOnProgressByDeveloper(Integer userID) {
+    logger.info("Validate user: {}", userID);
+    User user =
+        userRepository
+            .findById(userID)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    logger.info("Validate developer: {}", user.getDeveloper().getId());
+    Developer developer =
+        developerRepository
+            .findById(user.getDeveloper().getId())
+            .orElseThrow(() -> new IllegalArgumentException("Developer not found"));
+    logger.info("KPR In Progress search started by {}", developer.getId());
 
     List<KprApplication> applications =
-        kprApplicationRepository.findKprApplicationsOnProgressByDeveloper(developerId);
+        kprApplicationRepository.findKprApplicationsOnProgressByDeveloper(userID);
 
-    logger.info("KPR In Progress search completed by {}", developerId);
+    logger.info("KPR In Progress search completed by {}", developer.getId());
     return applications.stream()
         .map(
             application ->
                 new KprInProgress(
                     application.getId(),
+                    application.getUser().getUsername(),
+                    application.getUser().getEmail(),
+                    application.getUser().getPhone(),
                     application.getApplicationNumber(),
                     application.getProperty().getTitle(),
                     application.getProperty().getAddress(),
@@ -1068,7 +1080,10 @@ public class KprApplicationService {
                 || currentUser.getRole().getName().contains("STAFF")
                 || currentUser.getRole().getName().contains("MANAGER"));
 
-    if (!isOwner && !isStaff) {
+    boolean isDeveloper =
+        application.getProperty().getDeveloper().getUser().getId() == currentUserId;
+
+    if (!isOwner && !isStaff && !isDeveloper) {
       throw new RuntimeException("Unauthorized to view this application");
     }
 
