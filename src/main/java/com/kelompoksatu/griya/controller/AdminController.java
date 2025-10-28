@@ -8,6 +8,7 @@ import com.kelompoksatu.griya.repository.ImageAdminRepository;
 import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
 import com.kelompoksatu.griya.service.AdminService;
 import com.kelompoksatu.griya.service.DeveloperService;
+import com.kelompoksatu.griya.service.PropertyService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -16,6 +17,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -46,6 +48,7 @@ public class AdminController {
   private final ImageAdminRepository imageAdminRepository;
   private final AdminService adminService;
   private final PropertyFavoriteRepository propertyFavoriteRepository;
+  private final PropertyService propertyService;
 
   // ==================== DEVELOPER MANAGEMENT ====================
 
@@ -78,6 +81,27 @@ public class AdminController {
                     mediaType = "application/json",
                     schema = @Schema(implementation = ApiResponse.class)))
       })
+  @GetMapping("/properties")
+  public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAdminProperties(
+      @RequestParam(required = false) String city,
+      @RequestParam(required = false) BigDecimal minPrice,
+      @RequestParam(required = false) BigDecimal maxPrice,
+      @RequestParam(required = false) String propertyType) {
+
+    try {
+      List<Map<String, Object>> properties =
+          propertyService.getPropertiesSimpleByFilters(city, minPrice, maxPrice, propertyType);
+
+      return ResponseEntity.ok(
+          ApiResponse.success("Properties retrieved successfully", properties));
+
+    } catch (Exception e) {
+      log.error("❌ Gagal mengambil properties: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal mengambil properties: " + e.getMessage()));
+    }
+  }
+
   @GetMapping("/users/{userId}/favorites")
   public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUserFavorites(
       @PathVariable Integer userId) {
