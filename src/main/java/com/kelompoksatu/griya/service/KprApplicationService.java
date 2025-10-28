@@ -486,8 +486,52 @@ public class KprApplicationService {
   /** Generate unique application number */
   private String generateApplicationNumber() {
     String datePrefix = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
-    Long sequence = kprApplicationRepository.getNextSequenceNumber(datePrefix);
-    return String.format("KPR-%s-%06d", datePrefix, sequence);
+
+    // Add retry mechanism for handling concurrent requests
+    int maxRetries = 5;
+    for (int attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Get base sequence number
+        long timestamp = System.currentTimeMillis() % 10000; // 4 digit
+        int randomComponent = (int) (Math.random() * 100); // 2 digit
+
+        long finalSequence = (timestamp * 100) + randomComponent; // total 6 digit
+
+        // Format: "KPR-" (4) + datePrefix (6) + "-" (1) + finalSequence (6) = 17 chars max
+        // Jadi kita tambahkan padding supaya total 20 char pas
+        String applicationNumber = String.format("KPR-%s-%06d", datePrefix, finalSequence);
+
+        // Kalau kamu mau pastikan fix 20 chars, bisa tambahkan 3 digit random tambahan
+        if (applicationNumber.length() < 20) {
+          int extra = (int) (Math.random() * Math.pow(10, 20 - applicationNumber.length()));
+          applicationNumber += String.format("%0" + (20 - applicationNumber.length()) + "d", extra);
+        }
+
+        // Check if this number already exists (additional safety check)
+        if (!kprApplicationRepository.findByApplicationNumber(applicationNumber).isPresent()) {
+          return applicationNumber;
+        }
+
+        // If exists, wait a bit and retry
+        Thread.sleep(10 + (attempt * 5)); // Progressive backoff
+
+      } catch (Exception e) {
+        logger.warn(
+            "Attempt {} failed to generate unique application number: {}",
+            attempt + 1,
+            e.getMessage());
+        if (attempt == maxRetries - 1) {
+          // Fallback: use UUID-based approach
+          String uuid =
+              java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+          return String.format("KPR-%s-%s", datePrefix, uuid);
+        }
+      }
+    }
+
+    // This should never be reached, but just in case
+    throw new RuntimeException(
+        "Failed to generate unique application number after " + maxRetries + " attempts");
   }
 
   /** Generate unique loan number */
