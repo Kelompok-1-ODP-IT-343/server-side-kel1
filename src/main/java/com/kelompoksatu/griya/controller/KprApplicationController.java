@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -198,7 +199,7 @@ public class KprApplicationController {
                       .fullName(fullName)
                       .nik(nik)
                       .npwp(npwp)
-                      .birthDate(birthDate)
+                      .birthDate(LocalDate.parse(birthDate))
                       .birthPlace(birthPlace)
                       .gender(gender)
                       .maritalStatus(maritalStatus)
