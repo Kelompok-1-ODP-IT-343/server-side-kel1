@@ -1,8 +1,6 @@
 package com.kelompoksatu.griya.service;
 
-import com.kelompoksatu.griya.dto.RegisterRequest;
-import com.kelompoksatu.griya.dto.UpdateUserRequest;
-import com.kelompoksatu.griya.dto.UserResponse;
+import com.kelompoksatu.griya.dto.*;
 import com.kelompoksatu.griya.entity.Developer;
 import com.kelompoksatu.griya.entity.Role;
 import com.kelompoksatu.griya.entity.User;
@@ -20,6 +18,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.util.Pair;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -287,6 +287,12 @@ public class UserService {
     }
 
     return response;
+  }
+
+  public PaginatedResponse<UserResponse> getAllUsers(PaginationRequest paginationRequest) {
+    Pageable pageable = paginationRequest.toPageable();
+    Page<UserResponse> userPage = userRepository.findAllUserResponseByRoleId(2, pageable);
+    return PaginatedResponse.of(userPage);
   }
 
   // ========================================

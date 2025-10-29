@@ -1,10 +1,13 @@
 package com.kelompoksatu.griya.repository;
 
 import com.kelompoksatu.griya.dto.AdminSimpleResponse;
+import com.kelompoksatu.griya.dto.UserResponse;
 import com.kelompoksatu.griya.entity.User;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -67,4 +70,44 @@ public interface UserRepository extends JpaRepository<User, Integer> {
   @Query(
       "SELECT new com.kelompoksatu.griya.dto.AdminSimpleResponse(u.id, up.fullName) FROM User u join UserProfile up on u.id=up.userId where u.role.id = 1")
   List<AdminSimpleResponse> findAllAdminSimple();
+
+  @Query(
+      """
+    SELECT new com.kelompoksatu.griya.dto.UserResponse(
+        u.id,
+        u.username,
+        u.email,
+        u.phone,
+        r.id,
+        r.name,
+        u.status,
+                CASE WHEN u.emailVerifiedAt IS NOT NULL THEN true ELSE false END,
+                CASE WHEN u.phoneVerifiedAt IS NOT NULL THEN true ELSE false END,
+        u.lastLoginAt,
+        u.createdAt,
+        u.updatedAt,
+        p.fullName,
+        p.nik,
+        p.npwp,
+        p.birthDate,
+        p.birthPlace,
+        p.gender,
+        p.maritalStatus,
+        p.address,
+        p.city,
+        p.province,
+        p.postalCode,
+        p.occupation,
+        p.companyName,
+        p.monthlyIncome,
+        p.workExperience,
+        false
+    )
+    FROM User u
+    JOIN u.role r
+    LEFT JOIN UserProfile p ON p.userId = u.id
+    WHERE r.id = :roleId
+""")
+  Page<UserResponse> findAllUserResponseByRoleId(
+      @Param("roleId") Integer roleId, Pageable pageable);
 }
