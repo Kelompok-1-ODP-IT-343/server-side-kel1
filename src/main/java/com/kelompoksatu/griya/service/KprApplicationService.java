@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -196,7 +195,8 @@ public class KprApplicationService {
                     application.getProperty().getAddress(),
                     application.getLoanAmount(),
                     application.getCreatedAt().toString(),
-                    application.getKprRate().getRateName()))
+                    application.getKprRate().getRateName(),
+                    application.getStatus().toString()))
         .collect(Collectors.toList());
   }
 
@@ -1041,13 +1041,13 @@ public class KprApplicationService {
     return kprApplicants;
   }
 
-  public List<KprHistoryListResponse> getAssignedVerifikatorHistory(Integer userId) {
+  public List<KprHistoryListResponse> getAssignedApproverHistory(Integer userId) {
     // Validate user role
     var user =
         userRepository
             .findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
-    if (!user.getRole().toString().equalsIgnoreCase("VERIFIKATOR")) {
+    if (!user.getRole().toString().equalsIgnoreCase("APPROVER")) {
       throw new IllegalArgumentException("You are not authorized to view this history");
     }
 
@@ -1071,7 +1071,7 @@ public class KprApplicationService {
         userRepository
             .findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
-    if (!user.getRole().toString().equalsIgnoreCase("VERIFIKATOR")) {
+    if (!user.getRole().toString().equalsIgnoreCase("APPROVER")) {
       throw new IllegalArgumentException("You are not authorized to view this history");
     }
 
@@ -1084,6 +1084,27 @@ public class KprApplicationService {
     } else {
       logger.info(
           "Retrieved {} KPR application history records for user ID: {}", history.size(), userId);
+    }
+    return history;
+  }
+
+  // Buat get all List KPR untuk admin walaupun history atau in progress
+  public List<KprInProgress> getAllKprApplicationsAll(Integer userID) {
+    var user =
+        userRepository
+            .findById(userID)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    if (!user.getRole().toString().equalsIgnoreCase("ADMIN")) {
+      throw new IllegalArgumentException("You are not authorized to view this application");
+    }
+    // Get history from repository
+    List<KprInProgress> history = kprApplicationRepository.findKprApplicationsAll();
+
+    if (history.isEmpty()) {
+      logger.info("No KPR application history found for user ID: {}", userID);
+    } else {
+      logger.info(
+          "Retrieved {} KPR application history records for user ID: {}", history.size(), userID);
     }
     return history;
   }

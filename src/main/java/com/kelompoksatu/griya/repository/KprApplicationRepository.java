@@ -133,10 +133,28 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
           + "k.property.address, "
           + "k.loanAmount, "
           + "CAST(k.createdAt AS string), "
-          + "k.kprRate.rateName) "
+          + "k.kprRate.rateName, "
+          + "CAST(k.status AS string)) "
           + "FROM KprApplication k WHERE k.id IN "
           + "(SELECT aw.applicationId FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId) "
           + "AND k.status IN ('SUBMITTED', 'DOCUMENT_VERIFICATION', 'PROPERTY_APPRAISAL', 'CREDIT_ANALYSIS', 'APPROVAL_PENDING') "
           + "ORDER BY k.createdAt ASC")
   List<KprInProgress> findKprApplicationsOnProgressByUserID(@Param("userId") Integer userId);
+
+  @Query(
+      "SELECT new com.kelompoksatu.griya.dto.KprInProgress("
+          + "k.id, "
+          + "k.user.username, "
+          + "k.user.email, "
+          + "k.user.phone, "
+          + "k.applicationNumber, "
+          + "k.property.title, "
+          + "k.property.address, "
+          + "k.loanAmount, "
+          + "CAST(k.createdAt AS string), "
+          + "k.kprRate.rateName, "
+          + "CAST(k.status AS string)) "
+          + "FROM KprApplication k "
+          + "ORDER BY k.createdAt ASC")
+  List<KprInProgress> findKprApplicationsAll();
 }
