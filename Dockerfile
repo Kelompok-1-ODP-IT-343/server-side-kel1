@@ -27,7 +27,7 @@ WORKDIR /app
 COPY --from=build /app/target/*.jar /app/app.jar
 
 # Expose Spring Boot port
-EXPOSE 8080
+EXPOSE 18080
 
 # Optional JVM and Spring profile configuration
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0" \

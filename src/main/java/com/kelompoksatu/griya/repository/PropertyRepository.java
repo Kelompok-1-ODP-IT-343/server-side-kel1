@@ -222,4 +222,61 @@ GROUP BY p.id
 """,
       nativeQuery = true)
   Map<String, Object> findPropertyDetailsById(@Param("id") Integer id);
+
+  @Query(
+      value =
+          """
+    SELECT
+      p.id,
+      p.property_type,
+      p.title,
+      p.description,
+      p.address,
+      p.village AS sub_district,
+      p.district,
+      p.city,
+      p.province,
+      p.postal_code,
+      p.latitude,
+      p.longitude,
+      p.land_area,
+      p.building_area,
+      p.bedrooms,
+      p.bathrooms,
+      p.floors,
+      p.garage,
+      p.year_built,
+      p.price,
+      p.price_per_sqm,
+      p.maintenance_fee,
+      p.certificate_type,
+      p.pbb_value,
+      d.company_name AS developer_name,
+      COALESCE(
+        (SELECT pi.file_path
+         FROM property_images pi
+         WHERE pi.property_id = p.id AND pi.is_primary = TRUE
+         ORDER BY pi.id ASC
+         LIMIT 1),
+        (SELECT pi.file_path
+         FROM property_images pi
+         WHERE pi.property_id = p.id
+         ORDER BY pi.id ASC
+         LIMIT 1)
+      ) AS image_url
+    FROM properties p
+    JOIN developers d ON d.id = p.developer_id
+    WHERE p.status = 'AVAILABLE'
+      AND (:city IS NULL OR p.city ILIKE CONCAT('%', :city, '%'))
+      AND (:minPrice IS NULL OR p.price >= :minPrice)
+      AND (:maxPrice IS NULL OR p.price <= :maxPrice)
+      AND (:propertyType IS NULL OR LOWER(p.property_type::text) = LOWER(:propertyType))
+    ORDER BY p.id
+    """,
+      nativeQuery = true)
+  List<Map<String, Object>> findPropertiesSimpleByFilters(
+      @Param("city") String city,
+      @Param("minPrice") BigDecimal minPrice,
+      @Param("maxPrice") BigDecimal maxPrice,
+      @Param("propertyType") String propertyType);
 }

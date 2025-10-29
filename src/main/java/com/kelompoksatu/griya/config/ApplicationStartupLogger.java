@@ -21,7 +21,7 @@ public class ApplicationStartupLogger {
 
   @EventListener(ApplicationReadyEvent.class)
   public void logApplicationUrls() {
-    String port = environment.getProperty("server.port", "8080");
+    String port = environment.getProperty("server.port", "18080");
     String contextPath = environment.getProperty("server.servlet.context-path", "");
 
     // Build base URL
