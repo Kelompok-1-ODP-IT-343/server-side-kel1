@@ -18,4 +18,5 @@ public class KprInProgress {
   private BigDecimal harga;
   private String tanggal;
   private String jenis;
+  private String status;
 }

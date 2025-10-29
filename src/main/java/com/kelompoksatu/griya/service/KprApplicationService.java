@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -196,7 +195,8 @@ public class KprApplicationService {
                     application.getProperty().getAddress(),
                     application.getLoanAmount(),
                     application.getCreatedAt().toString(),
-                    application.getKprRate().getRateName()))
+                    application.getKprRate().getRateName(),
+                    application.getStatus().toString()))
         .collect(Collectors.toList());
   }
 
@@ -486,8 +486,52 @@ public class KprApplicationService {
   /** Generate unique application number */
   private String generateApplicationNumber() {
     String datePrefix = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
-    Long sequence = kprApplicationRepository.getNextSequenceNumber(datePrefix);
-    return String.format("KPR-%s-%06d", datePrefix, sequence);
+
+    // Add retry mechanism for handling concurrent requests
+    int maxRetries = 5;
+    for (int attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Get base sequence number
+        long timestamp = System.currentTimeMillis() % 10000; // 4 digit
+        int randomComponent = (int) (Math.random() * 100); // 2 digit
+
+        long finalSequence = (timestamp * 100) + randomComponent; // total 6 digit
+
+        // Format: "KPR-" (4) + datePrefix (6) + "-" (1) + finalSequence (6) = 17 chars max
+        // Jadi kita tambahkan padding supaya total 20 char pas
+        String applicationNumber = String.format("KPR-%s-%06d", datePrefix, finalSequence);
+
+        // Kalau kamu mau pastikan fix 20 chars, bisa tambahkan 3 digit random tambahan
+        if (applicationNumber.length() < 20) {
+          int extra = (int) (Math.random() * Math.pow(10, 20 - applicationNumber.length()));
+          applicationNumber += String.format("%0" + (20 - applicationNumber.length()) + "d", extra);
+        }
+
+        // Check if this number already exists (additional safety check)
+        if (!kprApplicationRepository.findByApplicationNumber(applicationNumber).isPresent()) {
+          return applicationNumber;
+        }
+
+        // If exists, wait a bit and retry
+        Thread.sleep(10 + (attempt * 5)); // Progressive backoff
+
+      } catch (Exception e) {
+        logger.warn(
+            "Attempt {} failed to generate unique application number: {}",
+            attempt + 1,
+            e.getMessage());
+        if (attempt == maxRetries - 1) {
+          // Fallback: use UUID-based approach
+          String uuid =
+              java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+          return String.format("KPR-%s-%s", datePrefix, uuid);
+        }
+      }
+    }
+
+    // This should never be reached, but just in case
+    throw new RuntimeException(
+        "Failed to generate unique application number after " + maxRetries + " attempts");
   }
 
   /** Generate unique loan number */
@@ -997,13 +1041,13 @@ public class KprApplicationService {
     return kprApplicants;
   }
 
-  public List<KprHistoryListResponse> getAssignedVerifikatorHistory(Integer userId) {
+  public List<KprHistoryListResponse> getAssignedApproverHistory(Integer userId) {
     // Validate user role
     var user =
         userRepository
             .findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
-    if (!user.getRole().toString().equalsIgnoreCase("VERIFIKATOR")) {
+    if (!user.getRole().toString().equalsIgnoreCase("APPROVER")) {
       throw new IllegalArgumentException("You are not authorized to view this history");
     }
 
@@ -1027,7 +1071,7 @@ public class KprApplicationService {
         userRepository
             .findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
-    if (!user.getRole().toString().equalsIgnoreCase("VERIFIKATOR")) {
+    if (!user.getRole().toString().equalsIgnoreCase("APPROVER")) {
       throw new IllegalArgumentException("You are not authorized to view this history");
     }
 
@@ -1040,6 +1084,27 @@ public class KprApplicationService {
     } else {
       logger.info(
           "Retrieved {} KPR application history records for user ID: {}", history.size(), userId);
+    }
+    return history;
+  }
+
+  // Buat get all List KPR untuk admin walaupun history atau in progress
+  public List<KprInProgress> getAllKprApplicationsAll(Integer userID) {
+    var user =
+        userRepository
+            .findById(userID)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    if (!user.getRole().toString().equalsIgnoreCase("ADMIN")) {
+      throw new IllegalArgumentException("You are not authorized to view this application");
+    }
+    // Get history from repository
+    List<KprInProgress> history = kprApplicationRepository.findKprApplicationsAll();
+
+    if (history.isEmpty()) {
+      logger.info("No KPR application history found for user ID: {}", userID);
+    } else {
+      logger.info(
+          "Retrieved {} KPR application history records for user ID: {}", history.size(), userID);
     }
     return history;
   }
