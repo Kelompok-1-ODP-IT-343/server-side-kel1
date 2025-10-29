@@ -3,6 +3,7 @@ package com.kelompoksatu.griya.dto;
 import com.kelompoksatu.griya.entity.Gender;
 import com.kelompoksatu.griya.entity.MaritalStatus;
 import jakarta.validation.constraints.*;
+import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -31,7 +32,7 @@ public class PersonalData {
 
   @NotBlank(message = "Birth date is required")
   @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "Birth date must be in YYYY-MM-DD format")
-  private String birthDate;
+  private LocalDate birthDate;
 
   @NotBlank(message = "Birth place is required")
   @Size(max = 100, message = "Birth place cannot exceed 100 characters")

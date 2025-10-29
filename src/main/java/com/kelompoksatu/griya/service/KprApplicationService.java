@@ -12,6 +12,7 @@ import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.*;
@@ -638,6 +639,7 @@ public class KprApplicationService {
     profile.setFullName(personalData.getFullName());
     profile.setNik(personalData.getNik());
     profile.setNpwp(personalData.getNpwp());
+    profile.setBirthDate(personalData.getBirthDate());
     profile.setBirthPlace(personalData.getBirthPlace());
     profile.setGender(Gender.fromString(personalData.getGender()));
     profile.setMaritalStatus(MaritalStatus.fromString(personalData.getMaritalStatus()));
@@ -1142,11 +1144,11 @@ public class KprApplicationService {
     boolean isStaff =
         currentUser.getRole() != null
             && (currentUser.getRole().getName().contains("ADMIN")
-                || currentUser.getRole().getName().contains("STAFF")
-                || currentUser.getRole().getName().contains("MANAGER"));
+                || currentUser.getRole().getName().contains("DEVELOPER")
+                || currentUser.getRole().getName().contains("APPROVER"));
 
     boolean isDeveloper =
-        application.getProperty().getDeveloper().getUser().getId() == currentUserId;
+        Objects.equals(application.getProperty().getDeveloper().getUser().getId(), currentUserId);
 
     if (!isOwner && !isStaff && !isDeveloper) {
       throw new RuntimeException("Unauthorized to view this application");
@@ -1244,6 +1246,10 @@ public class KprApplicationService {
         .fullName(profile != null ? profile.getFullName() : null)
         .nik(profile != null ? profile.getNik() : null)
         .npwp(profile != null ? profile.getNpwp() : null)
+        .birthDate(
+            profile != null && profile.getBirthDate() != null
+                ? profile.getBirthDate().toString()
+                : null)
         .birthPlace(profile != null ? profile.getBirthPlace() : null)
         .gender(profile != null && profile.getGender() != null ? profile.getGender().name() : null)
         .maritalStatus(
