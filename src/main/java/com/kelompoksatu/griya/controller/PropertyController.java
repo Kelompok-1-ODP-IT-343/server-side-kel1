@@ -1,5 +1,7 @@
 package com.kelompoksatu.griya.controller;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kelompoksatu.griya.dto.ApiResponse;
 import com.kelompoksatu.griya.dto.CreatePropertyRequest;
 import com.kelompoksatu.griya.dto.PropertyResponse;
@@ -7,10 +9,6 @@ import com.kelompoksatu.griya.entity.Property;
 import com.kelompoksatu.griya.entity.PropertyFavorite;
 import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
 import com.kelompoksatu.griya.service.PropertyService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
-import java.util.List;
-import java.util.Map;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -619,42 +617,47 @@ public class PropertyController {
     }
   }
 
-    @GetMapping("/{id}/details")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getPropertyDetails(@PathVariable Integer id) {
-        try {
-            Map<String, Object> propertyDetail = new HashMap<>(propertyService.getPropertyDetails(id));
+  @GetMapping("/{id}/details")
+  public ResponseEntity<ApiResponse<Map<String, Object>>> getPropertyDetails(
+      @PathVariable Integer id) {
+    try {
+      Map<String, Object> propertyDetail = new HashMap<>(propertyService.getPropertyDetails(id));
 
-            // --- tambahkan ini ---
-            ObjectMapper mapper = new ObjectMapper();
+      // --- tambahkan ini ---
+      ObjectMapper mapper = new ObjectMapper();
 
-            if (propertyDetail.get("images") != null) {
-                propertyDetail.put(
-                        "images",
-                        mapper.readValue(propertyDetail.get("images").toString(), new TypeReference<List<String>>() {}));
-            }
+      if (propertyDetail.get("images") != null) {
+        propertyDetail.put(
+            "images",
+            mapper.readValue(
+                propertyDetail.get("images").toString(), new TypeReference<List<String>>() {}));
+      }
 
-            if (propertyDetail.get("features") != null) {
-                propertyDetail.put(
-                        "features",
-                        mapper.readValue(propertyDetail.get("features").toString(), new TypeReference<List<Map<String, Object>>>() {}));
-            }
+      if (propertyDetail.get("features") != null) {
+        propertyDetail.put(
+            "features",
+            mapper.readValue(
+                propertyDetail.get("features").toString(),
+                new TypeReference<List<Map<String, Object>>>() {}));
+      }
 
-            if (propertyDetail.get("locations") != null) {
-                propertyDetail.put(
-                        "locations",
-                        mapper.readValue(propertyDetail.get("locations").toString(), new TypeReference<List<Map<String, Object>>>() {}));
-            }
-            // --- sampai sini ---
+      if (propertyDetail.get("locations") != null) {
+        propertyDetail.put(
+            "locations",
+            mapper.readValue(
+                propertyDetail.get("locations").toString(),
+                new TypeReference<List<Map<String, Object>>>() {}));
+      }
+      // --- sampai sini ---
 
-            ApiResponse<Map<String, Object>> response =
-                    new ApiResponse<>(true, "Property detail retrieved successfully", propertyDetail);
-            return ResponseEntity.ok(response);
+      ApiResponse<Map<String, Object>> response =
+          new ApiResponse<>(true, "Property detail retrieved successfully", propertyDetail);
+      return ResponseEntity.ok(response);
 
-        } catch (Exception e) {
-            ApiResponse<Map<String, Object>> response =
-                    new ApiResponse<>(false, "Failed to retrieve property detail: " + e.getMessage(), null);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
+    } catch (Exception e) {
+      ApiResponse<Map<String, Object>> response =
+          new ApiResponse<>(false, "Failed to retrieve property detail: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
-
+  }
 }
