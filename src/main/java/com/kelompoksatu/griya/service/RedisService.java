@@ -362,4 +362,34 @@ public class RedisService {
       return 0;
     }
   }
+
+  /**
+   * Test Redis connection by setting and getting a test value
+   *
+   * @return true if Redis connection is working
+   */
+  public boolean testConnection() {
+    try {
+      String testKey = "test:connection:" + System.currentTimeMillis();
+      String testValue = "test_value";
+
+      // Set test value
+      set(testKey, testValue, 10); // 10 seconds TTL
+
+      // Get test value
+      String retrievedValue = get(testKey, String.class);
+
+      // Clean up
+      delete(testKey);
+
+      // Check if values match
+      boolean isWorking = testValue.equals(retrievedValue);
+      log.debug("Redis connection test result: {}", isWorking);
+
+      return isWorking;
+    } catch (Exception e) {
+      log.error("Redis connection test failed: {}", e.getMessage(), e);
+      return false;
+    }
+  }
 }

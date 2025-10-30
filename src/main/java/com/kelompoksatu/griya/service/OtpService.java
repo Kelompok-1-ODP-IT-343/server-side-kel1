@@ -1,5 +1,6 @@
 package com.kelompoksatu.griya.service;
 
+import com.kelompoksatu.griya.dto.OtpResponse;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -136,7 +137,18 @@ public class OtpService {
 
       // Store OTP di Redis
       String identifier = phone + ":" + purpose;
+      log.info(
+          "DEBUG: Storing OTP - Phone: {}, Purpose: {}, Identifier: {}, OTP: {}",
+          phone,
+          purpose,
+          identifier,
+          otp);
       redisService.storeOtp(identifier, otp, otpTtlMinutes);
+
+      // Verify OTP was stored
+      boolean otpExists = redisService.exists("otp:" + identifier);
+      log.info(
+          "DEBUG: OTP storage verification - Key exists: {}, Key: otp:{}", otpExists, identifier);
 
       // Reset attempts counter
       String attemptsKey = OTP_ATTEMPTS_PREFIX + identifier;
@@ -199,6 +211,26 @@ public class OtpService {
       String identifier = phone + ":" + purpose;
       String attemptsKey = OTP_ATTEMPTS_PREFIX + identifier;
 
+      log.info(
+          "DEBUG: Validating OTP - Phone: {}, Purpose: {}, Identifier: {}, Input OTP: {}",
+          phone,
+          purpose,
+          identifier,
+          otp);
+
+      // Check if OTP exists in Redis using RedisService method
+      String redisKey = "otp:" + identifier;
+      boolean otpExists = redisService.exists(redisKey);
+      log.info("DEBUG: OTP existence check - Key exists: {}, Key: {}", otpExists, redisKey);
+
+      // Get stored OTP for comparison using RedisService method
+      String storedOtp = redisService.get(redisKey, String.class);
+      log.info(
+          "DEBUG: Stored OTP comparison - Stored: {}, Input: {}, Match: {}",
+          storedOtp,
+          otp,
+          (storedOtp != null && storedOtp.equals(otp.trim())));
+
       // Check attempts
       long attempts = redisService.getRateLimitCount(attemptsKey.replace(OTP_ATTEMPTS_PREFIX, ""));
       if (attempts >= maxAttempts) {
@@ -210,7 +242,7 @@ public class OtpService {
       // Increment attempts
       redisService.incrementRateLimit(attemptsKey.replace(OTP_ATTEMPTS_PREFIX, ""), otpTtlMinutes);
 
-      // Validate OTP
+      // Validate OTP using RedisService method (this will also delete the OTP if valid)
       boolean isValid = redisService.validateOtp(identifier, otp.trim());
 
       if (isValid) {
@@ -327,7 +359,8 @@ public class OtpService {
   public boolean clearOtp(String phone, String purpose) {
     try {
       String identifier = phone + ":" + purpose;
-      boolean deleted = redisService.delete("otp:" + identifier);
+      String redisKey = "otp:" + identifier;
+      boolean deleted = redisService.delete(redisKey);
 
       if (deleted) {
         log.info("OTP berhasil dihapus untuk {}, purpose: {}", phone, purpose);
@@ -351,7 +384,8 @@ public class OtpService {
   public boolean hasValidOtp(String phone, String purpose) {
     try {
       String identifier = phone + ":" + purpose;
-      return redisService.exists("otp:" + identifier);
+      String redisKey = "otp:" + identifier;
+      return redisService.exists(redisKey);
     } catch (Exception e) {
       log.error("Error saat check valid OTP untuk {}: {}", phone, e.getMessage(), e);
       return false;
@@ -368,7 +402,8 @@ public class OtpService {
   public long getOtpTtl(String phone, String purpose) {
     try {
       String identifier = phone + ":" + purpose;
-      return redisService.getTtl("otp:" + identifier);
+      String redisKey = "otp:" + identifier;
+      return redisService.getTtl(redisKey);
     } catch (Exception e) {
       log.error("Error saat get OTP TTL untuk {}: {}", phone, e.getMessage(), e);
       return -2;
@@ -404,6 +439,113 @@ public class OtpService {
 
     } catch (Exception e) {
       log.error("Error saat audit logging: {}", e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Send OTP dengan response DTO (untuk AuthController)
+   *
+   * @param phone Nomor telepon tujuan
+   * @param purpose Tujuan OTP
+   * @return OtpResponse dengan status dan informasi
+   */
+  public OtpResponse sendOtp(String phone, String purpose) {
+    try {
+      log.info("DEBUG: sendOtp called - Original phone: {}, Purpose: {}", phone, purpose);
+
+      // Normalize phone number (handle 08xx to 628xx conversion)
+      String normalizedPhone = normalizePhoneNumber(phone);
+      log.info(
+          "DEBUG: Phone normalization in sendOtp - Original: {}, Normalized: {}",
+          phone,
+          normalizedPhone);
+
+      // Generate and send OTP
+      String otp = generateAndSendOtp(normalizedPhone, purpose);
+
+      if (otp != null) {
+        long ttlSeconds = otpTtlMinutes * 60L;
+        String maskedPhone = maskPhoneNumber(normalizedPhone);
+
+        return OtpResponse.success(
+            "OTP berhasil dikirim ke " + maskedPhone, maskedPhone, ttlSeconds, purpose);
+      } else {
+        return OtpResponse.error("Gagal mengirim OTP. Silakan coba lagi.");
+      }
+
+    } catch (Exception e) {
+      log.error("Error in sendOtp: {}", e.getMessage(), e);
+      return OtpResponse.error(e.getMessage());
+    }
+  }
+
+  /**
+   * Verify OTP dengan response boolean (untuk AuthController)
+   *
+   * @param phone Nomor telepon
+   * @param otp Kode OTP
+   * @param purpose Tujuan OTP
+   * @return true jika OTP valid
+   */
+  public boolean verifyOtp(String phone, String otp, String purpose) {
+    try {
+      log.info(
+          "DEBUG: verifyOtp called - Original phone: {}, OTP: {}, Purpose: {}",
+          phone,
+          otp,
+          purpose);
+
+      // Normalize phone number
+      String normalizedPhone = normalizePhoneNumber(phone);
+      log.info("DEBUG: Phone normalization - Original: {}, Normalized: {}", phone, normalizedPhone);
+
+      // Validate OTP
+      return validateOtp(normalizedPhone, otp, purpose);
+
+    } catch (Exception e) {
+      log.error("Error in verifyOtp: {}", e.getMessage(), e);
+      throw new IllegalArgumentException(e.getMessage());
+    }
+  }
+
+  /**
+   * Normalize phone number (convert 08xx to 628xx)
+   *
+   * @param phone Raw phone number
+   * @return Normalized phone number with 62 prefix
+   */
+  public String normalizePhoneNumber(String phone) {
+    if (phone == null || phone.trim().isEmpty()) {
+      throw new IllegalArgumentException("Nomor telepon tidak boleh kosong");
+    }
+
+    // Remove all non-digit characters
+    String cleanPhone = phone.replaceAll("[^0-9]", "");
+
+    // Handle different formats
+    if (cleanPhone.startsWith("08")) {
+      // Convert 08xx to 628xx
+      return "62" + cleanPhone.substring(1);
+    } else if (cleanPhone.startsWith("628")) {
+      // Already in correct format
+      return cleanPhone;
+    } else if (cleanPhone.startsWith("62")) {
+      // Check if it's 62 followed by valid mobile prefix
+      if (cleanPhone.length() >= 4) {
+        String mobilePrefix = cleanPhone.substring(2, 4);
+        if (mobilePrefix.equals("81")
+            || mobilePrefix.equals("82")
+            || mobilePrefix.equals("83")
+            || mobilePrefix.equals("85")
+            || mobilePrefix.equals("87")
+            || mobilePrefix.equals("88")
+            || mobilePrefix.equals("89")) {
+          return cleanPhone;
+        }
+      }
+      throw new IllegalArgumentException("Format nomor telepon tidak valid");
+    } else {
+      throw new IllegalArgumentException("Nomor telepon harus dimulai dengan 08 atau 62");
     }
   }
 
