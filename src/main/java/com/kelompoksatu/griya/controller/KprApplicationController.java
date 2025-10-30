@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -436,7 +437,7 @@ public class KprApplicationController {
 
       // Get application history through service
       List<KprHistoryListResponse> response =
-          kprApplicationService.getAssignedVerifikatorHistory(userId);
+          kprApplicationService.getAssignedApproverHistory(userId);
 
       logger.info("KPR application history retrieved successfully for user ID: {}", userId);
       return ResponseEntity.ok(
@@ -692,6 +693,39 @@ public class KprApplicationController {
       logger.error("Error assigning KPR application: {}", e.getMessage(), e);
       ApiResponse<String> response =
           new ApiResponse<>(false, "Failed to assign KPR application: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  @GetMapping("/admin/all")
+  public ResponseEntity<ApiResponse<List<KprInProgress>>> getAllKprApplicationsAll(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for all KPR applications");
+      // Extract and validate JWT token
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+      // Extract user ID from token
+      Integer userID = jwtUtil.extractUserId(token);
+      if (userID == null) {
+        logger.warn("Invalid token - user ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      // Get all KPR applications through service
+      List<KprInProgress> response = kprApplicationService.getAllKprApplicationsAll(userID);
+
+      logger.info("All KPR applications retrieved successfully");
+      return ResponseEntity.ok(
+          new ApiResponse<List<KprInProgress>>(
+              true, "All KPR applications retrieved successfully", response));
+    } catch (Exception e) {
+      logger.error("Error retrieving all KPR applications: {}", e.getMessage(), e);
+
+      // Determine appropriate HTTP status based on error type
+      ApiResponse<List<KprInProgress>> response =
+          new ApiResponse<>(false, "Failed to get all KPR applications: " + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }

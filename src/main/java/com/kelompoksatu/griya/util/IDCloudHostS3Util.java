@@ -37,19 +37,19 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 public class IDCloudHostS3Util {
 
   // IDCloudHost Object Storage Configuration
-  @Value("${IDCLOUDHOST_S3_ACCESS_KEY:HHNXIN643A0LD0F2GIFX}")
+  @Value("${idcloudhost.s3.access-key:HHNXIN643A0LD0F2GIFX}")
   private String accessKey;
 
-  @Value("${IDCLOUDHOST_S3_SECRET_KEY:lsAlIOWj2HBdeCjOCM987l3z7W73pEj9APUJ1R1O}")
+  @Value("${idcloudhost.s3.secret-key:lsAlIOWj2HBdeCjOCM987l3z7W73pEj9APUJ1R1O}")
   private String secretKey;
 
-  @Value("${IDCLOUDHOST_S3_BUCKET_NAME:griya-app}")
+  @Value("${idcloudhost.s3.bucket-name:griya-app}")
   private String bucketName;
 
-  @Value("${IDCLOUDHOST_S3_REGION:id-jkt-1}")
+  @Value("${idcloudhost.s3.region:id-jkt-1}")
   private String region;
 
-  @Value("${IDCLOUDHOST_S3_ENDPOINT:https://is3.cloudhost.id}")
+  @Value("${idcloudhost.s3.endpoint:https://is3.cloudhost.id}")
   private String endpoint;
 
   // --- REFACTORED: S3Client is now an instance variable ---

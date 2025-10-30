@@ -6,10 +6,9 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 @Builder
-@RequiredArgsConstructor
+@AllArgsConstructor
 @Data
 public class AssignWorkflowResponse {
-  @NonNull private Integer id;
   @NonNull private Integer applicationID;
   @NonNull private Integer firstApprovalId;
   @NonNull private Integer secondApprovalId;

@@ -1,11 +1,14 @@
 package com.kelompoksatu.griya.exception;
 
+import com.kelompoksatu.griya.service.NotificationService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ValidationException;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -22,7 +25,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+  private final NotificationService notificationService;
 
   private ResponseEntity<Map<String, Object>> apiError(
       HttpStatus status, String message, WebRequest req, Object data) {
@@ -33,6 +39,60 @@ public class GlobalExceptionHandler {
     body.put("timestamp", OffsetDateTime.now());
     body.put("path", req != null ? req.getDescription(false).replace("uri=", "") : null);
     return ResponseEntity.status(status).body(body);
+  }
+
+  /**
+   * Send Telegram notification for errors that should be monitored Only sends notifications for
+   * server errors (5xx) and critical client errors
+   */
+  private void sendErrorNotification(
+      HttpStatus status, String message, WebRequest req, Exception ex) {
+    try {
+      // Only send notifications for server errors and critical client errors
+      if (status.is5xxServerError()
+          || status == HttpStatus.UNAUTHORIZED
+          || status == HttpStatus.FORBIDDEN) {
+        String endpoint = req != null ? req.getDescription(false).replace("uri=", "") : "Unknown";
+        String httpMethod = "Unknown";
+        String userAgent = null;
+        String ipAddress = null;
+
+        // Extract HTTP method and additional info if available
+        if (req instanceof org.springframework.web.context.request.ServletWebRequest) {
+          HttpServletRequest httpRequest =
+              ((org.springframework.web.context.request.ServletWebRequest) req).getRequest();
+          httpMethod = httpRequest.getMethod();
+          userAgent = httpRequest.getHeader("User-Agent");
+          ipAddress = getClientIpAddress(httpRequest);
+        }
+
+        notificationService.sendEndpointErrorNotification(
+            endpoint,
+            httpMethod,
+            status.value(),
+            message + (ex != null ? " - " + ex.getClass().getSimpleName() : ""),
+            userAgent,
+            ipAddress);
+      }
+    } catch (Exception e) {
+      // Don't let notification errors break the main error handling
+      log.warn("Failed to send error notification: {}", e.getMessage());
+    }
+  }
+
+  /** Extract client IP address from request */
+  private String getClientIpAddress(HttpServletRequest request) {
+    String xForwardedFor = request.getHeader("X-Forwarded-For");
+    if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+      return xForwardedFor.split(",")[0].trim();
+    }
+
+    String xRealIp = request.getHeader("X-Real-IP");
+    if (xRealIp != null && !xRealIp.isEmpty()) {
+      return xRealIp;
+    }
+
+    return request.getRemoteAddr();
   }
 
   /* ========== VALIDATION ========== */
@@ -49,7 +109,13 @@ public class GlobalExceptionHandler {
                     FieldError::getDefaultMessage,
                     (a, b) -> a,
                     LinkedHashMap::new));
-    return apiError(HttpStatus.BAD_REQUEST, "Validation failed", req, fieldErrors);
+    HttpStatus status = HttpStatus.BAD_REQUEST;
+    String message = "Validation failed";
+
+    // Send notification for validation errors (optional - can be disabled for less critical errors)
+    // sendErrorNotification(status, message, req, ex);
+
+    return apiError(status, message, req, fieldErrors);
   }
 
   // @ModelAttribute / form-data
@@ -63,7 +129,13 @@ public class GlobalExceptionHandler {
                     FieldError::getDefaultMessage,
                     (a, b) -> a,
                     LinkedHashMap::new));
-    return apiError(HttpStatus.BAD_REQUEST, "Validation failed", req, fieldErrors);
+    HttpStatus status = HttpStatus.BAD_REQUEST;
+    String message = "Validation failed";
+
+    // Send notification for bind errors (optional - can be disabled for less critical errors)
+    // sendErrorNotification(status, message, req, ex);
+
+    return apiError(status, message, req, fieldErrors);
   }
 
   // @RequestParam / @PathVariable (aktifkan @Validated di controller/class)
@@ -78,14 +150,27 @@ public class GlobalExceptionHandler {
                     v -> v.getMessage(),
                     (a, b) -> a,
                     LinkedHashMap::new));
-    return apiError(HttpStatus.BAD_REQUEST, "Validation failed", req, violations);
+    HttpStatus status = HttpStatus.BAD_REQUEST;
+    String message = "Validation failed";
+
+    // Send notification for constraint violations (optional - can be disabled for less critical
+    // errors)
+    // sendErrorNotification(status, message, req, ex);
+
+    return apiError(status, message, req, violations);
   }
 
   // Body kosong / JSON invalid
   @ExceptionHandler(HttpMessageNotReadableException.class)
   public ResponseEntity<Map<String, Object>> handleUnreadable(
       HttpMessageNotReadableException ex, WebRequest req) {
-    return apiError(HttpStatus.BAD_REQUEST, "Malformed JSON request", req, null);
+    HttpStatus status = HttpStatus.BAD_REQUEST;
+    String message = "Malformed JSON request";
+
+    // Send notification for malformed JSON (could indicate attack attempts)
+    sendErrorNotification(status, message, req, ex);
+
+    return apiError(status, message, req, null);
   }
 
   /* ========== DUPLICATE / DB CONSTRAINT ========== */
@@ -109,8 +194,13 @@ public class GlobalExceptionHandler {
       message = "NPWP sudah terdaftar";
     }
 
+    HttpStatus status = HttpStatus.CONFLICT;
+
+    // Send notification for data integrity violations (could indicate data issues)
+    sendErrorNotification(status, message, req, ex);
+
     // 409 CONFLICT untuk duplicate
-    return apiError(HttpStatus.CONFLICT, message, req, null);
+    return apiError(status, message, req, null);
   }
 
   /* ========== SERVICE THROWS STATUS ========== */
@@ -120,6 +210,10 @@ public class GlobalExceptionHandler {
       ResponseStatusException ex, WebRequest req) {
     HttpStatus status = (HttpStatus) ex.getStatusCode();
     String message = ex.getReason() != null ? ex.getReason() : status.getReasonPhrase();
+
+    // Send notification for response status exceptions
+    sendErrorNotification(status, message, req, ex);
+
     return apiError(status, message, req, null);
   }
 
@@ -128,7 +222,14 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(ValidationException.class)
   public ResponseEntity<Map<String, Object>> handleValidation(
       ValidationException ex, WebRequest req) {
-    return apiError(HttpStatus.BAD_REQUEST, ex.getMessage(), req, null);
+    HttpStatus status = HttpStatus.BAD_REQUEST;
+    String message = ex.getMessage();
+
+    // Send notification for validation exceptions (optional - can be disabled for less critical
+    // errors)
+    // sendErrorNotification(status, message, req, ex);
+
+    return apiError(status, message, req, null);
   }
 
   /* ========== FALLBACK ========== */
@@ -136,24 +237,48 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(Exception.class)
   public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex, WebRequest req) {
     log.info("Unhandled exception: {}", ex.getMessage(), ex);
-    return apiError(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", req, null);
+    HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
+    String message = "Internal server error";
+
+    // Always send notification for unhandled exceptions - these are critical
+    sendErrorNotification(status, message, req, ex);
+
+    return apiError(status, message, req, null);
   }
 
   @ExceptionHandler(AuthenticationException.class)
   public ResponseEntity<Map<String, Object>> handleAuthenticationException(
       AuthenticationException ex, WebRequest req) {
-    return apiError(HttpStatus.UNAUTHORIZED, ex.getMessage(), req, null);
+    HttpStatus status = HttpStatus.UNAUTHORIZED;
+    String message = ex.getMessage();
+
+    // Send notification for authentication failures (security concern)
+    sendErrorNotification(status, message, req, ex);
+
+    return apiError(status, message, req, null);
   }
 
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<Map<String, Object>> handleIllegalArgument(
       IllegalArgumentException ex, WebRequest req) {
-    return apiError(HttpStatus.BAD_REQUEST, ex.getMessage(), req, null);
+    HttpStatus status = HttpStatus.BAD_REQUEST;
+    String message = ex.getMessage();
+
+    // Send notification for illegal arguments (could indicate programming errors)
+    sendErrorNotification(status, message, req, ex);
+
+    return apiError(status, message, req, null);
   }
 
   @ExceptionHandler(IllegalStateException.class)
   public ResponseEntity<Map<String, Object>> handleIllegalState(
       IllegalStateException ex, WebRequest req) {
-    return apiError(HttpStatus.BAD_REQUEST, ex.getMessage(), req, null);
+    HttpStatus status = HttpStatus.BAD_REQUEST;
+    String message = ex.getMessage();
+
+    // Send notification for illegal state (could indicate programming errors)
+    sendErrorNotification(status, message, req, ex);
+
+    return apiError(status, message, req, null);
   }
 }

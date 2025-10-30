@@ -89,4 +89,8 @@ public class Role {
   public void setUpdatedAt(LocalDateTime updatedAt) {
     this.updatedAt = updatedAt;
   }
+
+  public String toString() {
+    return name;
+  }
 }
