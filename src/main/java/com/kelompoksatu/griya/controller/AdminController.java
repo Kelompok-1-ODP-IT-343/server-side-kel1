@@ -10,6 +10,7 @@ import com.kelompoksatu.griya.service.AdminService;
 import com.kelompoksatu.griya.service.DeveloperService;
 import com.kelompoksatu.griya.service.PropertyService;
 import com.kelompoksatu.griya.service.UserService;
+import com.kelompoksatu.griya.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -51,6 +52,7 @@ public class AdminController {
   private final PropertyFavoriteRepository propertyFavoriteRepository;
   private final PropertyService propertyService;
   private final UserService userService;
+  private final JwtUtil jwtUtil;
 
   // ==================== DEVELOPER MANAGEMENT ====================
 
@@ -524,5 +526,18 @@ public class AdminController {
         ApiResponse.success(users, "All users retrieved successfully", "/api/v1/admin/users");
 
     return ResponseEntity.ok(response);
+  }
+
+  @DeleteMapping("/users/{id}")
+  public ResponseEntity<ApiResponse<Void>> hardDeleteUser(
+      @PathVariable Integer id,
+      @RequestParam(required = false) String reason,
+      @RequestHeader("Authorization") String authHeader) {
+
+    Integer adminId = jwtUtil.extractUserIdFromHeader(authHeader);
+    adminService.hardDeleteUser(id, adminId, reason);
+
+    return ResponseEntity.ok(
+        ApiResponse.success(null, "User berhasil dihapus permanen", "/api/v1/admin/users/" + id));
   }
 }

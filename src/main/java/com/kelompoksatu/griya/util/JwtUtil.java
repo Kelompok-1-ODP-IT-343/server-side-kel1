@@ -177,4 +177,8 @@ public class JwtUtil {
     }
     return authHeader.substring(7);
   }
+
+  public Integer extractUserIdFromHeader(String authHeader) {
+    return extractUserId(extractTokenFromHeader(authHeader));
+  }
 }

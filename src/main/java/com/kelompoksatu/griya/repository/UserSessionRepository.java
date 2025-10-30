@@ -37,4 +37,8 @@ public interface UserSessionRepository extends JpaRepository<UserSession, String
   @Query(
       "SELECT us FROM UserSession us WHERE us.refreshToken = :refreshToken AND us.status = 'ACTIVE'")
   Optional<UserSession> findActiveByRefreshToken(String refreshToken);
+
+  @Modifying
+  @Query("delete from UserProfile up where up.userId = :userId")
+  void deleteByUserId(@Param("userId") Integer userId);
 }

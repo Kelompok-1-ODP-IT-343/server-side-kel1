@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.server.ResponseStatusException;
+import org.webjars.NotFoundException;
 
 @Slf4j
 @RestControllerAdvice
@@ -277,6 +278,16 @@ public class GlobalExceptionHandler {
     String message = ex.getMessage();
 
     // Send notification for illegal state (could indicate programming errors)
+    sendErrorNotification(status, message, req, ex);
+
+    return apiError(status, message, req, null);
+  }
+
+  @ExceptionHandler(NotFoundException.class)
+  public ResponseEntity<Map<String, Object>> handleNotFound(NotFoundException ex, WebRequest req) {
+    HttpStatus status = HttpStatus.NOT_FOUND;
+    String message = ex.getMessage();
+
     sendErrorNotification(status, message, req, ex);
 
     return apiError(status, message, req, null);
