@@ -3,7 +3,9 @@ package com.kelompoksatu.griya.config;
 import com.kelompoksatu.griya.security.JwtAuthenticationEntryPoint;
 import com.kelompoksatu.griya.security.JwtAuthenticationFilter;
 import java.util.Arrays;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -35,6 +37,16 @@ public class SecurityConfig {
 
   @Autowired private JwtAuthenticationFilter jwtAuthenticationFilter;
 
+  // Inject CORS properties from application.properties
+  @Value("${security.cors.allowed-origins}")
+  private String allowedOrigins;
+
+  @Value("${security.cors.allowed-methods}")
+  private String allowedMethods;
+
+  @Value("${security.cors.allowed-headers}")
+  private String allowedHeaders;
+
   /** Password encoder bean using BCrypt */
   @Bean
   public PasswordEncoder passwordEncoder() {
@@ -48,36 +60,75 @@ public class SecurityConfig {
     return config.getAuthenticationManager();
   }
 
-  /** CORS configuration */
+  /** Enhanced CORS configuration using application properties */
   @Bean
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration configuration = new CorsConfiguration();
 
-    // Allow specific origins (configure based on your frontend domains)
-    configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+    // Parse and set allowed origins from properties
+    List<String> origins = Arrays.asList(allowedOrigins.split(","));
 
-    // Allow specific HTTP methods
-    configuration.setAllowedMethods(
-        Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+    // Clean up origins (trim whitespace)
+    origins =
+        origins.stream()
+            .map(String::trim)
+            .filter(origin -> !origin.isEmpty())
+            .collect(java.util.stream.Collectors.toList());
 
-    // Allow specific headers
-    configuration.setAllowedHeaders(
-        Arrays.asList(
-            "Authorization",
-            "Content-Type",
-            "X-Requested-With",
-            "Accept",
-            "Origin",
-            "Access-Control-Request-Method",
-            "Access-Control-Request-Headers"));
+    if (origins.isEmpty() || allowedOrigins.trim().equals("*")) {
+      // For development - allow all origins with patterns
+      configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+      configuration.setAllowCredentials(false); // Cannot use credentials with wildcard
+    } else {
+      configuration.setAllowedOrigins(origins);
+      configuration.setAllowCredentials(true); // Allow credentials with specific origins
+    }
+
+    // Parse and set allowed methods from properties
+    List<String> methods = Arrays.asList(allowedMethods.split(","));
+    methods =
+        methods.stream()
+            .map(String::trim)
+            .filter(method -> !method.isEmpty())
+            .collect(java.util.stream.Collectors.toList());
+    configuration.setAllowedMethods(methods);
+
+    // Set allowed headers - support both wildcard and specific headers
+    if ("*".equals(allowedHeaders.trim())) {
+      configuration.setAllowedHeaders(Arrays.asList("*"));
+    } else {
+      List<String> headers = Arrays.asList(allowedHeaders.split(","));
+      headers =
+          headers.stream()
+              .map(String::trim)
+              .filter(header -> !header.isEmpty())
+              .collect(java.util.stream.Collectors.toList());
+      configuration.setAllowedHeaders(headers);
+    }
+
+    // Add essential headers for CORS and authentication
+    configuration.addAllowedHeader("Authorization");
+    configuration.addAllowedHeader("Content-Type");
+    configuration.addAllowedHeader("X-Requested-With");
+    configuration.addAllowedHeader("Accept");
+    configuration.addAllowedHeader("Origin");
+    configuration.addAllowedHeader("Access-Control-Request-Method");
+    configuration.addAllowedHeader("Access-Control-Request-Headers");
+    configuration.addAllowedHeader("X-Custom-Header");
 
     // Expose headers to frontend
     configuration.setExposedHeaders(
         Arrays.asList(
-            "Access-Control-Allow-Origin", "Access-Control-Allow-Credentials", "Authorization"));
+            "Access-Control-Allow-Origin",
+            "Access-Control-Allow-Credentials",
+            "Authorization",
+            "Content-Type",
+            "X-Total-Count",
+            "X-Page-Number",
+            "X-Page-Size"));
 
-    configuration.setAllowCredentials(true);
-    configuration.setMaxAge(3600L); // Cache preflight response for 1 hour
+    // Cache preflight response for 1 hour
+    configuration.setMaxAge(3600L);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", configuration);
@@ -118,6 +169,7 @@ public class SecurityConfig {
                         "/api/v1/auth/verify-registration-otp",
                         "/api/v1/properties/**",
                         "/api/v1/features/**",
+                        "/api/v1/cors-test/**",
                         "/actuator/health",
                         "/actuator/health/liveness",
                         "/actuator/health/readiness",
