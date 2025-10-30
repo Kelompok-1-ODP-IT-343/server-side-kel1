@@ -750,6 +750,7 @@ public class KprApplicationService {
   }
 
   /** Create first approval workflow */
+  @Transactional
   private void createFirstApprovalWorkflow(Integer applicationId, Integer approvalStaffId) {
     ApprovalWorkflow workflow =
         ApprovalWorkflow.builder()
