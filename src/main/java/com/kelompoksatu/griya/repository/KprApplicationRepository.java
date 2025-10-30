@@ -7,6 +7,7 @@ import com.kelompoksatu.griya.entity.KprApplication;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -155,4 +156,10 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
           + "FROM KprApplication k "
           + "ORDER BY k.createdAt ASC")
   List<KprInProgress> findKprApplicationsAll();
+
+  // Update KPR Application status
+  @Modifying
+  @Query("UPDATE KprApplication k SET k.status = :status WHERE k.id = :id")
+  int updateKprApplicationStatus(
+      @Param("id") Integer id, @Param("status") KprApplication.ApplicationStatus status);
 }

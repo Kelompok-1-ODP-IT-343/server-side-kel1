@@ -120,8 +120,9 @@ public class OtpService {
         purpose = "verification";
       }
 
+      String identifier = phone + ":" + purpose;
       // Check rate limiting
-      String rateLimitKey = OTP_RATE_LIMIT_PREFIX + phone;
+      String rateLimitKey = "rate_limit:" + identifier;
       long requestCount = redisService.incrementRateLimit(phone, rateLimitWindowMinutes);
 
       if (requestCount > maxOtpRequestsPerHour) {
@@ -136,7 +137,6 @@ public class OtpService {
       String otp = generateNumericOtp();
 
       // Store OTP di Redis
-      String identifier = phone + ":" + purpose;
       log.info(
           "DEBUG: Storing OTP - Phone: {}, Purpose: {}, Identifier: {}, OTP: {}",
           phone,
@@ -150,9 +150,9 @@ public class OtpService {
       log.info(
           "DEBUG: OTP storage verification - Key exists: {}, Key: otp:{}", otpExists, identifier);
 
-      // Reset attempts counter
-      String attemptsKey = OTP_ATTEMPTS_PREFIX + identifier;
-      redisService.delete(attemptsKey);
+      // Reset attempts counter - Fixed key handling
+
+      redisService.delete(rateLimitKey);
 
       // Kirim OTP via WhatsApp
       boolean sent = whatsAppService.sendOtp(phone, otp);
@@ -209,7 +209,6 @@ public class OtpService {
       }
 
       String identifier = phone + ":" + purpose;
-      String attemptsKey = OTP_ATTEMPTS_PREFIX + identifier;
 
       log.info(
           "DEBUG: Validating OTP - Phone: {}, Purpose: {}, Identifier: {}, Input OTP: {}",
@@ -231,23 +230,26 @@ public class OtpService {
           otp,
           (storedOtp != null && storedOtp.equals(otp.trim())));
 
-      // Check attempts
-      long attempts = redisService.getRateLimitCount(attemptsKey.replace(OTP_ATTEMPTS_PREFIX, ""));
+      // Check attempts - Fixed key handling
+      String attemptsIdentifier = identifier; // Use identifier directly for rate limiting
+      long attempts = redisService.getRateLimitCount(attemptsIdentifier);
       if (attempts >= maxAttempts) {
         log.warn("Maksimal attempts tercapai untuk OTP validation: {}", identifier);
         auditLog(phone, purpose, "OTP_MAX_ATTEMPTS", "BLOCKED");
-        throw new RuntimeException("Maksimal percobaan OTP tercapai. Silakan request OTP baru.");
+        // Return false instead of throwing exception to prevent 500 error
+        return false;
       }
 
       // Increment attempts
-      redisService.incrementRateLimit(attemptsKey.replace(OTP_ATTEMPTS_PREFIX, ""), otpTtlMinutes);
+      redisService.incrementRateLimit(attemptsIdentifier, otpTtlMinutes);
 
       // Validate OTP using RedisService method (this will also delete the OTP if valid)
       boolean isValid = redisService.validateOtp(identifier, otp.trim());
 
       if (isValid) {
-        // Clear attempts counter jika berhasil
-        redisService.delete(attemptsKey);
+        // Clear attempts counter jika berhasil - Fixed key handling
+        String rateLimitKey = "rate_limit:" + attemptsIdentifier;
+        redisService.delete(rateLimitKey);
         log.info("OTP berhasil divalidasi untuk {}, purpose: {}", phone, purpose);
         auditLog(phone, purpose, "OTP_VALIDATED", "SUCCESS");
         return true;
@@ -453,12 +455,33 @@ public class OtpService {
     try {
       log.info("DEBUG: sendOtp called - Original phone: {}, Purpose: {}", phone, purpose);
 
-      // Normalize phone number (handle 08xx to 628xx conversion)
-      String normalizedPhone = normalizePhoneNumber(phone);
-      log.info(
-          "DEBUG: Phone normalization in sendOtp - Original: {}, Normalized: {}",
-          phone,
-          normalizedPhone);
+      // Validate input parameters
+      if (phone == null || phone.trim().isEmpty()) {
+        log.error("Phone number is null or empty");
+        return OtpResponse.error("Nomor telepon tidak boleh kosong");
+      }
+
+      if (purpose == null || purpose.trim().isEmpty()) {
+        purpose = "login"; // Default purpose
+      }
+
+      // Normalize phone number with better error handling
+      String normalizedPhone;
+      try {
+        normalizedPhone = normalizePhoneNumber(phone);
+        log.info(
+            "DEBUG: Phone normalization in sendOtp - Original: {}, Normalized: {}",
+            phone,
+            normalizedPhone);
+      } catch (IllegalArgumentException e) {
+        log.error("Phone normalization failed for phone: {}, error: {}", phone, e.getMessage());
+        // Try with original phone number as fallback
+        normalizedPhone = phone.replaceAll("[^0-9]", "");
+        log.info(
+            "DEBUG: Using fallback phone normalization in sendOtp - Original: {}, Fallback: {}",
+            phone,
+            normalizedPhone);
+      }
 
       // Generate and send OTP
       String otp = generateAndSendOtp(normalizedPhone, purpose);
@@ -474,8 +497,8 @@ public class OtpService {
       }
 
     } catch (Exception e) {
-      log.error("Error in sendOtp: {}", e.getMessage(), e);
-      return OtpResponse.error(e.getMessage());
+      log.error("Error in sendOtp for phone {}: {}", phone, e.getMessage(), e);
+      return OtpResponse.error("Gagal mengirim OTP: " + e.getMessage());
     }
   }
 
@@ -495,16 +518,44 @@ public class OtpService {
           otp,
           purpose);
 
-      // Normalize phone number
-      String normalizedPhone = normalizePhoneNumber(phone);
-      log.info("DEBUG: Phone normalization - Original: {}, Normalized: {}", phone, normalizedPhone);
+      // Validate input parameters
+      if (phone == null || phone.trim().isEmpty()) {
+        log.error("Phone number is null or empty");
+        return false;
+      }
+
+      if (otp == null || otp.trim().isEmpty()) {
+        log.error("OTP is null or empty");
+        return false;
+      }
+
+      if (purpose == null || purpose.trim().isEmpty()) {
+        purpose = "login"; // Default purpose
+      }
+
+      // Normalize phone number with better error handling
+      String normalizedPhone;
+      try {
+        normalizedPhone = normalizePhoneNumber(phone);
+        log.info(
+            "DEBUG: Phone normalization - Original: {}, Normalized: {}", phone, normalizedPhone);
+      } catch (IllegalArgumentException e) {
+        log.error("Phone normalization failed for phone: {}, error: {}", phone, e.getMessage());
+        // Try with original phone number as fallback
+        normalizedPhone = phone.replaceAll("[^0-9]", "");
+        log.info(
+            "DEBUG: Using fallback phone normalization - Original: {}, Fallback: {}",
+            phone,
+            normalizedPhone);
+      }
 
       // Validate OTP
       return validateOtp(normalizedPhone, otp, purpose);
 
     } catch (Exception e) {
-      log.error("Error in verifyOtp: {}", e.getMessage(), e);
-      throw new IllegalArgumentException(e.getMessage());
+      log.error("Error in verifyOtp for phone {}: {}", phone, e.getMessage(), e);
+      // Return false instead of throwing exception to prevent 500 error
+      return false;
     }
   }
 
@@ -521,6 +572,11 @@ public class OtpService {
 
     // Remove all non-digit characters
     String cleanPhone = phone.replaceAll("[^0-9]", "");
+
+    // Validate minimum length
+    if (cleanPhone.length() < 10) {
+      throw new IllegalArgumentException("Nomor telepon terlalu pendek (minimal 10 digit)");
+    }
 
     // Handle different formats
     if (cleanPhone.startsWith("08")) {
@@ -543,8 +599,39 @@ public class OtpService {
           return cleanPhone;
         }
       }
+      // If not valid mobile prefix, try to fix it
+      log.warn("Invalid mobile prefix for phone: {}, trying to fix", cleanPhone);
+      if (cleanPhone.length() >= 3 && cleanPhone.substring(2, 3).equals("8")) {
+        // Might be missing a digit, return as is and let validation handle it
+        return cleanPhone;
+      }
       throw new IllegalArgumentException("Format nomor telepon tidak valid");
+    } else if (cleanPhone.startsWith("8")) {
+      // Handle 8xxxxxxxxx format (missing leading 0)
+      return "62" + cleanPhone;
     } else {
+      // Try to salvage the phone number
+      log.warn("Unusual phone format: {}, attempting to normalize", cleanPhone);
+
+      // If it looks like it might be a valid Indonesian mobile number
+      if (cleanPhone.length() >= 10 && cleanPhone.length() <= 15) {
+        // Try adding 62 prefix
+        if (cleanPhone.startsWith("1")
+            || cleanPhone.startsWith("2")
+            || cleanPhone.startsWith("3")
+            || cleanPhone.startsWith("4")
+            || cleanPhone.startsWith("5")
+            || cleanPhone.startsWith("6")
+            || cleanPhone.startsWith("7")
+            || cleanPhone.startsWith("9")) {
+          throw new IllegalArgumentException("Nomor telepon harus dimulai dengan 08 atau 62");
+        }
+        // If starts with 8, assume it's missing 62 prefix
+        if (cleanPhone.startsWith("8")) {
+          return "62" + cleanPhone;
+        }
+      }
+
       throw new IllegalArgumentException("Nomor telepon harus dimulai dengan 08 atau 62");
     }
   }

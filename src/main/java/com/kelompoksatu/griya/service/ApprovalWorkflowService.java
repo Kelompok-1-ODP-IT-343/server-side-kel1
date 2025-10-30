@@ -1,10 +1,12 @@
 package com.kelompoksatu.griya.service;
 
 import com.kelompoksatu.griya.dto.ApprovalConfirmation;
+import com.kelompoksatu.griya.entity.ApprovalWorkflow;
 import com.kelompoksatu.griya.entity.KprApplication.ApplicationStatus;
 import com.kelompoksatu.griya.entity.User;
 import com.kelompoksatu.griya.repository.ApprovalWorkflowRepository;
 import com.kelompoksatu.griya.repository.DeveloperRepository;
+import com.kelompoksatu.griya.repository.KprApplicationRepository;
 import com.kelompoksatu.griya.repository.UserRepository;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,7 @@ public class ApprovalWorkflowService {
   private final ApprovalWorkflowRepository approvalWorkflowRepository;
   private final DeveloperRepository developerRepository;
   private final UserRepository userRepository;
+  private final KprApplicationRepository kprApplicationRepository;
 
   public boolean approveOrRejectWorkflowDeveloper(ApprovalConfirmation request, Integer userID) {
     var user =
@@ -76,22 +79,75 @@ public class ApprovalWorkflowService {
     Boolean isApproved = request.getIsApproved();
     String reason = request.getReason();
     var now = LocalDateTime.now();
+
     if (isApproved) {
       log.info("Approving workflow for user ID: {}", userID);
-      int updatedRows =
-          approvalWorkflowRepository.approveByUserIDandApplicationID(userID, userID, now, reason);
 
-      approvalWorkflowRepository.updateStatusKPRApplication(
-          request.getApplicationId(), ApplicationStatus.APPROVAL_PENDING, now);
+      // First, get current pending workflow to determine the stage
+      var currentWorkflow =
+          approvalWorkflowRepository
+              .findByApplicationIdAndStatus(
+                  request.getApplicationId(), ApprovalWorkflow.WorkflowStatus.PENDING)
+              .stream()
+              .filter(w -> w.getAssignedTo().equals(userID))
+              .findFirst();
+
+      if (currentWorkflow.isEmpty()) {
+        log.warn(
+            "No pending workflow found for user {} and application {}",
+            userID,
+            request.getApplicationId());
+        return false;
+      }
+
+      var workflow = currentWorkflow.get();
+      log.info("Processing approval for stage: {}", workflow.getStage());
+
+      // Approve the workflow
+      int updatedRows =
+          approvalWorkflowRepository.approveByUserIDandApplicationID(
+              userID, request.getApplicationId(), now, reason);
+
+      if (updatedRows > 0) {
+        // Determine next application status based on current stage
+        ApplicationStatus nextStatus = determineNextApplicationStatus(workflow.getStage());
+
+        if (nextStatus == ApplicationStatus.APPROVED) {
+          kprApplicationRepository.updateKprApplicationStatus(
+              request.getApplicationId(), ApplicationStatus.APPROVED);
+        } else {
+          approvalWorkflowRepository.updateStatusKPRApplication(
+              request.getApplicationId(), nextStatus, now);
+        }
+      }
 
       return updatedRows > 0;
     }
 
+    kprApplicationRepository.updateKprApplicationStatus(
+        request.getApplicationId(), ApplicationStatus.REJECTED);
+
     log.info("Rejecting workflow for user ID: {}", userID);
     int updatedRows =
-        approvalWorkflowRepository.rejectByUserIDandApplicationID(userID, userID, now, reason);
+        approvalWorkflowRepository.rejectByUserIDandApplicationID(
+            userID, request.getApplicationId(), now, reason);
     approvalWorkflowRepository.updateStatusKPRApplication(
         request.getApplicationId(), ApplicationStatus.REJECTED, now);
     return updatedRows > 0;
+  }
+
+  /** Determine next application status based on current workflow stage */
+  private ApplicationStatus determineNextApplicationStatus(
+      ApprovalWorkflow.WorkflowStage currentStage) {
+    switch (currentStage) {
+      case PROPERTY_APPRAISAL:
+        return ApplicationStatus.CREDIT_ANALYSIS;
+      case CREDIT_ANALYSIS:
+        return ApplicationStatus.APPROVAL_PENDING;
+      case FINAL_APPROVAL:
+        return ApplicationStatus.APPROVED;
+      default:
+        return ApplicationStatus.APPROVAL_PENDING;
+    }
   }
 }
