@@ -104,6 +104,57 @@ public class AdminController {
     }
   }
 
+  /** Update property information (admin only) */
+  @Operation(
+      summary = "Update property information",
+      description =
+          "Update property data including details, images, features, and locations. This endpoint is restricted to admin users only.")
+  @ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Property updated successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = UpdatePropertyResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404",
+            description = "Property not found",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class)))
+      })
+  @PutMapping("/properties/{id}")
+  public ResponseEntity<ApiResponse<UpdatePropertyResponse>> updateProperty(
+      @PathVariable Integer id, @Valid @RequestBody UpdatePropertyRequest request) {
+
+    try {
+      // 🔹 panggil service untuk update semua relasi
+      UpdatePropertyResponse updatedProperty = propertyService.updateProperty(id, request);
+
+      return ResponseEntity.ok(
+          ApiResponse.success("Property updated successfully", updatedProperty));
+
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .body(ApiResponse.error("Property not found: " + e.getMessage()));
+
+    } catch (Exception e) {
+      log.error("❌ Failed to update property: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Failed to update property: " + e.getMessage()));
+    }
+  }
+
   @GetMapping("/users/{userId}/favorites")
   public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUserFavorites(
       @PathVariable Integer userId) {
