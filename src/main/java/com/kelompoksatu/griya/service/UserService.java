@@ -105,64 +105,36 @@ public class UserService {
   // USER UPDATE OPERATIONS
   // ========================================
 
-  /** Update user information */
-  public UserResponse updateUser(Integer userId, UpdateUserRequest request) {
-    logger.info("Attempting to update user with ID: {}", userId);
-
-    User existingUser = validateAndGetUser(userId);
-    validateUserUpdateRequest(request, existingUser);
-
-    // Update user fields using MapStruct
-    userMapper.updateUserFromRequest(request, existingUser);
-
-    User updatedUser = userRepository.save(existingUser);
-    logger.info("User updated successfully with ID: {}", userId);
-
-    return userMapper.toResponse(updatedUser);
-  }
-
-  /** Update user profile information */
-  public UserResponse updateUserProfile(Integer userId, UpdateUserRequest request) {
-    logger.info("Attempting to update user profile with ID: {}", userId);
-
-    UserProfile existingProfile = validateAndGetUserProfile(userId);
-    validateProfileUpdateRequest(request, existingProfile);
-
-    // Update profile fields using MapStruct
-    userMapper.updateUserProfileFromRequest(request, existingProfile);
-    updateProfileEnumFields(request, existingProfile);
-
-    UserProfile updatedProfile = userProfileRepository.save(existingProfile);
-    logger.info("User profile updated successfully for user ID: {}", userId);
+  /** Update both user and profile information */
+  @Transactional
+  public UserResponse updateUserAndProfile(Integer userId, UpdateUserRequest request) {
+    logger.info("Updating user and profile with ID: {}", userId);
 
     User user = validateAndGetUser(userId);
-    return userMapper.toResponse(user);
-  }
+    UserProfile profile =
+        userProfileRepository
+            .findByUserId(userId)
+            .orElseGet(() -> new UserProfile(userId)); // if profile doesn’t exist yet
 
-  /** Update both user and profile information */
-  public UserResponse updateUserComplete(Integer userId, UpdateUserRequest request) {
-    logger.info("Attempting to update user and profile with ID: {}", userId);
-
-    UserResponse result = null;
-
-    // Update user information if any user account fields are provided
+    // 1️⃣ Apply user account updates (if fields are present)
     if (hasUserAccountFields(request)) {
-      result = updateUser(userId, request);
+      userMapper.updateUserFromRequest(request, user);
     }
 
-    // Update profile information if any profile fields are provided
+    // 2️⃣ Apply profile updates (if fields are present)
     if (hasProfileFields(request)) {
-      result = updateUserProfile(userId, request);
+      userMapper.updateUserProfileFromRequest(request, profile);
+      updateProfileEnumFields(request, profile);
     }
 
-    // If no fields are provided, return current user info
-    if (result == null) {
-      User user = validateAndGetUser(userId);
-      result = userMapper.toResponse(user);
-    }
+    // 3️⃣ Save only what’s modified
+    userRepository.save(user);
+    userProfileRepository.save(profile);
 
-    logger.info("User and profile updated successfully with ID: {}", userId);
-    return result;
+    logger.info("User & profile updated successfully with ID: {}", userId);
+
+    // 4️⃣ Return unified response
+    return userMapper.toResponse(user, profile);
   }
 
   // ========================================

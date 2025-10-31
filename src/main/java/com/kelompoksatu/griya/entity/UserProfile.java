@@ -88,4 +88,6 @@ public class UserProfile {
   @UpdateTimestamp
   @Column(name = "updated_at", nullable = false)
   private LocalDateTime updatedAt;
+
+  public UserProfile(Integer userId) {}
 }

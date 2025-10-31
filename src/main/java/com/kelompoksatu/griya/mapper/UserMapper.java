@@ -47,28 +47,30 @@ public interface UserMapper {
    * @param user The user entity
    * @return UserResponse DTO for API responses
    */
-  @Mapping(target = "roleId", source = "role.id")
-  @Mapping(target = "roleName", source = "role.name")
+  @Mapping(target = "id", source = "user.id")
+  @Mapping(target = "roleId", source = "user.role.id")
+  @Mapping(target = "roleName", source = "user.role.name")
   @Mapping(target = "emailVerified", expression = "java(user.getEmailVerifiedAt() != null)")
   @Mapping(target = "phoneVerified", expression = "java(user.getPhoneVerifiedAt() != null)")
   @Mapping(target = "developer", expression = "java(user.getDeveloper() != null)")
-  // Ignore user profile fields - these are handled by UserService.convertToUserResponse
-  @Mapping(target = "fullName", ignore = true)
-  @Mapping(target = "nik", ignore = true)
-  @Mapping(target = "npwp", ignore = true)
-  @Mapping(target = "birthDate", ignore = true)
-  @Mapping(target = "birthPlace", ignore = true)
-  @Mapping(target = "gender", ignore = true)
-  @Mapping(target = "maritalStatus", ignore = true)
-  @Mapping(target = "address", ignore = true)
-  @Mapping(target = "city", ignore = true)
-  @Mapping(target = "province", ignore = true)
-  @Mapping(target = "postalCode", ignore = true)
-  @Mapping(target = "occupation", ignore = true)
-  @Mapping(target = "companyName", ignore = true)
-  @Mapping(target = "monthlyIncome", ignore = true)
-  @Mapping(target = "workExperience", ignore = true)
-  UserResponse toResponse(User user);
+  @Mapping(target = "fullName", source = "profile.fullName")
+  @Mapping(target = "nik", source = "profile.nik")
+  @Mapping(target = "npwp", source = "profile.npwp")
+  @Mapping(target = "birthDate", source = "profile.birthDate")
+  @Mapping(target = "birthPlace", source = "profile.birthPlace")
+  @Mapping(target = "gender", source = "profile.gender")
+  @Mapping(target = "maritalStatus", source = "profile.maritalStatus")
+  @Mapping(target = "address", source = "profile.address")
+  @Mapping(target = "city", source = "profile.city")
+  @Mapping(target = "province", source = "profile.province")
+  @Mapping(target = "postalCode", source = "profile.postalCode")
+  @Mapping(target = "occupation", source = "profile.occupation")
+  @Mapping(target = "companyName", source = "profile.companyName")
+  @Mapping(target = "monthlyIncome", source = "profile.monthlyIncome")
+  @Mapping(target = "workExperience", source = "profile.workExperience")
+  @Mapping(target = "createdAt", source = "user.createdAt")
+  @Mapping(target = "updatedAt", source = "user.updatedAt")
+  UserResponse toResponse(User user, UserProfile profile);
 
   /**
    * Maps UpdateUserRequest to existing UserProfile entity for updates.

@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -190,10 +191,12 @@ public class AdminController {
                       schema = @Schema(implementation = UpdateDeveloperRequest.class)))
           @Valid
           @RequestBody
-          UpdateDeveloperRequest request) {
+          UpdateDeveloperRequest request,
+      HttpServletRequest httpRequest) {
     DeveloperResponse developer = developerService.updateDeveloper(id, request);
     ApiResponse<DeveloperResponse> response =
-        new ApiResponse<>(true, "Developer updated successfully", developer);
+        ApiResponse.success(
+            developer, "Developer updated successfully", httpRequest.getRequestURI());
     return ResponseEntity.ok(response);
   }
 
@@ -306,11 +309,13 @@ public class AdminController {
                     schema = @Schema(implementation = ApiResponse.class)))
       })
   @GetMapping("/developers/{id}")
-  public ResponseEntity<ApiResponse<DeveloperResponse>> getDeveloperById(@PathVariable Integer id) {
+  public ResponseEntity<ApiResponse<DeveloperResponse>> getDeveloperById(
+      @PathVariable Integer id, HttpServletRequest httpRequest) {
     Optional<DeveloperResponse> developer = developerService.getDeveloperById(id);
     if (developer.isPresent()) {
       ApiResponse<DeveloperResponse> response =
-          new ApiResponse<>(true, "Developer retrieved successfully", developer.get());
+          ApiResponse.success(
+              developer.get(), "Developer retrieved successfully", httpRequest.getRequestURI());
       return ResponseEntity.ok(response);
     } else {
       ApiResponse<DeveloperResponse> response =
@@ -354,14 +359,15 @@ public class AdminController {
           String sortBy,
       @Parameter(description = "Sort direction", example = "desc")
           @RequestParam(defaultValue = "desc")
-          String sortDirection) {
+          String sortDirection,
+      HttpServletRequest httpRequest) {
     PaginationRequest paginationRequest = new PaginationRequest(page, size, sortBy, sortDirection);
     PaginatedResponse<DeveloperResponse> developers =
         developerService.getAllDevelopers(paginationRequest);
 
     ApiResponse<PaginatedResponse<DeveloperResponse>> response =
         ApiResponse.success(
-            developers, "All developers retrieved successfully", "/api/v1/admin/developers");
+            developers, "All developers retrieved successfully", httpRequest.getRequestURI());
 
     return ResponseEntity.ok(response);
   }
@@ -401,16 +407,15 @@ public class AdminController {
           String sortBy,
       @Parameter(description = "Sort direction", example = "desc")
           @RequestParam(defaultValue = "desc")
-          String sortDirection) {
+          String sortDirection,
+      HttpServletRequest httpRequest) {
     PaginationRequest paginationRequest = new PaginationRequest(page, size, sortBy, sortDirection);
     PaginatedResponse<DeveloperResponse> developers =
         developerService.getActiveDevelopers(paginationRequest);
 
     ApiResponse<PaginatedResponse<DeveloperResponse>> response =
         ApiResponse.success(
-            developers,
-            "Active developers retrieved successfully",
-            "/api/v1/admin/developers/active");
+            developers, "Active developers retrieved successfully", httpRequest.getRequestURI());
 
     return ResponseEntity.ok(response);
   }
@@ -450,16 +455,15 @@ public class AdminController {
           String sortBy,
       @Parameter(description = "Sort direction", example = "desc")
           @RequestParam(defaultValue = "desc")
-          String sortDirection) {
+          String sortDirection,
+      HttpServletRequest httpRequest) {
     PaginationRequest paginationRequest = new PaginationRequest(page, size, sortBy, sortDirection);
     PaginatedResponse<DeveloperResponse> developers =
         developerService.getPartnerDevelopers(paginationRequest);
 
     ApiResponse<PaginatedResponse<DeveloperResponse>> response =
         ApiResponse.success(
-            developers,
-            "Partner developers retrieved successfully",
-            "/api/v1/admin/developers/partners");
+            developers, "Partner developers retrieved successfully", httpRequest.getRequestURI());
 
     return ResponseEntity.ok(response);
   }
@@ -508,7 +512,8 @@ public class AdminController {
           String sortBy,
       @Parameter(description = "Sort direction", example = "desc")
           @RequestParam(defaultValue = "desc")
-          String sortDirection) {
+          String sortDirection,
+      HttpServletRequest httpRequest) {
     if (companyName == null || companyName.trim().isEmpty()) {
       ApiResponse<PaginatedResponse<DeveloperResponse>> response =
           ApiResponse.error(
@@ -522,7 +527,7 @@ public class AdminController {
 
     ApiResponse<PaginatedResponse<DeveloperResponse>> response =
         ApiResponse.success(
-            developers, "Search results retrieved successfully", "/api/v1/admin/developers/search");
+            developers, "Search results retrieved successfully", httpRequest.getRequestURI());
 
     return ResponseEntity.ok(response);
   }
@@ -569,12 +574,13 @@ public class AdminController {
           String sortBy,
       @Parameter(description = "Sort direction", example = "desc")
           @RequestParam(defaultValue = "desc")
-          String sortDirection) {
+          String sortDirection,
+      HttpServletRequest httpRequest) {
     PaginationRequest paginationRequest = new PaginationRequest(page, size, sortBy, sortDirection);
     PaginatedResponse<UserResponse> users = userService.getAllUsers(paginationRequest);
 
     ApiResponse<PaginatedResponse<UserResponse>> response =
-        ApiResponse.success(users, "All users retrieved successfully", "/api/v1/admin/users");
+        ApiResponse.success(users, "All users retrieved successfully", httpRequest.getRequestURI());
 
     return ResponseEntity.ok(response);
   }
@@ -583,12 +589,50 @@ public class AdminController {
   public ResponseEntity<ApiResponse<Void>> hardDeleteUser(
       @PathVariable Integer id,
       @RequestParam(required = false) String reason,
-      @RequestHeader("Authorization") String authHeader) {
+      @RequestHeader("Authorization") String authHeader,
+      HttpServletRequest httpRequest) {
 
     Integer adminId = jwtUtil.extractUserIdFromHeader(authHeader);
     adminService.hardDeleteUser(id, adminId, reason);
 
     return ResponseEntity.ok(
-        ApiResponse.success(null, "User berhasil dihapus permanen", "/api/v1/admin/users/" + id));
+        ApiResponse.success(null, "User berhasil dihapus permanen", httpRequest.getRequestURI()));
+  }
+
+  @GetMapping("/users/{id}")
+  public ResponseEntity<ApiResponse<UserResponse>> getUserById(
+      @PathVariable Integer id, HttpServletRequest httpRequest) {
+    UserResponse userProfile = userService.getUserProfile(id);
+
+    return ResponseEntity.ok(
+        ApiResponse.success(userProfile, "User berhasil diambil", httpRequest.getRequestURI()));
+  }
+
+  @PutMapping("/users/{id}")
+  public ResponseEntity<ApiResponse<UserResponse>> updateUser(
+      @Parameter(description = "User ID to update", example = "1") @PathVariable Integer id,
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(
+              description =
+                  "User update request from Admin with optional user account and profile information",
+              content =
+                  @Content(
+                      mediaType = "application/json",
+                      schema = @Schema(implementation = UpdateUserRequest.class)))
+          @Valid
+          @RequestBody
+          UpdateUserRequest request,
+      HttpServletRequest httpRequest) {
+
+    log.info("User update attempt for user ID: {}", id);
+
+    // Update user and profile information
+    UserResponse updatedUser = userService.updateUserAndProfile(id, request);
+
+    ApiResponse<UserResponse> response =
+        ApiResponse.success(
+            updatedUser, "User updated successfully by admin", httpRequest.getRequestURI());
+
+    log.info("User updated successfully for user ID: {}", id);
+    return ResponseEntity.ok(response);
   }
 }

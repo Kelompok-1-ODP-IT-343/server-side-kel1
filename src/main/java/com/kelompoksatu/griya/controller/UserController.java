@@ -158,7 +158,7 @@ public class UserController {
       }
 
       // Update user and profile information
-      UserResponse updatedUser = userService.updateUserComplete(id, request);
+      UserResponse updatedUser = userService.updateUserAndProfile(id, request);
 
       ApiResponse<UserResponse> response =
           ApiResponse.success(
