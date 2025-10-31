@@ -14,31 +14,31 @@ import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 @Table(name = "property_features")
 public class PropertyFeature {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Integer id;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcType(PostgreSQLEnumJdbcType.class)
-    @Column(name = "feature_category", nullable = false)
-    private FeatureCategory featureCategory; //
+  @Enumerated(EnumType.STRING)
+  @JdbcType(PostgreSQLEnumJdbcType.class)
+  @Column(name = "feature_category", nullable = false)
+  private FeatureCategory featureCategory; //
 
-    @Column(name = "feature_name", nullable = false)
-    private String featureName;
+  @Column(name = "feature_name", nullable = false)
+  private String featureName;
 
-    @Column(name = "feature_value", nullable = false)
-    private String featureValue;
+  @Column(name = "feature_value", nullable = false)
+  private String featureValue;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "property_id", nullable = false)
-    private Property property;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "property_id", nullable = false)
+  private Property property;
 
-    public enum FeatureCategory {
-        AMENITIES,
-        INTERIOR,
-        EXTERIOR,
-        LOCATION,
-        SECURITY,
-        UTILITIES
-    }
+  public enum FeatureCategory {
+    AMENITIES,
+    INTERIOR,
+    EXTERIOR,
+    LOCATION,
+    SECURITY,
+    UTILITIES
+  }
 }

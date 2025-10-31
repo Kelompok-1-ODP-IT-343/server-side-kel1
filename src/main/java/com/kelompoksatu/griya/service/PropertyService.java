@@ -11,7 +11,6 @@ import com.kelompoksatu.griya.entity.PropertyImage;
 import com.kelompoksatu.griya.entity.PropertyLocation;
 import com.kelompoksatu.griya.repository.DeveloperRepository;
 import com.kelompoksatu.griya.repository.PropertyRepository;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -313,7 +312,7 @@ public class PropertyService {
     updateMainFields(property, request);
 
     // 2) update relasi
-//  updateImages(property, request);
+    //  updateImages(property, request);
     updateFeatures(property, request);
     updateLocations(property, request);
 
@@ -343,29 +342,29 @@ public class PropertyService {
     property.setUpdatedAt(LocalDateTime.now());
   }
 
-//  private void updateImages(Property property, UpdatePropertyRequest request) {
-//    if (request.getImages() == null) return;
-//
-//    // kosongin list lama (otomatis hapus di DB karena orphanRemoval = true)
-//    property.getImages().clear();
-//
-//    // tambahin image baru dari request
-//    request
-//        .getImages()
-//        .forEach(
-//            imgReq -> {
-//              PropertyImage img =
-//                  PropertyImage.builder()
-//                      .filePath(imgReq.getFilePath())
-//                      .isPrimary(Boolean.TRUE.equals(imgReq.getIsPrimary()))
-//                      .property(property) // penting! relasi balik
-//                      .build();
-//              property.getImages().add(img);
-//            });
-//
-//    // pastiin cuma ada 1 primary
-//    enforceSinglePrimaryImage(property);
-//  }
+  //  private void updateImages(Property property, UpdatePropertyRequest request) {
+  //    if (request.getImages() == null) return;
+  //
+  //    // kosongin list lama (otomatis hapus di DB karena orphanRemoval = true)
+  //    property.getImages().clear();
+  //
+  //    // tambahin image baru dari request
+  //    request
+  //        .getImages()
+  //        .forEach(
+  //            imgReq -> {
+  //              PropertyImage img =
+  //                  PropertyImage.builder()
+  //                      .filePath(imgReq.getFilePath())
+  //                      .isPrimary(Boolean.TRUE.equals(imgReq.getIsPrimary()))
+  //                      .property(property) // penting! relasi balik
+  //                      .build();
+  //              property.getImages().add(img);
+  //            });
+  //
+  //    // pastiin cuma ada 1 primary
+  //    enforceSinglePrimaryImage(property);
+  //  }
 
   private void enforceSinglePrimaryImage(Property property) {
     long primaries =
@@ -386,59 +385,68 @@ public class PropertyService {
     }
   }
 
-    private void updateFeatures(Property property, UpdatePropertyRequest request) {
-        if (request.getFeatures() == null) return;
-        property.getFeatures().clear();
+  private void updateFeatures(Property property, UpdatePropertyRequest request) {
+    if (request.getFeatures() == null) return;
+    property.getFeatures().clear();
 
-        request.getFeatures().forEach(featReq -> {
-            PropertyFeature.FeatureCategory category;
-            try {
-                category = featReq.getFeatureCategory() != null
-                        ? PropertyFeature.FeatureCategory.valueOf(featReq.getFeatureCategory().toUpperCase())
+    request
+        .getFeatures()
+        .forEach(
+            featReq -> {
+              PropertyFeature.FeatureCategory category;
+              try {
+                category =
+                    featReq.getFeatureCategory() != null
+                        ? PropertyFeature.FeatureCategory.valueOf(
+                            featReq.getFeatureCategory().toUpperCase())
                         : PropertyFeature.FeatureCategory.INTERIOR;
-            } catch (IllegalArgumentException e) {
+              } catch (IllegalArgumentException e) {
                 category = PropertyFeature.FeatureCategory.INTERIOR;
-            }
+              }
 
-            PropertyFeature feat = PropertyFeature.builder()
-                    .featureCategory(category)
-                    .featureName(featReq.getFeatureName())
-                    .featureValue(featReq.getFeatureValue())
-                    .property(property)
-                    .build();
+              PropertyFeature feat =
+                  PropertyFeature.builder()
+                      .featureCategory(category)
+                      .featureName(featReq.getFeatureName())
+                      .featureValue(featReq.getFeatureValue())
+                      .property(property)
+                      .build();
 
-            property.getFeatures().add(feat);
-        });
-    }
+              property.getFeatures().add(feat);
+            });
+  }
 
+  private void updateLocations(Property property, UpdatePropertyRequest request) {
+    if (request.getLocations() == null) return;
 
+    property.getLocations().clear();
 
-    private void updateLocations(Property property, UpdatePropertyRequest request) {
-        if (request.getLocations() == null) return;
-
-        property.getLocations().clear();
-
-        request.getLocations().forEach(locReq -> {
-            PropertyLocation.PropertyLocationType type;
-            try {
-                type = locReq.getPoiType() != null
-                        ? PropertyLocation.PropertyLocationType.valueOf(locReq.getPoiType().toUpperCase())
+    request
+        .getLocations()
+        .forEach(
+            locReq -> {
+              PropertyLocation.PropertyLocationType type;
+              try {
+                type =
+                    locReq.getPoiType() != null
+                        ? PropertyLocation.PropertyLocationType.valueOf(
+                            locReq.getPoiType().toUpperCase())
                         : PropertyLocation.PropertyLocationType.OFFICE; // default biar aman
-            } catch (IllegalArgumentException e) {
+              } catch (IllegalArgumentException e) {
                 type = PropertyLocation.PropertyLocationType.OFFICE;
-            }
+              }
 
-            PropertyLocation loc = PropertyLocation.builder()
-                    .poiName(locReq.getPoiName())
-                    .distanceKm(locReq.getDistanceKm())
-                    .poiType(type)
-                    .property(property)
-                    .build();
+              PropertyLocation loc =
+                  PropertyLocation.builder()
+                      .poiName(locReq.getPoiName())
+                      .distanceKm(locReq.getDistanceKm())
+                      .poiType(type)
+                      .property(property)
+                      .build();
 
-            property.getLocations().add(loc);
-        });
-    }
-
+              property.getLocations().add(loc);
+            });
+  }
 
   private UpdatePropertyResponse buildUpdatePropertyResponse(Property updated) {
     String developerName =
@@ -456,17 +464,17 @@ public class PropertyService {
         .city(updated.getCity())
         .developerName(developerName)
         .address(updated.getAddress())
-//        .images(
-//            updated.getImages() == null
-//                ? List.of()
-//                : updated.getImages().stream()
-//                    .map(
-//                        img ->
-//                            UpdatePropertyResponse.ImageData.builder()
-//                                .filePath(img.getFilePath())
-//                                .isPrimary(Boolean.TRUE.equals(img.getIsPrimary()))
-//                                .build())
-//                    .toList())
+        //        .images(
+        //            updated.getImages() == null
+        //                ? List.of()
+        //                : updated.getImages().stream()
+        //                    .map(
+        //                        img ->
+        //                            UpdatePropertyResponse.ImageData.builder()
+        //                                .filePath(img.getFilePath())
+        //                                .isPrimary(Boolean.TRUE.equals(img.getIsPrimary()))
+        //                                .build())
+        //                    .toList())
         .features(
             updated.getFeatures() == null
                 ? List.of()

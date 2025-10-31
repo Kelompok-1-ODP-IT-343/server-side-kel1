@@ -1,8 +1,8 @@
 package com.kelompoksatu.griya.entity;
 
 public enum PropertyType {
-    BRONZE,
-    SILVER,
-    GOLD,
-    PLATINUM;
+  BRONZE,
+  SILVER,
+  GOLD,
+  PLATINUM;
 }

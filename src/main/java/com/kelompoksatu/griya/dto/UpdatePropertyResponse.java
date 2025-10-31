@@ -22,8 +22,6 @@ public class UpdatePropertyResponse {
   private String developerName; // <- akan diisi companyName dari Developer
   private String address;
 
-
-
   @Builder
   @Getter
   @Setter
@@ -43,7 +41,6 @@ public class UpdatePropertyResponse {
     private String poiName;
     private Double distanceKm;
   }
-
 
   private List<FeatureData> features;
   private List<LocationData> locations;
