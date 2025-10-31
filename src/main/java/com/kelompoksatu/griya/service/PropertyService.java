@@ -2,10 +2,16 @@ package com.kelompoksatu.griya.service;
 
 import com.kelompoksatu.griya.dto.CreatePropertyRequest;
 import com.kelompoksatu.griya.dto.PropertyResponse;
+import com.kelompoksatu.griya.dto.UpdatePropertyRequest;
+import com.kelompoksatu.griya.dto.UpdatePropertyResponse;
 import com.kelompoksatu.griya.entity.Developer;
 import com.kelompoksatu.griya.entity.Property;
+import com.kelompoksatu.griya.entity.PropertyFeature;
+import com.kelompoksatu.griya.entity.PropertyImage;
+import com.kelompoksatu.griya.entity.PropertyLocation;
 import com.kelompoksatu.griya.repository.DeveloperRepository;
 import com.kelompoksatu.griya.repository.PropertyRepository;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -290,6 +296,200 @@ public class PropertyService {
     property.setIsFeatured(isFeatured);
     Property updatedProperty = propertyRepository.save(property);
     return new PropertyResponse(updatedProperty);
+  }
+
+  // ========================================
+  // UPDATE PROPERTY (MAIN + RELATIONS)
+  // ========================================
+
+  @Transactional
+  public UpdatePropertyResponse updateProperty(Integer id, UpdatePropertyRequest request) {
+    Property property =
+        propertyRepository
+            .findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Property not found with id: " + id));
+
+    // 1) update field utama
+    updateMainFields(property, request);
+
+    // 2) update relasi
+//  updateImages(property, request);
+    updateFeatures(property, request);
+    updateLocations(property, request);
+
+    // 3) simpan
+    Property updated = propertyRepository.save(property);
+
+    // 4) bangun response
+    return buildUpdatePropertyResponse(updated);
+  }
+
+  private void updateMainFields(Property property, UpdatePropertyRequest request) {
+    if (request.getTitle() != null) property.setTitle(request.getTitle());
+    if (request.getDescription() != null) property.setDescription(request.getDescription());
+    if (request.getPrice() != null) property.setPrice(request.getPrice());
+    if (request.getBedrooms() != null) property.setBedrooms(request.getBedrooms());
+    if (request.getBathrooms() != null) property.setBathrooms(request.getBathrooms());
+
+    if (request.getStatus() != null && !request.getStatus().isBlank()) {
+      try {
+        property.setStatus(
+            Property.PropertyStatus.valueOf(request.getStatus().trim().toUpperCase()));
+      } catch (IllegalArgumentException ex) {
+        throw new IllegalArgumentException("Invalid status: " + request.getStatus());
+      }
+    }
+
+    property.setUpdatedAt(LocalDateTime.now());
+  }
+
+//  private void updateImages(Property property, UpdatePropertyRequest request) {
+//    if (request.getImages() == null) return;
+//
+//    // kosongin list lama (otomatis hapus di DB karena orphanRemoval = true)
+//    property.getImages().clear();
+//
+//    // tambahin image baru dari request
+//    request
+//        .getImages()
+//        .forEach(
+//            imgReq -> {
+//              PropertyImage img =
+//                  PropertyImage.builder()
+//                      .filePath(imgReq.getFilePath())
+//                      .isPrimary(Boolean.TRUE.equals(imgReq.getIsPrimary()))
+//                      .property(property) // penting! relasi balik
+//                      .build();
+//              property.getImages().add(img);
+//            });
+//
+//    // pastiin cuma ada 1 primary
+//    enforceSinglePrimaryImage(property);
+//  }
+
+  private void enforceSinglePrimaryImage(Property property) {
+    long primaries =
+        property.getImages().stream().filter(i -> Boolean.TRUE.equals(i.getIsPrimary())).count();
+
+    if (primaries == 0 && !property.getImages().isEmpty()) {
+      // kalau gak ada primary, set image pertama jadi primary
+      property.getImages().get(0).setIsPrimary(true);
+    } else if (primaries > 1) {
+      // kalau lebih dari 1 primary, sisain yang pertama aja
+      boolean kept = false;
+      for (PropertyImage i : property.getImages()) {
+        if (Boolean.TRUE.equals(i.getIsPrimary())) {
+          if (!kept) kept = true;
+          else i.setIsPrimary(false);
+        }
+      }
+    }
+  }
+
+    private void updateFeatures(Property property, UpdatePropertyRequest request) {
+        if (request.getFeatures() == null) return;
+        property.getFeatures().clear();
+
+        request.getFeatures().forEach(featReq -> {
+            PropertyFeature.FeatureCategory category;
+            try {
+                category = featReq.getFeatureCategory() != null
+                        ? PropertyFeature.FeatureCategory.valueOf(featReq.getFeatureCategory().toUpperCase())
+                        : PropertyFeature.FeatureCategory.INTERIOR;
+            } catch (IllegalArgumentException e) {
+                category = PropertyFeature.FeatureCategory.INTERIOR;
+            }
+
+            PropertyFeature feat = PropertyFeature.builder()
+                    .featureCategory(category)
+                    .featureName(featReq.getFeatureName())
+                    .featureValue(featReq.getFeatureValue())
+                    .property(property)
+                    .build();
+
+            property.getFeatures().add(feat);
+        });
+    }
+
+
+
+    private void updateLocations(Property property, UpdatePropertyRequest request) {
+        if (request.getLocations() == null) return;
+
+        property.getLocations().clear();
+
+        request.getLocations().forEach(locReq -> {
+            PropertyLocation.PropertyLocationType type;
+            try {
+                type = locReq.getPoiType() != null
+                        ? PropertyLocation.PropertyLocationType.valueOf(locReq.getPoiType().toUpperCase())
+                        : PropertyLocation.PropertyLocationType.OFFICE; // default biar aman
+            } catch (IllegalArgumentException e) {
+                type = PropertyLocation.PropertyLocationType.OFFICE;
+            }
+
+            PropertyLocation loc = PropertyLocation.builder()
+                    .poiName(locReq.getPoiName())
+                    .distanceKm(locReq.getDistanceKm())
+                    .poiType(type)
+                    .property(property)
+                    .build();
+
+            property.getLocations().add(loc);
+        });
+    }
+
+
+  private UpdatePropertyResponse buildUpdatePropertyResponse(Property updated) {
+    String developerName =
+        (updated.getDeveloper() != null) ? updated.getDeveloper().getCompanyName() : null;
+
+    return UpdatePropertyResponse.builder()
+        .id(updated.getId())
+        .title(updated.getTitle())
+        .description(updated.getDescription())
+        .price(updated.getPrice())
+        .bedrooms(updated.getBedrooms())
+        .bathrooms(updated.getBathrooms())
+        .status(updated.getStatus() != null ? updated.getStatus().name() : null)
+        .propertyType(updated.getPropertyType() != null ? updated.getPropertyType().name() : null)
+        .city(updated.getCity())
+        .developerName(developerName)
+        .address(updated.getAddress())
+//        .images(
+//            updated.getImages() == null
+//                ? List.of()
+//                : updated.getImages().stream()
+//                    .map(
+//                        img ->
+//                            UpdatePropertyResponse.ImageData.builder()
+//                                .filePath(img.getFilePath())
+//                                .isPrimary(Boolean.TRUE.equals(img.getIsPrimary()))
+//                                .build())
+//                    .toList())
+        .features(
+            updated.getFeatures() == null
+                ? List.of()
+                : updated.getFeatures().stream()
+                    .map(
+                        f ->
+                            UpdatePropertyResponse.FeatureData.builder()
+                                .featureName(f.getFeatureName())
+                                .featureValue(f.getFeatureValue())
+                                .build())
+                    .toList())
+        .locations(
+            updated.getLocations() == null
+                ? List.of()
+                : updated.getLocations().stream()
+                    .map(
+                        l ->
+                            UpdatePropertyResponse.LocationData.builder()
+                                .poiName(l.getPoiName())
+                                .distanceKm(l.getDistanceKm())
+                                .build())
+                    .toList())
+        .build();
   }
 
   // ========================================

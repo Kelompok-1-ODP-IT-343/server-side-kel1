@@ -237,7 +237,7 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex, WebRequest req) {
-    log.info("Unhandled exception: {}", ex.getMessage(), ex);
+    // log.info("Unhandled exception: {}", ex.getMessage(), ex);
     HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
     String message = "Internal server error";
 

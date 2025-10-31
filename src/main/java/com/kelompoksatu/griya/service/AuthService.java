@@ -49,14 +49,15 @@ public class AuthService {
   private final UserRepository userRepo;
   private final VerificationTokenRepository tokenRepo;
   private final EmailService emailService;
+  private final OtpService otpService;
 
   // ========================================
   // REGISTRATION OPERATIONS
   // ========================================
 
-  /** Register a new user */
+  /** Register a new user - sends OTP instead of returning tokens immediately */
   @Transactional
-  public RegisterResponse register(RegisterRequest request) {
+  public OtpResponse register(RegisterRequest request) {
     logger.info("Processing registration for username: {}", request.getUsername());
 
     validatePasswordConfirmation(request.getPassword(), request.getConfirmPassword());
@@ -66,10 +67,11 @@ public class AuthService {
     User user = result.getFirst();
     Role role = result.getSecond();
 
-    UserResponse userResponse = userService.convertToUserResponse(user, role, null);
+    // Send OTP to user's phone number instead of returning user data immediately
+    OtpResponse otpResponse = otpService.sendOtp(user.getPhone(), "registration");
 
-    logger.info("User registered successfully: {}", user.getUsername());
-    return new RegisterResponse(userResponse);
+    logger.info("User registered successfully and OTP sent: {}", user.getUsername());
+    return otpResponse;
   }
 
   /** Register a new developer (admin only) */
@@ -100,8 +102,8 @@ public class AuthService {
   // AUTHENTICATION OPERATIONS
   // ========================================
 
-  /** Authenticate user login */
-  public AuthResponse login(LoginRequest request, String ipAddress, String userAgent) {
+  /** Authenticate user login - sends OTP instead of returning tokens immediately */
+  public OtpResponse login(LoginRequest request, String ipAddress, String userAgent) {
     try {
       logger.info("Processing login for identifier: {}", request.getIdentifier());
 
@@ -111,16 +113,11 @@ public class AuthService {
       // Reset failed login attempts on successful login
       userService.resetLogin(user.getId());
 
-      // Generate tokens and create session
-      String refreshToken =
-          jwtUtil.generateRefreshToken(user.getUsername(), user.getId(), user.getRole().getName());
-      String accessToken =
-          jwtUtil.generateAccessToken(user.getUsername(), user.getId(), user.getRole().getName());
+      // Send OTP to user's phone number instead of returning tokens immediately
+      OtpResponse otpResponse = otpService.sendOtp(user.getPhone(), "login");
 
-      createUserSession(user.getId(), ipAddress, userAgent, refreshToken);
-
-      logger.info("User logged in successfully: {}", user.getUsername());
-      return new AuthResponse(accessToken, refreshToken);
+      logger.info("OTP sent successfully for login to user: {}", user.getUsername());
+      return otpResponse;
 
     } catch (Exception e) {
       logger.error("Login failed for identifier {}: {}", request.getIdentifier(), e.getMessage());
@@ -285,6 +282,110 @@ public class AuthService {
       logger.error("Failed to get user profile: {}", e.getMessage());
       throw new RuntimeException("Gagal mengambil profil user: " + e.getMessage());
     }
+  }
+
+  // ========================================
+  // OTP VERIFICATION OPERATIONS
+  // ========================================
+
+  /** Verify OTP for login and return tokens */
+  public AuthResponse verifyLoginOtp(
+      String identifier, String otp, String purpose, String ipAddress, String userAgent) {
+    try {
+      logger.info(
+          "Processing OTP verification for identifier: {} with purpose: {}", identifier, purpose);
+
+      // Find user by identifier (username or email)
+      User user =
+          userService
+              .findByUsernameOrEmail(identifier)
+              .orElseThrow(
+                  () -> new RuntimeException("User tidak ditemukan dengan identifier tersebut"));
+
+      // Verify OTP using user's phone number
+      boolean isOtpValid = otpService.verifyOtp(user.getPhone(), otp, purpose);
+
+      if (!isOtpValid) {
+        throw new RuntimeException("OTP tidak valid atau sudah kedaluwarsa");
+      }
+
+      // Generate tokens and create session
+      String refreshToken =
+          jwtUtil.generateRefreshToken(user.getUsername(), user.getId(), user.getRole().getName());
+      String accessToken =
+          jwtUtil.generateAccessToken(user.getUsername(), user.getId(), user.getRole().getName());
+
+      createUserSession(user.getId(), ipAddress, userAgent, refreshToken);
+
+      logger.info(
+          "OTP verified successfully and tokens generated for user: {}", user.getUsername());
+      return new AuthResponse(accessToken, refreshToken);
+
+    } catch (Exception e) {
+      logger.error("OTP verification failed for identifier {}: {}", identifier, e.getMessage());
+      throw new RuntimeException("Verifikasi OTP gagal: " + e.getMessage());
+    }
+  }
+
+  /** Verify OTP for registration and return user data */
+  public RegisterResponse verifyRegistrationOtp(String identifier, String otp, String purpose) {
+    try {
+      logger.info(
+          "Processing registration OTP verification for identifier: {} with purpose: {}",
+          identifier,
+          purpose);
+
+      // Find user by identifier (username or email) first
+      User user =
+          userService
+              .findByUsernameOrEmail(identifier)
+              .orElseThrow(
+                  () -> new RuntimeException("User tidak ditemukan dengan identifier tersebut"));
+
+      // Get phone number from user for OTP verification
+      String phone = user.getPhone();
+      if (phone == null || phone.isEmpty()) {
+        throw new RuntimeException("Nomor telepon user tidak ditemukan");
+      }
+
+      // Verify OTP using OtpService with phone number
+      boolean isOtpValid = otpService.verifyOtp(phone, otp, purpose);
+
+      if (!isOtpValid) {
+        throw new RuntimeException("OTP tidak valid atau sudah kedaluwarsa");
+      }
+
+      // Activate user account after successful OTP verification
+      if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
+        user.setStatus(UserStatus.ACTIVE);
+        user.setPhoneVerifiedAt(LocalDateTime.now());
+        userRepo.save(user);
+      }
+
+      UserResponse userResponse = userService.convertToUserResponse(user, user.getRole(), null);
+
+      logger.info("Registration OTP verified successfully for user: {}", user.getUsername());
+      return new RegisterResponse(userResponse);
+
+    } catch (Exception e) {
+      logger.error(
+          "Registration OTP verification failed for identifier {}: {}", identifier, e.getMessage());
+      throw new RuntimeException("Verifikasi OTP registrasi gagal: " + e.getMessage());
+    }
+  }
+
+  /** Mask phone number for logging (show only first 2 and last 4 digits) */
+  private String maskPhoneNumber(String phone) {
+    if (phone == null || phone.length() < 6) {
+      return "****";
+    }
+
+    String cleanPhone = phone.replaceAll("[^0-9]", "");
+    if (cleanPhone.length() < 6) {
+      return "****";
+    }
+
+    return cleanPhone.substring(0, 2) + "****" + cleanPhone.substring(cleanPhone.length() - 4);
   }
 
   // ========================================

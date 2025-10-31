@@ -7,6 +7,7 @@ import com.kelompoksatu.griya.entity.KprApplication;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -116,8 +117,7 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
           + "CAST(k.createdAt AS string), "
           + "'') "
           + "FROM KprApplication k WHERE k.id IN "
-          + "(SELECT aw.applicationId FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId) "
-          + "AND k.status IN ('APPROVED', 'REJECTED', 'CANCELLED', 'DISBURSED') "
+          + "(SELECT aw.applicationId FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId AND aw.status IN ('APPROVED', 'REJECTED', 'SKIPPED')) "
           + "ORDER BY k.createdAt DESC")
   List<KprHistoryListResponse> findKprApplicationsHistoryByUserID(@Param("userId") Integer userId);
 
@@ -136,8 +136,7 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
           + "k.kprRate.rateName, "
           + "CAST(k.status AS string)) "
           + "FROM KprApplication k WHERE k.id IN "
-          + "(SELECT aw.applicationId FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId) "
-          + "AND k.status IN ('SUBMITTED', 'DOCUMENT_VERIFICATION', 'PROPERTY_APPRAISAL', 'CREDIT_ANALYSIS', 'APPROVAL_PENDING') "
+          + "(SELECT aw.applicationId FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId AND aw.status IN ('PENDING', 'IN_PROGRESS')) "
           + "ORDER BY k.createdAt ASC")
   List<KprInProgress> findKprApplicationsOnProgressByUserID(@Param("userId") Integer userId);
 
@@ -157,4 +156,10 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
           + "FROM KprApplication k "
           + "ORDER BY k.createdAt ASC")
   List<KprInProgress> findKprApplicationsAll();
+
+  // Update KPR Application status
+  @Modifying
+  @Query("UPDATE KprApplication k SET k.status = :status WHERE k.id = :id")
+  int updateKprApplicationStatus(
+      @Param("id") Integer id, @Param("status") KprApplication.ApplicationStatus status);
 }
