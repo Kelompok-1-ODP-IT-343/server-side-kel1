@@ -41,15 +41,79 @@ public class AuthController {
 
     log.info("Registration attempt for username: {}", request.getUsername());
 
-    OtpResponse otpResponse = authService.register(request);
+    try {
+      OtpResponse otpResponse = authService.register(request);
 
-    ApiResponse<OtpResponse> response =
-        ApiResponse.success(
-            otpResponse,
-            "Registrasi berhasil, OTP telah dikirim ke WhatsApp Anda",
-            httpRequest.getRequestURI());
+      if (otpResponse.isSuccess()) {
+        ApiResponse<OtpResponse> response =
+            ApiResponse.success(
+                otpResponse,
+                "Registrasi berhasil, OTP telah dikirim ke WhatsApp Anda",
+                httpRequest.getRequestURI());
 
-    return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+      } else {
+        // Jika OtpResponse.success = false, kembalikan error dengan detail
+        ApiResponse<OtpResponse> response =
+            ApiResponse.error(
+                otpResponse.getMessage() != null ? otpResponse.getMessage() : "Registrasi gagal",
+                httpRequest.getRequestURI());
+        response.setData(otpResponse); // Include the error details in data
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+      }
+
+    } catch (IllegalArgumentException e) {
+      log.error("Validation error during registration: {}", e.getMessage());
+
+      OtpResponse otpResponse =
+          OtpResponse.error(
+              OtpErrorType.DUPLICATE_USER, "Registration validation failed: " + e.getMessage());
+
+      ApiResponse<OtpResponse> response =
+          ApiResponse.error(e.getMessage(), httpRequest.getRequestURI());
+      response.setData(otpResponse);
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+
+    } catch (RuntimeException e) {
+      log.error("Runtime error during registration: {}", e.getMessage());
+
+      OtpResponse otpResponse;
+      if (e.getMessage().contains("phone")) {
+        otpResponse =
+            OtpResponse.error(
+                OtpErrorType.INVALID_PHONE_NUMBER,
+                "Phone number validation failed: " + e.getMessage());
+      } else if (e.getMessage().contains("OTP") || e.getMessage().contains("WhatsApp")) {
+        otpResponse =
+            OtpResponse.error(
+                OtpErrorType.OTP_SERVICE_ERROR, "OTP service error: " + e.getMessage());
+      } else {
+        otpResponse =
+            OtpResponse.error(
+                OtpErrorType.SYSTEM_ERROR, "System error during registration: " + e.getMessage());
+      }
+
+      ApiResponse<OtpResponse> response =
+          ApiResponse.error(
+              "Registrasi gagal: " + otpResponse.getErrorDetail().getMessage(),
+              httpRequest.getRequestURI());
+      response.setData(otpResponse);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+
+    } catch (Exception e) {
+      log.error("Unexpected error during registration: {}", e.getMessage(), e);
+
+      OtpResponse otpResponse =
+          OtpResponse.error(
+              OtpErrorType.SYSTEM_ERROR, "Unexpected error during registration: " + e.getMessage());
+
+      ApiResponse<OtpResponse> response =
+          ApiResponse.error(
+              "Terjadi kesalahan sistem. Silakan coba lagi.", httpRequest.getRequestURI());
+      response.setData(otpResponse);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
   }
 
   /** Verify OTP for login and get authentication tokens POST /api/v1/auth/verify-login-otp */
@@ -221,19 +285,79 @@ public class AuthController {
 
       OtpResponse otpResponse = authService.login(request, ipAddress, userAgent);
 
-      ApiResponse<OtpResponse> response =
-          ApiResponse.success(
-              otpResponse, "OTP telah dikirim ke WhatsApp Anda", httpRequest.getRequestURI());
+      if (otpResponse.isSuccess()) {
+        ApiResponse<OtpResponse> response =
+            ApiResponse.success(
+                otpResponse, "OTP telah dikirim ke WhatsApp Anda", httpRequest.getRequestURI());
 
-      return ResponseEntity.ok(response);
+        return ResponseEntity.ok(response);
+      } else {
+        // Jika OtpResponse.success = false, kembalikan error dengan detail
+        ApiResponse<OtpResponse> response =
+            ApiResponse.error(
+                otpResponse.getMessage() != null ? otpResponse.getMessage() : "Login gagal",
+                httpRequest.getRequestURI());
+        response.setData(otpResponse); // Include the error details in data
 
-    } catch (Exception e) {
-      log.error("Login failed for identifier {}: {}", request.getIdentifier(), e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+      }
+
+    } catch (IllegalArgumentException e) {
+      log.error("Invalid login request: {}", e.getMessage());
+
+      OtpResponse otpResponse =
+          OtpResponse.error(
+              OtpErrorType.USER_NOT_FOUND, "Login validation failed: " + e.getMessage());
 
       ApiResponse<OtpResponse> response =
           ApiResponse.error(e.getMessage(), httpRequest.getRequestURI());
+      response.setData(otpResponse);
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
 
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    } catch (RuntimeException e) {
+      log.error("Runtime error during login: {}", e.getMessage());
+
+      OtpResponse otpResponse;
+      if (e.getMessage().contains("locked")) {
+        otpResponse =
+            OtpResponse.error(
+                OtpErrorType.ACCOUNT_LOCKED, "Account security issue: " + e.getMessage());
+      } else if (e.getMessage().contains("rate limit") || e.getMessage().contains("too many")) {
+        otpResponse =
+            OtpResponse.error(
+                OtpErrorType.RATE_LIMIT_EXCEEDED, "Rate limit exceeded: " + e.getMessage());
+      } else if (e.getMessage().contains("phone")) {
+        otpResponse =
+            OtpResponse.error(OtpErrorType.INVALID_PHONE_NUMBER, "Phone issue: " + e.getMessage());
+      } else if (e.getMessage().contains("OTP") || e.getMessage().contains("WhatsApp")) {
+        otpResponse =
+            OtpResponse.error(
+                OtpErrorType.OTP_SERVICE_ERROR, "OTP service error: " + e.getMessage());
+      } else {
+        otpResponse =
+            OtpResponse.error(
+                OtpErrorType.SYSTEM_ERROR, "System error during login: " + e.getMessage());
+      }
+
+      ApiResponse<OtpResponse> response =
+          ApiResponse.error(
+              "Login gagal: " + otpResponse.getErrorDetail().getMessage(),
+              httpRequest.getRequestURI());
+      response.setData(otpResponse);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+
+    } catch (Exception e) {
+      log.error("Unexpected error during login: {}", e.getMessage(), e);
+
+      OtpResponse otpResponse =
+          OtpResponse.error(
+              OtpErrorType.SYSTEM_ERROR, "Unexpected error during login: " + e.getMessage());
+
+      ApiResponse<OtpResponse> response =
+          ApiResponse.error(
+              "Terjadi kesalahan sistem. Silakan coba lagi.", httpRequest.getRequestURI());
+      response.setData(otpResponse);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
 
@@ -535,5 +659,22 @@ public class AuthController {
     }
 
     return request.getRemoteAddr();
+  }
+
+  /** Handle OtpResponse and return appropriate ResponseEntity */
+  private ResponseEntity<ApiResponse<OtpResponse>> handleOtpResponse(
+      OtpResponse otpResponse, String successMessage, String requestUri, HttpStatus successStatus) {
+
+    if (otpResponse.isSuccess()) {
+      ApiResponse<OtpResponse> response =
+          ApiResponse.success(otpResponse, successMessage, requestUri);
+      return ResponseEntity.status(successStatus).body(response);
+    } else {
+      ApiResponse<OtpResponse> response =
+          ApiResponse.error(
+              otpResponse.getMessage() != null ? otpResponse.getMessage() : "Operasi gagal",
+              requestUri);
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
   }
 }

@@ -119,10 +119,51 @@ public class Developer {
   }
 
   public enum PartnershipLevel {
-    BRONZE,
-    SILVER,
-    GOLD,
-    PLATINUM
+    TOP_SELECTED_DEVELOPER("TOP SELECTED DEVELOPER"),
+    DEVELOPER_KERJA_SAMA("DEVELOPER KERJA SAMA");
+
+    private final String displayName;
+
+    PartnershipLevel(String displayName) {
+      this.displayName = displayName;
+    }
+
+    public String getDisplayName() {
+      return displayName;
+    }
+
+    /**
+     * Parse a partnership level from either enum name (e.g. "TOP_SELECTED_DEVELOPER") or
+     * human-friendly label (e.g. "TOP SELECTED DEVELOPER"). Case-insensitive.
+     */
+    public static PartnershipLevel from(String value) {
+      if (value == null) {
+        return null;
+      }
+      String normalized = value.trim();
+      if (normalized.isEmpty()) {
+        return null;
+      }
+
+      // First try by enum name with spaces replaced by underscores
+      String enumKey = normalized.toUpperCase().replace(' ', '_');
+      try {
+        return PartnershipLevel.valueOf(enumKey);
+      } catch (IllegalArgumentException ignored) {
+        // Fallback: try matching display name
+        for (PartnershipLevel pl : PartnershipLevel.values()) {
+          if (pl.displayName.equalsIgnoreCase(normalized)) {
+            return pl;
+          }
+        }
+        // Re-throw original style exception for consistency
+        throw new IllegalArgumentException(
+            "Invalid partnership level: '"
+                + value
+                + "'. Allowed: "
+                + java.util.Arrays.toString(PartnershipLevel.values()));
+      }
+    }
   }
 
   public enum DeveloperStatus {

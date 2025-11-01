@@ -25,17 +25,24 @@ import org.springframework.stereotype.Service;
 @Service
 public class WhatsAppService {
 
-  @Value("${whatsapp.api.url:http://localhost:9090/api/send-message}")
+  @Value("${whatsapp.api.url:http://localhost:8080/api/send-message}")
   private String whatsappApiUrl;
 
-  @Value("${whatsapp.api.key:your_api_key_here}")
+  @Value("${whatsapp.api.key:test123}")
   private String apiKey;
+
+  @Value("${whatsapp.api.header-name:X-API-Key}")
+  private String apiKeyHeaderName;
 
   @Value("${whatsapp.api.timeout:30}")
   private int timeoutSeconds;
 
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper;
+
+  // Store last failure information to enrich upstream error responses
+  private volatile String lastFailureDetail;
+  private volatile int lastStatusCode;
 
   public WhatsAppService() {
     this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
@@ -51,6 +58,9 @@ public class WhatsAppService {
    */
   public boolean sendMessage(String phone, String message) {
     try {
+      // reset last error info for this attempt
+      lastFailureDetail = null;
+      lastStatusCode = 0;
       // Validasi input
       if (phone == null || phone.trim().isEmpty()) {
         log.error("Nomor telepon tidak boleh kosong");
@@ -75,12 +85,17 @@ public class WhatsAppService {
       String jsonBody = objectMapper.writeValueAsString(requestBody);
 
       // Buat HTTP request
+      log.info(
+          "Sending WhatsApp message to {} via {} (timeout {}s)",
+          formattedPhone,
+          whatsappApiUrl,
+          timeoutSeconds);
       HttpRequest request =
           HttpRequest.newBuilder()
               .uri(URI.create(whatsappApiUrl))
               .timeout(Duration.ofSeconds(timeoutSeconds))
               .header("Content-Type", "application/json")
-              .header("X-API-Key", apiKey)
+              .header(apiKeyHeaderName, apiKey)
               .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
               .build();
 
@@ -97,6 +112,27 @@ public class WhatsAppService {
         log.info("Pesan WhatsApp berhasil dikirim ke {}", formattedPhone);
         return true;
       } else {
+        lastStatusCode = response.statusCode();
+        if (response.statusCode() == 401) {
+          lastFailureDetail =
+              String.format(
+                  "WhatsApp API unauthorized (401). Periksa API key dan header '%s'. Response: %s",
+                  apiKeyHeaderName, response.body());
+        } else if (response.statusCode() == 403) {
+          lastFailureDetail =
+              String.format(
+                  "WhatsApp API forbidden (403). Kredensial tidak memiliki akses. Response: %s",
+                  response.body());
+        } else if (response.statusCode() >= 500) {
+          lastFailureDetail =
+              String.format(
+                  "WhatsApp API error (%d). Coba lagi nanti. Response: %s",
+                  response.statusCode(), response.body());
+        } else {
+          lastFailureDetail =
+              String.format(
+                  "WhatsApp API returned %d. Response: %s", response.statusCode(), response.body());
+        }
         log.error(
             "Gagal mengirim pesan WhatsApp. Status: {}, Response: {}",
             response.statusCode(),
@@ -106,13 +142,16 @@ public class WhatsAppService {
 
     } catch (IOException e) {
       log.error("IO Error saat mengirim pesan WhatsApp: {}", e.getMessage(), e);
+      lastFailureDetail = "IO error saat menghubungi WhatsApp API: " + e.getMessage();
       return false;
     } catch (InterruptedException e) {
       log.error("Request WhatsApp terinterupsi: {}", e.getMessage(), e);
       Thread.currentThread().interrupt();
+      lastFailureDetail = "Request ke WhatsApp API terinterupsi: " + e.getMessage();
       return false;
     } catch (Exception e) {
       log.error("Unexpected error saat mengirim pesan WhatsApp: {}", e.getMessage(), e);
+      lastFailureDetail = "Unexpected error WhatsApp API: " + e.getMessage();
       return false;
     }
   }
@@ -202,5 +241,18 @@ public class WhatsAppService {
       log.error("Gagal test koneksi WhatsApp API: {}", e.getMessage());
       return false;
     }
+  }
+
+  /**
+   * Mendapatkan detail kegagalan terakhir (jika ada) dari panggilan WhatsApp API. Berguna untuk
+   * memperkaya error detail di lapisan service/controller.
+   */
+  public String getLastFailureDetail() {
+    return lastFailureDetail;
+  }
+
+  /** Mendapatkan status code HTTP terakhir dari WhatsApp API (0 jika tidak ada). */
+  public int getLastStatusCode() {
+    return lastStatusCode;
   }
 }
