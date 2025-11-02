@@ -10,6 +10,7 @@ import com.kelompoksatu.griya.service.AdminService;
 import com.kelompoksatu.griya.service.DeveloperService;
 import com.kelompoksatu.griya.service.PropertyService;
 import com.kelompoksatu.griya.service.UserService;
+import com.kelompoksatu.griya.util.IDCloudHostS3Util;
 import com.kelompoksatu.griya.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -21,10 +22,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,6 +51,7 @@ public class AdminController {
   private final PropertyService propertyService;
   private final UserService userService;
   private final JwtUtil jwtUtil;
+  private final IDCloudHostS3Util idCloudHostS3Util;
 
   // ==================== DEVELOPER MANAGEMENT ====================
 
@@ -206,7 +204,7 @@ public class AdminController {
     try {
       log.info("Mulai upload image: {}", image.getOriginalFilename());
 
-      // ✅ 1️⃣ Validasi input
+      // Validasi input
       if (image == null || image.isEmpty()) {
         return ResponseEntity.badRequest().body(ApiResponse.error("Image file tidak boleh kosong"));
       }
@@ -215,7 +213,7 @@ public class AdminController {
             .body(ApiResponse.error("Field imageType dan imageCategory wajib diisi"));
       }
 
-      // ✅ 2️⃣ Convert ENUM (handle invalid enum)
+      // Convert ENUM (handle invalid enum)
       ImageType imageType;
       ImageCategory imageCategory;
       try {
@@ -226,31 +224,29 @@ public class AdminController {
             .body(ApiResponse.error("Nilai imageType atau imageCategory tidak valid"));
       }
 
-      // ✅ 3️⃣ Simpan file (langsung di root project)
-      Path filePath = Paths.get(image.getOriginalFilename());
-      Files.copy(image.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-      log.debug("File path: {}", filePath);
+      // Upload ke IDCloudHost
+      String folder =
+          String.valueOf(request.getPropertyId() == null ? "misc" : request.getPropertyId());
+      String imageUrl = idCloudHostS3Util.uploadPropertyImage(image, folder);
+      log.info("Upload ke IDCloudHost sukses: {}", imageUrl);
 
-      // ✅ 4️⃣ Generate public URL
-      String imageUrl = "http://localhost:18080/" + image.getOriginalFilename();
-
-      // ✅ 5️⃣ Simpan metadata ke database
+      // Simpan metadata ke database
       ImageAdmin imageAdmin =
           ImageAdmin.builder()
               .propertyId(request.getPropertyId())
               .imageType(imageType)
               .imageCategory(imageCategory)
               .fileName(UUID.randomUUID().toString())
-              .filePath(filePath.toString())
+              .filePath(imageUrl)
               .fileSize((int) image.getSize())
               .mimeType(image.getContentType())
               .caption(request.getCaption())
               .build();
 
       imageAdminRepository.save(imageAdmin);
-      log.info("✅ Image berhasil disimpan di DB: {}", imageAdmin.getFileName());
+      log.info("Image berhasil disimpan di DB: {}", imageAdmin.getFileName());
 
-      // ✅ 6️⃣ Build response data
+      // Build response data
       ImageAdminResponse responseData =
           ImageAdminResponse.builder()
               .id(imageAdmin.getId())
