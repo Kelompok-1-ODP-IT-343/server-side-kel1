@@ -107,16 +107,33 @@ public class KprApplicationService {
       // 11. Save application
       KprApplication savedApplication = kprApplicationRepository.save(application);
 
-      // 12. Store documents
+      // 12. Immediately reserve the property after successful application save
+      try {
+        property.setStatus(Property.PropertyStatus.RESERVED);
+        propertyRepository.save(property);
+        logger.info(
+            "Property {} status updated to RESERVED due to KPR application {}",
+            property.getId(),
+            savedApplication.getId());
+      } catch (Exception ex) {
+        logger.error(
+            "Failed to update property {} status to RESERVED: {}",
+            property.getId(),
+            ex.getMessage(),
+            ex);
+        throw ex;
+      }
+
+      // 13. Store documents
       List<ApplicationDocument> documents =
           storeApplicationDocuments(savedApplication.getId(), formRequest);
       logger.info(
           "Stored {} documents for application: {}", documents.size(), savedApplication.getId());
 
-      // 13. Create initial approval workflow
+      // 14. Create initial approval workflow
       createDeveloperApprovalWorkflow(savedApplication.getId(), developer.getUser().getId());
 
-      // 14. Build response
+      // 15. Build response
       return KprApplicationResponse.builder()
           .applicationId(savedApplication.getId())
           .applicationNumber(applicationNumber)
@@ -831,7 +848,24 @@ public class KprApplicationService {
     // 4. Persistence Phase
     KprApplication savedApplication = kprApplicationRepository.save(application);
 
-    // 5. Workflow Creation Phase
+    // 5. Immediately reserve the property after successful application save
+    try {
+      property.setStatus(Property.PropertyStatus.RESERVED);
+      propertyRepository.save(property);
+      logger.info(
+          "Property {} status updated to RESERVED due to KPR application {}",
+          property.getId(),
+          savedApplication.getId());
+    } catch (Exception ex) {
+      logger.error(
+          "Failed to update property {} status to RESERVED: {}",
+          property.getId(),
+          ex.getMessage(),
+          ex);
+      throw ex;
+    }
+
+    // 6. Workflow Creation Phase
     createDeveloperApprovalWorkflow(savedApplication.getId(), developer.getUser().getId());
 
     logger.info(
