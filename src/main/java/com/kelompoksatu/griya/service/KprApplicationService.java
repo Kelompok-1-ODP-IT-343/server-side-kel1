@@ -1101,6 +1101,31 @@ public class KprApplicationService {
     return history;
   }
 
+  public List<KprHistoryListResponse> getAssignedVerifikatorHistory(Integer userId) {
+    // Validate user role
+    var user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    if (!user.getRole().toString().equalsIgnoreCase("VERIFIKATOR")) {
+      throw new IllegalArgumentException("You are not authorized to view this history");
+    }
+
+    // Get history from repository (reuse same repository method used for approver)
+    List<KprHistoryListResponse> history =
+        kprApplicationRepository.findKprApplicationsHistoryByUserID(userId);
+
+    if (history.isEmpty()) {
+      logger.info("No KPR application history found for verifikator user ID: {}", userId);
+    } else {
+      logger.info(
+          "Retrieved {} KPR application history records for verifikator user ID: {}",
+          history.size(),
+          userId);
+    }
+    return history;
+  }
+
   // Show list KprApplication on progress by userID from ApprovalWorkflow
   public List<KprInProgress> getAssignedKprApplicationsOnProgress(Integer userId) {
     // Validate user role
