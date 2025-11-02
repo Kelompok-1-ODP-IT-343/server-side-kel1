@@ -76,7 +76,7 @@ public class IDCloudHostS3Util {
           "application/zip");
 
   // Maximum file size (1MB)
-  private static final long MAX_FILE_SIZE = 1 * 1024 * 1024;
+  private static final long MAX_FILE_SIZE = 20L * 1024 * 1024; // 20MB
 
   /**
    * REFACTORED: Initializes the S3Client bean once after all @Value properties are injected. This
