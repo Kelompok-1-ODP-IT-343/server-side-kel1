@@ -1,10 +1,10 @@
 package com.kelompoksatu.griya.service;
 
+import com.kelompoksatu.griya.dto.OtpErrorType;
 import com.kelompoksatu.griya.dto.OtpResponse;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import lombok.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -493,12 +493,37 @@ public class OtpService {
         return OtpResponse.success(
             "OTP berhasil dikirim ke " + maskedPhone, maskedPhone, ttlSeconds, purpose);
       } else {
-        return OtpResponse.error("Gagal mengirim OTP. Silakan coba lagi.");
+        String waDetail = whatsAppService.getLastFailureDetail();
+        String detail =
+            (waDetail != null && !waDetail.isBlank())
+                ? waDetail
+                : "Gagal mengirim OTP. Silakan coba lagi.";
+        return OtpResponse.error(OtpErrorType.OTP_SERVICE_ERROR, detail);
       }
 
     } catch (Exception e) {
       log.error("Error in sendOtp for phone {}: {}", phone, e.getMessage(), e);
-      return OtpResponse.error("Gagal mengirim OTP: " + e.getMessage());
+
+      // Categorize error based on exception message
+      OtpErrorType errorType;
+      if (e.getMessage() != null) {
+        String errorMessage = e.getMessage().toLowerCase();
+        if (errorMessage.contains("connection") || errorMessage.contains("network")) {
+          errorType = OtpErrorType.NETWORK_ERROR;
+        } else if (errorMessage.contains("phone") || errorMessage.contains("number")) {
+          errorType = OtpErrorType.INVALID_PHONE_NUMBER;
+        } else if (errorMessage.contains("rate") || errorMessage.contains("limit")) {
+          errorType = OtpErrorType.RATE_LIMIT_EXCEEDED;
+        } else if (errorMessage.contains("whatsapp")) {
+          errorType = OtpErrorType.PHONE_NOT_REGISTERED;
+        } else {
+          errorType = OtpErrorType.SYSTEM_ERROR;
+        }
+      } else {
+        errorType = OtpErrorType.SYSTEM_ERROR;
+      }
+
+      return OtpResponse.error(errorType, e.getMessage());
     }
   }
 

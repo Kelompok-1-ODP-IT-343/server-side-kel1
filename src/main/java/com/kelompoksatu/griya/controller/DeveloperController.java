@@ -283,7 +283,7 @@ public class DeveloperController {
     try {
       Developer.PartnershipLevel level = null;
       if (partnershipLevel != null) {
-        level = Developer.PartnershipLevel.valueOf(partnershipLevel.toUpperCase());
+        level = Developer.PartnershipLevel.from(partnershipLevel);
       }
       DeveloperResponse developer = developerService.updatePartnershipStatus(id, isPartner, level);
       ApiResponse<DeveloperResponse> response =

@@ -116,7 +116,23 @@ public class AuthService {
       // Send OTP to user's phone number instead of returning tokens immediately
       OtpResponse otpResponse = otpService.sendOtp(user.getPhone(), "login");
 
-      logger.info("OTP sent successfully for login to user: {}", user.getUsername());
+      if (otpResponse.isSuccess()) {
+        logger.info("OTP sent successfully for login to user: {}", user.getUsername());
+      } else {
+        String errorType =
+            otpResponse.getErrorDetail() != null
+                ? String.valueOf(otpResponse.getErrorDetail().getErrorType())
+                : "UNKNOWN";
+        String detail =
+            otpResponse.getErrorDetail() != null
+                ? otpResponse.getErrorDetail().getMessage()
+                : otpResponse.getMessage();
+        logger.warn(
+            "Failed to send OTP for login to user: {} - type: {}, detail: {}",
+            user.getUsername(),
+            errorType,
+            detail);
+      }
       return otpResponse;
 
     } catch (Exception e) {
