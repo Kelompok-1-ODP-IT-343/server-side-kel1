@@ -561,6 +561,21 @@ public class AdminController {
     return ResponseEntity.ok(apiResponse);
   }
 
+  @GetMapping("/approver")
+  public ResponseEntity<ApiResponse<List<UserResponse>>> getAllApprovers(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+    // Extract user ID from token
+    Integer userId = jwtUtil.extractUserId(token);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(ApiResponse.error("Token tidak valid"));
+    }
+    List<UserResponse> approver = adminService.getAllApprovalPovAdmin(userId);
+    return ResponseEntity.ok(ApiResponse.success("Approver retrieved successfully", approver));
+  }
+
   @GetMapping("/users")
   public ResponseEntity<ApiResponse<PaginatedResponse<UserResponse>>> getAllUsers(
       @Parameter(description = "Page number (0-based)", example = "0")
