@@ -178,7 +178,8 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
     FROM properties p
     LEFT JOIN property_features pf ON pf.property_id = p.id
     LEFT JOIN property_locations pl ON pl.property_id = p.id
-    WHERE (:city IS NULL OR p.city ILIKE CONCAT('%', :city, '%'))
+        WHERE p.status = 'AVAILABLE'
+            AND (:city IS NULL OR p.city ILIKE CONCAT('%', :city, '%'))
       AND (:minPrice IS NULL OR p.price >= :minPrice)
       AND (:maxPrice IS NULL OR p.price <= :maxPrice)
       AND (:propertyType IS NULL OR LOWER(p.property_type::text) = LOWER(:propertyType))
