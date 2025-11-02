@@ -695,4 +695,37 @@ public class KprApplicationController {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
+
+  @GetMapping("/admin/all")
+  public ResponseEntity<ApiResponse<List<KprInProgress>>> getAllKprApplicationsAll(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for all KPR applications (admin)");
+
+      // Extract and validate JWT token
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+      // Extract user ID from token
+      Integer userID = jwtUtil.extractUserId(token);
+      if (userID == null) {
+        logger.warn("Invalid token - user ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      // Get all KPR applications for admin
+      List<KprInProgress> response = kprApplicationService.getAllKprApplicationsAll(userID);
+
+      logger.info("All KPR applications retrieved successfully (admin)");
+      return ResponseEntity.ok(
+          new ApiResponse<List<KprInProgress>>(
+              true, "All KPR applications retrieved successfully", response));
+    } catch (Exception e) {
+      logger.error("Error retrieving all KPR applications: {}", e.getMessage(), e);
+
+      ApiResponse<List<KprInProgress>> response =
+          new ApiResponse<>(false, "Failed to get all KPR applications: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
 }
