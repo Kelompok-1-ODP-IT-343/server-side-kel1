@@ -1107,7 +1107,7 @@ public class KprApplicationService {
         userRepository
             .findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
-    if (!user.getRole().toString().equalsIgnoreCase("VERIFIKATOR")) {
+    if (!user.getRole().toString().equalsIgnoreCase("APPROVER")) {
       throw new IllegalArgumentException("You are not authorized to view this history");
     }
 
