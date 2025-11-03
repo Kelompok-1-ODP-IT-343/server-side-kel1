@@ -58,7 +58,6 @@ public class UserService {
     try {
       User savedUser = createUserEntity(request, userRole);
       UserProfile savedProfile = createUserProfile(request, savedUser.getId());
-      sendEmailVerification(savedUser);
 
       logger.info("User profile created successfully for user ID: {}", savedUser.getId());
       return Pair.of(savedUser, userRole);
