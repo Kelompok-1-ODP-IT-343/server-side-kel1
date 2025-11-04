@@ -21,7 +21,7 @@ public class PropertyImage {
   @Column(name = "is_primary")
   private Boolean isPrimary = false;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "property_id", nullable = false)
   private Property property;
 }

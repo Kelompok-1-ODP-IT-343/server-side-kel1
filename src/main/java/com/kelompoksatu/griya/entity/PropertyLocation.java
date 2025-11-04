@@ -28,7 +28,7 @@ public class PropertyLocation {
   @Column(name = "poi_type", nullable = false)
   private PropertyLocationType poiType = PropertyLocationType.OFFICE; // default biar gak null
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "property_id", nullable = false)
   private Property property;
 

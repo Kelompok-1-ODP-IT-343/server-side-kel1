@@ -1454,7 +1454,24 @@ public class KprApplicationService {
         .status(workflow.getStatus())
         .priority(workflow.getPriority())
         .assignedTo(workflow.getAssignedTo())
+        .assignedToName(
+            assignedUser != null
+                ? assignedUser.getUserProfile() != null
+                    ? assignedUser.getUserProfile().getFullName()
+                    : null
+                : null)
+        .assignedToEmail(
+            assignedUser != null
+                ? assignedUser.getEmail() != null ? assignedUser.getEmail() : null
+                : null)
         .escalatedTo(workflow.getEscalatedTo())
+        .escalatedToName(
+            escalatedUser != null
+                ? escalatedUser.getUserProfile() != null
+                    ? escalatedUser.getUserProfile().getFullName()
+                    : null
+                : null)
+        .assignedToRole(assignedUser != null ? assignedUser.getRole().toString() : null)
         .dueDate(workflow.getDueDate())
         .startedAt(workflow.getStartedAt())
         .completedAt(workflow.getCompletedAt())

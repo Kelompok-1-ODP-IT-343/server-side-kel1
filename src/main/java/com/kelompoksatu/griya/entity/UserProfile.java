@@ -89,5 +89,11 @@ public class UserProfile {
   @Column(name = "updated_at", nullable = false)
   private LocalDateTime updatedAt;
 
-  public UserProfile(Integer userId) {}
+  @OneToOne(fetch = FetchType.EAGER)
+  @JoinColumn(name = "user_id", referencedColumnName = "id", insertable = false, updatable = false)
+  private User user;
+
+  public UserProfile(Integer userId) {
+    this.userId = userId;
+  }
 }

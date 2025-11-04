@@ -29,7 +29,7 @@ public class PropertyFeature {
   @Column(name = "feature_value", nullable = false)
   private String featureValue;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "property_id", nullable = false)
   private Property property;
 
