@@ -661,6 +661,8 @@ public class KprApplicationService {
     profile.setGender(Gender.fromString(personalData.getGender()));
     profile.setMaritalStatus(MaritalStatus.fromString(personalData.getMaritalStatus()));
     profile.setAddress(personalData.getAddress());
+    profile.setDistrict(personalData.getDistrict());
+    profile.setSubDistrict(personalData.getSubDistrict());
     profile.setCity(personalData.getCity());
     profile.setProvince(personalData.getProvince());
     profile.setPostalCode(personalData.getPostalCode());
@@ -668,10 +670,12 @@ public class KprApplicationService {
     // Update employment data
     profile.setOccupation(employmentData.getOccupation());
     profile.setCompanyName(employmentData.getCompanyName());
-    // profile.setCompanyAddress(employmentData.getCompanyAddress());
-    // profile.setCompanyCity(employmentData.getCompanyCity());
-    // profile.setCompanyProvince(employmentData.getCompanyProvince());
-    // profile.setCompanyPostalCode(employmentData.getCompanyPostalCode());
+    profile.setCompanyAddress(employmentData.getCompanyAddress());
+    profile.setCompanyCity(employmentData.getCompanyCity());
+    profile.setCompanyProvince(employmentData.getCompanyProvince());
+    profile.setCompanyPostalCode(employmentData.getCompanyPostalCode());
+    profile.setCompanyDistrict(employmentData.getCompanyDistrict());
+    profile.setCompanySubdistrict(employmentData.getCompanySubdistrict());
     profile.setMonthlyIncome(employmentData.getMonthlyIncome());
 
     profile.setUpdatedAt(LocalDateTime.now());

@@ -44,4 +44,12 @@ public class EmploymentData {
   @NotBlank(message = "Company postal code is required")
   @Pattern(regexp = "^[0-9]{5}$", message = "Company postal code must be exactly 5 digits")
   private String companyPostalCode;
+
+  @NotBlank(message = "Company district is required")
+  @Size(max = 255, message = "Company district cannot exceed 255 characters")
+  private String companyDistrict;
+
+  @NotBlank(message = "Company subdistrict is required")
+  @Size(max = 255, message = "Company subdistrict cannot exceed 255 characters")
+  private String companySubdistrict;
 }

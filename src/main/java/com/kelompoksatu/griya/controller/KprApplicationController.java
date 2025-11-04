@@ -146,6 +146,8 @@ public class KprApplicationController {
       @RequestParam("personalData.gender") String gender,
       @RequestParam("personalData.maritalStatus") String maritalStatus,
       @RequestParam("personalData.address") String address,
+      @RequestParam(value = "personalData.district", required = false) String district,
+      @RequestParam(value = "personalData.subDistrict", required = false) String subDistrict,
       @RequestParam("personalData.city") String city,
       @RequestParam("personalData.province") String province,
       @RequestParam("personalData.postalCode") String postalCode,
@@ -158,7 +160,10 @@ public class KprApplicationController {
       @RequestParam("employmentData.companyCity") String companyCity,
       @RequestParam("employmentData.companyProvince") String companyProvince,
       @RequestParam("employmentData.companyPostalCode") String companyPostalCode,
-
+      @RequestParam(value = "employmentData.companyDistrict", required = false)
+          String companyDistrict,
+      @RequestParam(value = "employmentData.companySubdistrict", required = false)
+          String companySubdistrict,
       // Document Files
       @RequestParam("ktpDocument") MultipartFile ktpDocument,
       @RequestParam(value = "npwpDocument", required = false) MultipartFile npwpDocument,
@@ -204,6 +209,8 @@ public class KprApplicationController {
                       .gender(gender)
                       .maritalStatus(maritalStatus)
                       .address(address)
+                      .district(district)
+                      .subDistrict(subDistrict)
                       .city(city)
                       .province(province)
                       .postalCode(postalCode)
@@ -217,6 +224,8 @@ public class KprApplicationController {
                       .companyCity(companyCity)
                       .companyProvince(companyProvince)
                       .companyPostalCode(companyPostalCode)
+                      .companyDistrict(companyDistrict)
+                      .companySubdistrict(companySubdistrict)
                       .build())
               .ktpDocument(ktpDocument)
               .npwpDocument(npwpDocument)
