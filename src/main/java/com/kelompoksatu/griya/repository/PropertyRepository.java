@@ -55,6 +55,7 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
   boolean existsBySlug(String slug);
 
   boolean existsByPropertyCodeAndIdNot(String propertyCode, Integer id);
+
   boolean existsBySlugAndIdNot(String slug, Integer id);
 
   /** Find available properties */

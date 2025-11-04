@@ -108,13 +108,11 @@ public class AdminController {
   /** Update property information (admin only) */
   @PutMapping("/properties/{id}")
   public ResponseEntity<ApiResponse<UpdatePropertyResponse>> updateProperty(
-          @PathVariable Integer id,
-          @RequestBody @Valid UpdatePropertyRequest request) {
+      @PathVariable Integer id, @RequestBody @Valid UpdatePropertyRequest request) {
 
-      UpdatePropertyResponse response = propertyService.updateProperty(id, request);
-      return ResponseEntity.ok(ApiResponse.success("Property updated successfully", response));
+    UpdatePropertyResponse response = propertyService.updateProperty(id, request);
+    return ResponseEntity.ok(ApiResponse.success("Property updated successfully", response));
   }
-
 
   @GetMapping("/users/{userId}/favorites")
   public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUserFavorites(
@@ -135,6 +133,31 @@ public class AdminController {
       log.error("❌ Gagal mengambil favorites user: ", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.error("Gagal mengambil favorites: " + e.getMessage()));
+    }
+  }
+
+  @DeleteMapping("/properties/{id}")
+  public ResponseEntity<ApiResponse<PropertyResponse>> deleteProperty(@PathVariable Integer id) {
+    try {
+      // ambil data sebelum dihapus
+      PropertyResponse deletedProperty =
+          propertyService
+              .getPropertyById(id)
+              .orElseThrow(() -> new IllegalArgumentException("Property not found with id: " + id));
+
+      // hapus property
+      propertyService.deleteProperty(id);
+
+      ApiResponse<PropertyResponse> response =
+          new ApiResponse<>(true, "Property deleted successfully", deletedProperty);
+      return ResponseEntity.ok(response);
+    } catch (IllegalArgumentException e) {
+      ApiResponse<PropertyResponse> response = new ApiResponse<>(false, e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    } catch (Exception e) {
+      ApiResponse<PropertyResponse> response =
+          new ApiResponse<>(false, "Failed to delete property: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
 

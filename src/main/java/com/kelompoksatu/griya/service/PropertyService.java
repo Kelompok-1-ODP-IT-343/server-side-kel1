@@ -6,9 +6,6 @@ import com.kelompoksatu.griya.dto.UpdatePropertyRequest;
 import com.kelompoksatu.griya.dto.UpdatePropertyResponse;
 import com.kelompoksatu.griya.entity.Developer;
 import com.kelompoksatu.griya.entity.Property;
-import com.kelompoksatu.griya.entity.PropertyFeature;
-import com.kelompoksatu.griya.entity.PropertyImage;
-import com.kelompoksatu.griya.entity.PropertyLocation;
 import com.kelompoksatu.griya.repository.DeveloperRepository;
 import com.kelompoksatu.griya.repository.PropertyRepository;
 import java.math.BigDecimal;
@@ -302,117 +299,134 @@ public class PropertyService {
   // ========================================
   @Transactional
   public UpdatePropertyResponse updateProperty(Integer id, UpdatePropertyRequest request) {
-      Property property = propertyRepository.findById(id)
-              .orElseThrow(() -> new IllegalArgumentException("Property not found with id: " + id));
+    Property property =
+        propertyRepository
+            .findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Property not found with id: " + id));
 
-      // ✅ Update field utama (langsung semua kolom dari request)
-      if (request.getTitle() != null) property.setTitle(request.getTitle());
-      if (request.getDescription() != null) property.setDescription(request.getDescription());
-      if (request.getAddress() != null) property.setAddress(request.getAddress());
-      if (request.getCity() != null) property.setCity(request.getCity());
-      if (request.getProvince() != null) property.setProvince(request.getProvince());
-      if (request.getPostalCode() != null) property.setPostalCode(request.getPostalCode());
-      if (request.getDistrict() != null) property.setDistrict(request.getDistrict());
-      if (request.getVillage() != null) property.setVillage(request.getVillage());
-      if (request.getLatitude() != null) property.setLatitude(request.getLatitude());
-      if (request.getLongitude() != null) property.setLongitude(request.getLongitude());
-      if (request.getLandArea() != null) property.setLandArea(request.getLandArea());
-      if (request.getBuildingArea() != null) property.setBuildingArea(request.getBuildingArea());
-      if (request.getBedrooms() != null) property.setBedrooms(request.getBedrooms());
-      if (request.getBathrooms() != null) property.setBathrooms(request.getBathrooms());
-      if (request.getFloors() != null) property.setFloors(request.getFloors());
-      if (request.getGarage() != null) property.setGarage(request.getGarage());
-      if (request.getYearBuilt() != null) property.setYearBuilt(request.getYearBuilt());
-      if (request.getPrice() != null) property.setPrice(request.getPrice());
-      if (request.getPricePerSqm() != null) property.setPricePerSqm(request.getPricePerSqm());
-      if (request.getMaintenanceFee() != null) property.setMaintenanceFee(request.getMaintenanceFee());
-      if (request.getCertificateNumber() != null) property.setCertificateNumber(request.getCertificateNumber());
-      if (request.getCertificateArea() != null) property.setCertificateArea(request.getCertificateArea());
-      if (request.getPbbValue() != null) property.setPbbValue(request.getPbbValue());
-      if (request.getAvailabilityDate() != null) property.setAvailabilityDate(request.getAvailabilityDate());
-      if (request.getHandoverDate() != null) property.setHandoverDate(request.getHandoverDate());
-      if (request.getIsFeatured() != null) property.setIsFeatured(request.getIsFeatured());
-      if (request.getIsKprEligible() != null) property.setIsKprEligible(request.getIsKprEligible());
-      if (request.getMinDownPaymentPercent() != null) property.setMinDownPaymentPercent(request.getMinDownPaymentPercent());
-      if (request.getMaxLoanTermYears() != null) property.setMaxLoanTermYears(request.getMaxLoanTermYears());
-      if (request.getMetaTitle() != null) property.setMetaTitle(request.getMetaTitle());
-      if (request.getMetaDescription() != null) property.setMetaDescription(request.getMetaDescription());
-      if (request.getKeywords() != null) property.setKeywords(request.getKeywords());
-      if (request.getViewCount() != null) property.setViewCount(request.getViewCount());
-      if (request.getInquiryCount() != null) property.setInquiryCount(request.getInquiryCount());
-      if (request.getFavoriteCount() != null) property.setFavoriteCount(request.getFavoriteCount());
-      property.setUpdatedAt(LocalDateTime.now());
+    // ✅ Update field utama (langsung semua kolom dari request)
+    if (request.getTitle() != null) property.setTitle(request.getTitle());
+    if (request.getDescription() != null) property.setDescription(request.getDescription());
+    if (request.getAddress() != null) property.setAddress(request.getAddress());
+    if (request.getCity() != null) property.setCity(request.getCity());
+    if (request.getProvince() != null) property.setProvince(request.getProvince());
+    if (request.getPostalCode() != null) property.setPostalCode(request.getPostalCode());
+    if (request.getDistrict() != null) property.setDistrict(request.getDistrict());
+    if (request.getVillage() != null) property.setVillage(request.getVillage());
+    if (request.getLatitude() != null) property.setLatitude(request.getLatitude());
+    if (request.getLongitude() != null) property.setLongitude(request.getLongitude());
+    if (request.getLandArea() != null) property.setLandArea(request.getLandArea());
+    if (request.getBuildingArea() != null) property.setBuildingArea(request.getBuildingArea());
+    if (request.getBedrooms() != null) property.setBedrooms(request.getBedrooms());
+    if (request.getBathrooms() != null) property.setBathrooms(request.getBathrooms());
+    if (request.getFloors() != null) property.setFloors(request.getFloors());
+    if (request.getGarage() != null) property.setGarage(request.getGarage());
+    if (request.getYearBuilt() != null) property.setYearBuilt(request.getYearBuilt());
+    if (request.getPrice() != null) property.setPrice(request.getPrice());
+    if (request.getPricePerSqm() != null) property.setPricePerSqm(request.getPricePerSqm());
+    if (request.getMaintenanceFee() != null)
+      property.setMaintenanceFee(request.getMaintenanceFee());
+    if (request.getCertificateNumber() != null)
+      property.setCertificateNumber(request.getCertificateNumber());
+    if (request.getCertificateArea() != null)
+      property.setCertificateArea(request.getCertificateArea());
+    if (request.getPbbValue() != null) property.setPbbValue(request.getPbbValue());
+    if (request.getAvailabilityDate() != null)
+      property.setAvailabilityDate(request.getAvailabilityDate());
+    if (request.getHandoverDate() != null) property.setHandoverDate(request.getHandoverDate());
+    if (request.getIsFeatured() != null) property.setIsFeatured(request.getIsFeatured());
+    if (request.getIsKprEligible() != null) property.setIsKprEligible(request.getIsKprEligible());
+    if (request.getMinDownPaymentPercent() != null)
+      property.setMinDownPaymentPercent(request.getMinDownPaymentPercent());
+    if (request.getMaxLoanTermYears() != null)
+      property.setMaxLoanTermYears(request.getMaxLoanTermYears());
+    if (request.getMetaTitle() != null) property.setMetaTitle(request.getMetaTitle());
+    if (request.getMetaDescription() != null)
+      property.setMetaDescription(request.getMetaDescription());
+    if (request.getKeywords() != null) property.setKeywords(request.getKeywords());
+    if (request.getViewCount() != null) property.setViewCount(request.getViewCount());
+    if (request.getInquiryCount() != null) property.setInquiryCount(request.getInquiryCount());
+    if (request.getFavoriteCount() != null) property.setFavoriteCount(request.getFavoriteCount());
+    property.setUpdatedAt(LocalDateTime.now());
 
+    // ✅ Enum-safe update
+    try {
+      if (request.getStatus() != null)
+        property.setStatus(
+            Property.PropertyStatus.valueOf(request.getStatus().trim().toUpperCase()));
+      if (request.getPropertyType() != null)
+        property.setPropertyType(
+            Property.PropertyType.valueOf(request.getPropertyType().trim().toUpperCase()));
+      if (request.getListingType() != null)
+        property.setListingType(
+            Property.ListingType.valueOf(request.getListingType().trim().toUpperCase()));
+      if (request.getCertificateType() != null)
+        property.setCertificateType(
+            Property.CertificateType.valueOf(request.getCertificateType().trim().toUpperCase()));
+    } catch (IllegalArgumentException ex) {
+      throw new IllegalArgumentException("Invalid enum value: " + ex.getMessage());
+    }
 
-      // ✅ Enum-safe update
-      try {
-          if (request.getStatus() != null)
-              property.setStatus(Property.PropertyStatus.valueOf(request.getStatus().trim().toUpperCase()));
-          if (request.getPropertyType() != null)
-              property.setPropertyType(Property.PropertyType.valueOf(request.getPropertyType().trim().toUpperCase()));
-          if (request.getListingType() != null)
-              property.setListingType(Property.ListingType.valueOf(request.getListingType().trim().toUpperCase()));
-          if (request.getCertificateType() != null)
-              property.setCertificateType(Property.CertificateType.valueOf(request.getCertificateType().trim().toUpperCase()));
-      } catch (IllegalArgumentException ex) {
-          throw new IllegalArgumentException("Invalid enum value: " + ex.getMessage());
-      }
+    // ✅ Developer update (optional)
+    if (request.getDeveloperId() != null) {
+      Developer developer =
+          developerRepository
+              .findById(request.getDeveloperId())
+              .orElseThrow(
+                  () ->
+                      new IllegalArgumentException(
+                          "Developer not found with id: " + request.getDeveloperId()));
+      property.setDeveloper(developer);
+    }
 
-      // ✅ Developer update (optional)
-      if (request.getDeveloperId() != null) {
-          Developer developer = developerRepository.findById(request.getDeveloperId())
-                  .orElseThrow(() -> new IllegalArgumentException("Developer not found with id: " + request.getDeveloperId()));
-          property.setDeveloper(developer);
-      }
+    Property updated = propertyRepository.save(property);
 
-      Property updated = propertyRepository.save(property);
-
-      // ✅ Build full response
-      return UpdatePropertyResponse.builder()
-              .id(updated.getId())
-              .developerId(updated.getDeveloper() != null ? updated.getDeveloper().getId() : null)
-              .developerName(updated.getDeveloper() != null ? updated.getDeveloper().getCompanyName() : null)
-              .propertyType(updated.getPropertyType() != null ? updated.getPropertyType().name() : null)
-              .listingType(updated.getListingType() != null ? updated.getListingType().name() : null)
-              .title(updated.getTitle())
-              .description(updated.getDescription())
-              .address(updated.getAddress())
-              .city(updated.getCity())
-              .province(updated.getProvince())
-              .postalCode(updated.getPostalCode())
-              .district(updated.getDistrict())
-              .village(updated.getVillage())
-              .latitude(updated.getLatitude())
-              .longitude(updated.getLongitude())
-              .landArea(updated.getLandArea())
-              .buildingArea(updated.getBuildingArea())
-              .bedrooms(updated.getBedrooms())
-              .bathrooms(updated.getBathrooms())
-              .floors(updated.getFloors())
-              .garage(updated.getGarage())
-              .yearBuilt(updated.getYearBuilt())
-              .price(updated.getPrice())
-              .pricePerSqm(updated.getPricePerSqm())
-              .maintenanceFee(updated.getMaintenanceFee())
-              .certificateType(updated.getCertificateType() != null ? updated.getCertificateType().name() : null)
-              .certificateNumber(updated.getCertificateNumber())
-              .certificateArea(updated.getCertificateArea())
-              .pbbValue(updated.getPbbValue())
-              .status(updated.getStatus() != null ? updated.getStatus().name() : null)
-              .availabilityDate(updated.getAvailabilityDate())
-              .handoverDate(updated.getHandoverDate())
-              .isFeatured(updated.getIsFeatured())
-              .isKprEligible(updated.getIsKprEligible())
-              .minDownPaymentPercent(updated.getMinDownPaymentPercent())
-              .maxLoanTermYears(updated.getMaxLoanTermYears())
-              .metaTitle(updated.getMetaTitle())
-              .metaDescription(updated.getMetaDescription())
-              .keywords(updated.getKeywords())
-              .updatedAt(updated.getUpdatedAt() != null ? updated.getUpdatedAt().toLocalDate() : null)
-              .build();
+    // ✅ Build full response
+    return UpdatePropertyResponse.builder()
+        .id(updated.getId())
+        .developerId(updated.getDeveloper() != null ? updated.getDeveloper().getId() : null)
+        .developerName(
+            updated.getDeveloper() != null ? updated.getDeveloper().getCompanyName() : null)
+        .propertyType(updated.getPropertyType() != null ? updated.getPropertyType().name() : null)
+        .listingType(updated.getListingType() != null ? updated.getListingType().name() : null)
+        .title(updated.getTitle())
+        .description(updated.getDescription())
+        .address(updated.getAddress())
+        .city(updated.getCity())
+        .province(updated.getProvince())
+        .postalCode(updated.getPostalCode())
+        .district(updated.getDistrict())
+        .village(updated.getVillage())
+        .latitude(updated.getLatitude())
+        .longitude(updated.getLongitude())
+        .landArea(updated.getLandArea())
+        .buildingArea(updated.getBuildingArea())
+        .bedrooms(updated.getBedrooms())
+        .bathrooms(updated.getBathrooms())
+        .floors(updated.getFloors())
+        .garage(updated.getGarage())
+        .yearBuilt(updated.getYearBuilt())
+        .price(updated.getPrice())
+        .pricePerSqm(updated.getPricePerSqm())
+        .maintenanceFee(updated.getMaintenanceFee())
+        .certificateType(
+            updated.getCertificateType() != null ? updated.getCertificateType().name() : null)
+        .certificateNumber(updated.getCertificateNumber())
+        .certificateArea(updated.getCertificateArea())
+        .pbbValue(updated.getPbbValue())
+        .status(updated.getStatus() != null ? updated.getStatus().name() : null)
+        .availabilityDate(updated.getAvailabilityDate())
+        .handoverDate(updated.getHandoverDate())
+        .isFeatured(updated.getIsFeatured())
+        .isKprEligible(updated.getIsKprEligible())
+        .minDownPaymentPercent(updated.getMinDownPaymentPercent())
+        .maxLoanTermYears(updated.getMaxLoanTermYears())
+        .metaTitle(updated.getMetaTitle())
+        .metaDescription(updated.getMetaDescription())
+        .keywords(updated.getKeywords())
+        .updatedAt(updated.getUpdatedAt() != null ? updated.getUpdatedAt().toLocalDate() : null)
+        .build();
   }
-
-
 
   // ========================================
   // COUNTER OPERATIONS

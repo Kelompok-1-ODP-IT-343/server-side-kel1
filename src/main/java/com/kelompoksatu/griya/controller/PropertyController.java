@@ -568,22 +568,23 @@ public class PropertyController {
     }
   }
 
-  /** Delete property */
-  @DeleteMapping("/{id}")
-  public ResponseEntity<ApiResponse<Void>> deleteProperty(@PathVariable Integer id) {
-    try {
-      propertyService.deleteProperty(id);
-      ApiResponse<Void> response = new ApiResponse<>(true, "Property deleted successfully", null);
-      return ResponseEntity.ok(response);
-    } catch (IllegalArgumentException e) {
-      ApiResponse<Void> response = new ApiResponse<>(false, e.getMessage(), null);
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-    } catch (Exception e) {
-      ApiResponse<Void> response =
-          new ApiResponse<>(false, "Failed to delete property: " + e.getMessage(), null);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
-  }
+  //  /** Delete property */
+  //  @DeleteMapping("/{id}")
+  //  public ResponseEntity<ApiResponse<Void>> deleteProperty(@PathVariable Integer id) {
+  //    try {
+  //      propertyService.deleteProperty(id);
+  //      ApiResponse<Void> response = new ApiResponse<>(true, "Property deleted successfully",
+  // null);
+  //      return ResponseEntity.ok(response);
+  //    } catch (IllegalArgumentException e) {
+  //      ApiResponse<Void> response = new ApiResponse<>(false, e.getMessage(), null);
+  //      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+  //    } catch (Exception e) {
+  //      ApiResponse<Void> response =
+  //          new ApiResponse<>(false, "Failed to delete property: " + e.getMessage(), null);
+  //      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+  //    }
+  //  }
 
   /** Check if property code exists */
   @GetMapping("/exists/code/{propertyCode}")
