@@ -1,12 +1,10 @@
 package com.kelompoksatu.griya.service;
 
-import com.kelompoksatu.griya.dto.CreatePropertyRequest;
-import com.kelompoksatu.griya.dto.PropertyResponse;
-import com.kelompoksatu.griya.dto.UpdatePropertyRequest;
-import com.kelompoksatu.griya.dto.UpdatePropertyResponse;
+import com.kelompoksatu.griya.dto.*;
 import com.kelompoksatu.griya.entity.Developer;
 import com.kelompoksatu.griya.entity.Property;
 import com.kelompoksatu.griya.repository.DeveloperRepository;
+import com.kelompoksatu.griya.repository.PropertyImageRepository;
 import com.kelompoksatu.griya.repository.PropertyRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -28,12 +26,17 @@ public class PropertyService {
 
   private final PropertyRepository propertyRepository;
   private final DeveloperRepository developerRepository;
+  private final PropertyImageRepository propertyImageRepository;
 
-  @Autowired
+
+    @Autowired
   public PropertyService(
-      PropertyRepository propertyRepository, DeveloperRepository developerRepository) {
+      PropertyRepository propertyRepository,
+      DeveloperRepository developerRepository,
+      PropertyImageRepository propertyImageRepository) {
     this.propertyRepository = propertyRepository;
     this.developerRepository = developerRepository;
+    this.propertyImageRepository = propertyImageRepository;
   }
 
   // ========================================
@@ -56,7 +59,26 @@ public class PropertyService {
     validatePropertyExists(id);
     propertyRepository.deleteById(id);
   }
+    /** Delete image by ID */
+    public ImageAdminResponse deleteImageById(Integer id) {
+        var image = propertyImageRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Image not found with ID: " + id));
 
+        ImageAdminResponse response = ImageAdminResponse.builder()
+                .id(image.getId())
+                .propertyId(image.getPropertyId())
+                .imageUrl(image.getFilePath())
+                .fileName(image.getFileName())
+                .imageType(image.getImageType().name())
+                .imageCategory(image.getImageCategory().name())
+                .caption(image.getCaption())
+                .fileSize(image.getFileSize())
+                .mimeType(image.getMimeType())
+                .build();
+
+        propertyImageRepository.delete(image);
+        return response;
+    }
   // ========================================
   // QUERY METHODS - BASIC RETRIEVAL
   // ========================================

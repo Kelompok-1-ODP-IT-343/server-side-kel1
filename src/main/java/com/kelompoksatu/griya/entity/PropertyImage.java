@@ -2,6 +2,9 @@ package com.kelompoksatu.griya.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 
 @Getter
 @Setter
@@ -11,17 +14,36 @@ import lombok.*;
 @Entity
 @Table(name = "property_images")
 public class PropertyImage {
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Integer id;
 
-  @Column(name = "file_path", nullable = false)
-  private String filePath;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
 
-  @Column(name = "is_primary")
-  private Boolean isPrimary = false;
+    @Column(name = "property_id", nullable = false)
+    private Integer propertyId;
 
-  @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = "property_id", nullable = false)
-  private Property property;
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "image_type", nullable = false, columnDefinition = "image_type")
+    private ImageType imageType;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "image_category", nullable = false, columnDefinition = "image_category")
+    private ImageCategory imageCategory;
+
+    @Column(name = "file_name", nullable = false)
+    private String fileName;
+
+    @Column(name = "file_path", nullable = false)
+    private String filePath;
+
+    @Column(name = "file_size", nullable = false)
+    private Integer fileSize;
+
+    @Column(name = "mime_type", nullable = false)
+    private String mimeType;
+
+    @Column(name = "caption")
+    private String caption;
 }

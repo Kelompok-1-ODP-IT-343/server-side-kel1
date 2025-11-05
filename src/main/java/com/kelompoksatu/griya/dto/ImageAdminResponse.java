@@ -12,7 +12,7 @@ import lombok.*;
 public class ImageAdminResponse {
 
   @Schema(description = "Image ID in database", example = "15")
-  private Long id;
+  private Integer id;
 
   @Schema(description = "Property ID related to image", example = "1")
   private Integer propertyId;
