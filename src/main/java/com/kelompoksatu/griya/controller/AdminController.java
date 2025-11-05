@@ -1,11 +1,12 @@
 package com.kelompoksatu.griya.controller;
 
 import com.kelompoksatu.griya.dto.*;
-import com.kelompoksatu.griya.entity.ImageAdmin;
 import com.kelompoksatu.griya.entity.ImageCategory;
 import com.kelompoksatu.griya.entity.ImageType;
-import com.kelompoksatu.griya.repository.ImageAdminRepository;
+import com.kelompoksatu.griya.entity.PropertyImage;
+import com.kelompoksatu.griya.repository.PropertyImageRepository;
 import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
+
 import com.kelompoksatu.griya.service.AdminService;
 import com.kelompoksatu.griya.service.DeveloperService;
 import com.kelompoksatu.griya.service.PropertyService;
@@ -45,13 +46,14 @@ import org.springframework.web.multipart.MultipartFile;
 public class AdminController {
 
   private final DeveloperService developerService;
-  private final ImageAdminRepository imageAdminRepository;
+//  private final PropertyImageRepository imageAdminRepository;
   private final AdminService adminService;
   private final PropertyFavoriteRepository propertyFavoriteRepository;
   private final PropertyService propertyService;
   private final UserService userService;
   private final JwtUtil jwtUtil;
   private final IDCloudHostS3Util idCloudHostS3Util;
+  private final PropertyImageRepository propertyImageRepository;
 
   // ==================== DEVELOPER MANAGEMENT ====================
 
@@ -161,6 +163,24 @@ public class AdminController {
     }
   }
 
+    @DeleteMapping("/images/{id}")
+    public ResponseEntity<ApiResponse<ImageAdminResponse>> deleteImage(@PathVariable Integer id) {
+        try {
+            ImageAdminResponse deletedImage = propertyService.deleteImageById(id);
+            ApiResponse<ImageAdminResponse> response =
+                    new ApiResponse<>(true, "Image deleted successfully", deletedImage);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            ApiResponse<ImageAdminResponse> response =
+                    new ApiResponse<>(false, e.getMessage(), null);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        } catch (Exception e) {
+            ApiResponse<ImageAdminResponse> response =
+                    new ApiResponse<>(false, "Failed to delete image: " + e.getMessage(), null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
   @PutMapping("/developers/{id}")
   public ResponseEntity<ApiResponse<DeveloperResponse>> updateDeveloper(
       @PathVariable Integer id,
@@ -214,8 +234,8 @@ public class AdminController {
       log.info("Upload ke IDCloudHost sukses: {}", imageUrl);
 
       // Simpan metadata ke database
-      ImageAdmin imageAdmin =
-          ImageAdmin.builder()
+      PropertyImage propertyImage =
+          PropertyImage.builder()
               .propertyId(request.getPropertyId())
               .imageType(imageType)
               .imageCategory(imageCategory)
@@ -226,21 +246,21 @@ public class AdminController {
               .caption(request.getCaption())
               .build();
 
-      imageAdminRepository.save(imageAdmin);
-      log.info("Image berhasil disimpan di DB: {}", imageAdmin.getFileName());
+      propertyImageRepository.save(propertyImage);
+      log.info("Image berhasil disimpan di DB: {}", propertyImage.getFileName());
 
       // Build response data
       ImageAdminResponse responseData =
           ImageAdminResponse.builder()
-              .id(imageAdmin.getId())
-              .propertyId(imageAdmin.getPropertyId())
+              .id(propertyImage.getId())
+              .propertyId(propertyImage.getPropertyId())
               .imageUrl(imageUrl)
-              .fileName(imageAdmin.getFileName())
+              .fileName(propertyImage.getFileName())
               .imageType(imageType.name())
               .imageCategory(imageCategory.name())
-              .caption(imageAdmin.getCaption())
-              .fileSize(imageAdmin.getFileSize())
-              .mimeType(imageAdmin.getMimeType())
+              .caption(propertyImage.getCaption())
+              .fileSize(propertyImage.getFileSize())
+              .mimeType(propertyImage.getMimeType())
               .build();
 
       ApiResponse<ImageAdminResponse> response =
