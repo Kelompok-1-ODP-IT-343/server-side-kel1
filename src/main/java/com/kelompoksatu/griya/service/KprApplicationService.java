@@ -909,6 +909,12 @@ public class KprApplicationService {
     User secondApprovalUser = validateUser(request.getSecondApprovalId());
     KprApplication application = validateApplicationExists(request.getApplicationId());
 
+    // Ambil Approval Workflow jika di count sudah 3 maka gaboleh assign lagi
+    Long approvalCount = approvalWorkflowRepository.countByKprApplicationId(application.getId());
+    if (approvalCount >= 3) {
+      throw new IllegalArgumentException("Approval workflow already completed");
+    }
+
     logger.info(
         "Approval staff one: {} has been assigned to application: {}",
         firstApprovalUser.getUsername(),

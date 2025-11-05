@@ -28,8 +28,7 @@ public class PropertyService {
   private final DeveloperRepository developerRepository;
   private final PropertyImageRepository propertyImageRepository;
 
-
-    @Autowired
+  @Autowired
   public PropertyService(
       PropertyRepository propertyRepository,
       DeveloperRepository developerRepository,
@@ -59,26 +58,31 @@ public class PropertyService {
     validatePropertyExists(id);
     propertyRepository.deleteById(id);
   }
-    /** Delete image by ID */
-    public ImageAdminResponse deleteImageById(Integer id) {
-        var image = propertyImageRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Image not found with ID: " + id));
 
-        ImageAdminResponse response = ImageAdminResponse.builder()
-                .id(image.getId())
-                .propertyId(image.getPropertyId())
-                .imageUrl(image.getFilePath())
-                .fileName(image.getFileName())
-                .imageType(image.getImageType().name())
-                .imageCategory(image.getImageCategory().name())
-                .caption(image.getCaption())
-                .fileSize(image.getFileSize())
-                .mimeType(image.getMimeType())
-                .build();
+  /** Delete image by ID */
+  public ImageAdminResponse deleteImageById(Integer id) {
+    var image =
+        propertyImageRepository
+            .findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Image not found with ID: " + id));
 
-        propertyImageRepository.delete(image);
-        return response;
-    }
+    ImageAdminResponse response =
+        ImageAdminResponse.builder()
+            .id(image.getId())
+            .propertyId(image.getPropertyId())
+            .imageUrl(image.getFilePath())
+            .fileName(image.getFileName())
+            .imageType(image.getImageType().name())
+            .imageCategory(image.getImageCategory().name())
+            .caption(image.getCaption())
+            .fileSize(image.getFileSize())
+            .mimeType(image.getMimeType())
+            .build();
+
+    propertyImageRepository.delete(image);
+    return response;
+  }
+
   // ========================================
   // QUERY METHODS - BASIC RETRIEVAL
   // ========================================

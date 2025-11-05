@@ -4,9 +4,8 @@ import com.kelompoksatu.griya.dto.*;
 import com.kelompoksatu.griya.entity.ImageCategory;
 import com.kelompoksatu.griya.entity.ImageType;
 import com.kelompoksatu.griya.entity.PropertyImage;
-import com.kelompoksatu.griya.repository.PropertyImageRepository;
 import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
-
+import com.kelompoksatu.griya.repository.PropertyImageRepository;
 import com.kelompoksatu.griya.service.AdminService;
 import com.kelompoksatu.griya.service.DeveloperService;
 import com.kelompoksatu.griya.service.PropertyService;
@@ -46,7 +45,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class AdminController {
 
   private final DeveloperService developerService;
-//  private final PropertyImageRepository imageAdminRepository;
+  //  private final PropertyImageRepository imageAdminRepository;
   private final AdminService adminService;
   private final PropertyFavoriteRepository propertyFavoriteRepository;
   private final PropertyService propertyService;
@@ -163,23 +162,22 @@ public class AdminController {
     }
   }
 
-    @DeleteMapping("/images/{id}")
-    public ResponseEntity<ApiResponse<ImageAdminResponse>> deleteImage(@PathVariable Integer id) {
-        try {
-            ImageAdminResponse deletedImage = propertyService.deleteImageById(id);
-            ApiResponse<ImageAdminResponse> response =
-                    new ApiResponse<>(true, "Image deleted successfully", deletedImage);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            ApiResponse<ImageAdminResponse> response =
-                    new ApiResponse<>(false, e.getMessage(), null);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        } catch (Exception e) {
-            ApiResponse<ImageAdminResponse> response =
-                    new ApiResponse<>(false, "Failed to delete image: " + e.getMessage(), null);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
+  @DeleteMapping("/images/{id}")
+  public ResponseEntity<ApiResponse<ImageAdminResponse>> deleteImage(@PathVariable Integer id) {
+    try {
+      ImageAdminResponse deletedImage = propertyService.deleteImageById(id);
+      ApiResponse<ImageAdminResponse> response =
+          new ApiResponse<>(true, "Image deleted successfully", deletedImage);
+      return ResponseEntity.ok(response);
+    } catch (IllegalArgumentException e) {
+      ApiResponse<ImageAdminResponse> response = new ApiResponse<>(false, e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    } catch (Exception e) {
+      ApiResponse<ImageAdminResponse> response =
+          new ApiResponse<>(false, "Failed to delete image: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
+  }
 
   @PutMapping("/developers/{id}")
   public ResponseEntity<ApiResponse<DeveloperResponse>> updateDeveloper(

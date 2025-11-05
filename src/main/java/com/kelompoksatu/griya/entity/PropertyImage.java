@@ -5,7 +5,6 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-
 @Getter
 @Setter
 @NoArgsConstructor
@@ -15,35 +14,35 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "property_images")
 public class PropertyImage {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Integer id;
 
-    @Column(name = "property_id", nullable = false)
-    private Integer propertyId;
+  @Column(name = "property_id", nullable = false)
+  private Integer propertyId;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(name = "image_type", nullable = false, columnDefinition = "image_type")
-    private ImageType imageType;
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  @Column(name = "image_type", nullable = false, columnDefinition = "image_type")
+  private ImageType imageType;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(name = "image_category", nullable = false, columnDefinition = "image_category")
-    private ImageCategory imageCategory;
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  @Column(name = "image_category", nullable = false, columnDefinition = "image_category")
+  private ImageCategory imageCategory;
 
-    @Column(name = "file_name", nullable = false)
-    private String fileName;
+  @Column(name = "file_name", nullable = false)
+  private String fileName;
 
-    @Column(name = "file_path", nullable = false)
-    private String filePath;
+  @Column(name = "file_path", nullable = false)
+  private String filePath;
 
-    @Column(name = "file_size", nullable = false)
-    private Integer fileSize;
+  @Column(name = "file_size", nullable = false)
+  private Integer fileSize;
 
-    @Column(name = "mime_type", nullable = false)
-    private String mimeType;
+  @Column(name = "mime_type", nullable = false)
+  private String mimeType;
 
-    @Column(name = "caption")
-    private String caption;
+  @Column(name = "caption")
+  private String caption;
 }
