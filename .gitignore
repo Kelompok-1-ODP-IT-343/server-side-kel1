@@ -39,3 +39,4 @@ build/
 /uploads/
 
 *.log
+/api-load-test/summary.json
