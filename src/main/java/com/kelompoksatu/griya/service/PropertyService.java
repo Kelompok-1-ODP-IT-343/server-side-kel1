@@ -393,37 +393,38 @@ public class PropertyService {
       throw new IllegalArgumentException("Invalid enum value: " + ex.getMessage());
     }
 
-      // ... (sekitar baris 390 di dalam method updateProperty)
+    // ... (sekitar baris 390 di dalam method updateProperty)
 
-      // ✅ Developer update (optional)
-      if (request.getDeveloperId() != null) {
-          Developer developer =
-                  developerRepository
-                          .findById(request.getDeveloperId())
-                          .orElseThrow(
-                                  () ->
-                                          new IllegalArgumentException(
-                                                  "Developer not found with id: " + request.getDeveloperId()));
+    // ✅ Developer update (optional)
+    if (request.getDeveloperId() != null) {
+      Developer developer =
+          developerRepository
+              .findById(request.getDeveloperId())
+              .orElseThrow(
+                  () ->
+                      new IllegalArgumentException(
+                          "Developer not found with id: " + request.getDeveloperId()));
 
-          // >>> LOGIKA UNTUK UPDATE NAMA DEVELOPER <<<
-          if (request.getDeveloperName() != null && !request.getDeveloperName().trim().isEmpty()) {
-              // Menggunakan getCompanyName() dan setCompanyName() dari Developer Entity
-              if (!request.getDeveloperName().equals(developer.getCompanyName())) {
-                  developer.setCompanyName(request.getDeveloperName());
-                  // Simpan perubahan pada Developer Entity
-                  developerRepository.save(developer);
-              }
-          }
-          // >>> END LOGIKA UPDATE NAMA DEVELOPER <<<
-
-          property.setDeveloper(developer);
+      // >>> LOGIKA UNTUK UPDATE NAMA DEVELOPER <<<
+      if (request.getDeveloperName() != null && !request.getDeveloperName().trim().isEmpty()) {
+        // Menggunakan getCompanyName() dan setCompanyName() dari Developer Entity
+        if (!request.getDeveloperName().equals(developer.getCompanyName())) {
+          developer.setCompanyName(request.getDeveloperName());
+          // Simpan perubahan pada Developer Entity
+          developerRepository.save(developer);
+        }
       }
+      // >>> END LOGIKA UPDATE NAMA DEVELOPER <<<
 
-      Property updated = propertyRepository.save(property);
+      property.setDeveloper(developer);
+    }
 
-      // ✅ Build full response
-      // ... (kode building response Anda yang sudah ada sudah benar karena akan mengambil nama terbaru dari relasi Developer)
-// ...
+    Property updated = propertyRepository.save(property);
+
+    // ✅ Build full response
+    // ... (kode building response Anda yang sudah ada sudah benar karena akan mengambil nama
+    // terbaru dari relasi Developer)
+    // ...
 
     // ✅ Build full response
     return UpdatePropertyResponse.builder()
