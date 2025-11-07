@@ -661,6 +661,8 @@ public class KprApplicationService {
     profile.setGender(Gender.fromString(personalData.getGender()));
     profile.setMaritalStatus(MaritalStatus.fromString(personalData.getMaritalStatus()));
     profile.setAddress(personalData.getAddress());
+    profile.setDistrict(personalData.getDistrict());
+    profile.setSubDistrict(personalData.getSubDistrict());
     profile.setCity(personalData.getCity());
     profile.setProvince(personalData.getProvince());
     profile.setPostalCode(personalData.getPostalCode());
@@ -668,10 +670,12 @@ public class KprApplicationService {
     // Update employment data
     profile.setOccupation(employmentData.getOccupation());
     profile.setCompanyName(employmentData.getCompanyName());
-    // profile.setCompanyAddress(employmentData.getCompanyAddress());
-    // profile.setCompanyCity(employmentData.getCompanyCity());
-    // profile.setCompanyProvince(employmentData.getCompanyProvince());
-    // profile.setCompanyPostalCode(employmentData.getCompanyPostalCode());
+    profile.setCompanyAddress(employmentData.getCompanyAddress());
+    profile.setCompanyCity(employmentData.getCompanyCity());
+    profile.setCompanyProvince(employmentData.getCompanyProvince());
+    profile.setCompanyPostalCode(employmentData.getCompanyPostalCode());
+    profile.setCompanyDistrict(employmentData.getCompanyDistrict());
+    profile.setCompanySubdistrict(employmentData.getCompanySubdistrict());
     profile.setMonthlyIncome(employmentData.getMonthlyIncome());
 
     profile.setUpdatedAt(LocalDateTime.now());
@@ -905,6 +909,12 @@ public class KprApplicationService {
     User secondApprovalUser = validateUser(request.getSecondApprovalId());
     KprApplication application = validateApplicationExists(request.getApplicationId());
 
+    // Ambil Approval Workflow jika di count sudah 3 maka gaboleh assign lagi
+    Long approvalCount = approvalWorkflowRepository.countByKprApplicationId(application.getId());
+    if (approvalCount >= 3) {
+      throw new IllegalArgumentException("Approval workflow already completed");
+    }
+
     logger.info(
         "Approval staff one: {} has been assigned to application: {}",
         firstApprovalUser.getUsername(),
@@ -1101,6 +1111,31 @@ public class KprApplicationService {
     return history;
   }
 
+  public List<KprHistoryListResponse> getAssignedVerifikatorHistory(Integer userId) {
+    // Validate user role
+    var user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    if (!user.getRole().toString().equalsIgnoreCase("APPROVER")) {
+      throw new IllegalArgumentException("You are not authorized to view this history");
+    }
+
+    // Get history from repository (reuse same repository method used for approver)
+    List<KprHistoryListResponse> history =
+        kprApplicationRepository.findKprApplicationsHistoryByUserID(userId);
+
+    if (history.isEmpty()) {
+      logger.info("No KPR application history found for verifikator user ID: {}", userId);
+    } else {
+      logger.info(
+          "Retrieved {} KPR application history records for verifikator user ID: {}",
+          history.size(),
+          userId);
+    }
+    return history;
+  }
+
   // Show list KprApplication on progress by userID from ApprovalWorkflow
   public List<KprInProgress> getAssignedKprApplicationsOnProgress(Integer userId) {
     // Validate user role
@@ -1278,6 +1313,7 @@ public class KprApplicationService {
         .username(user.getUsername())
         .email(user.getEmail())
         .phone(user.getPhone())
+        .roleName(user.getRole() != null ? user.getRole().getName() : null)
         .fullName(profile != null ? profile.getFullName() : null)
         .nik(profile != null ? profile.getNik() : null)
         .npwp(profile != null ? profile.getNpwp() : null)
@@ -1292,12 +1328,21 @@ public class KprApplicationService {
                 ? profile.getMaritalStatus().name()
                 : null)
         .address(profile != null ? profile.getAddress() : null)
+        .district(profile != null ? profile.getDistrict() : null)
+        .subDistrict(profile != null ? profile.getSubDistrict() : null)
         .city(profile != null ? profile.getCity() : null)
         .province(profile != null ? profile.getProvince() : null)
         .postalCode(profile != null ? profile.getPostalCode() : null)
         .occupation(profile != null ? profile.getOccupation() : null)
         .companyName(profile != null ? profile.getCompanyName() : null)
+        .companyAddress(profile != null ? profile.getCompanyAddress() : null)
+        .companyCity(profile != null ? profile.getCompanyCity() : null)
+        .companyProvince(profile != null ? profile.getCompanyProvince() : null)
+        .companyPostalCode(profile != null ? profile.getCompanyPostalCode() : null)
+        .companyDistrict(profile != null ? profile.getCompanyDistrict() : null)
+        .companySubdistrict(profile != null ? profile.getCompanySubdistrict() : null)
         .monthlyIncome(profile != null ? profile.getMonthlyIncome() : null)
+        .workExperience(profile != null ? profile.getWorkExperience() : null)
         .build();
   }
 
@@ -1429,7 +1474,24 @@ public class KprApplicationService {
         .status(workflow.getStatus())
         .priority(workflow.getPriority())
         .assignedTo(workflow.getAssignedTo())
+        .assignedToName(
+            assignedUser != null
+                ? assignedUser.getUserProfile() != null
+                    ? assignedUser.getUserProfile().getFullName()
+                    : null
+                : null)
+        .assignedToEmail(
+            assignedUser != null
+                ? assignedUser.getEmail() != null ? assignedUser.getEmail() : null
+                : null)
         .escalatedTo(workflow.getEscalatedTo())
+        .escalatedToName(
+            escalatedUser != null
+                ? escalatedUser.getUserProfile() != null
+                    ? escalatedUser.getUserProfile().getFullName()
+                    : null
+                : null)
+        .assignedToRole(assignedUser != null ? assignedUser.getRole().toString() : null)
         .dueDate(workflow.getDueDate())
         .startedAt(workflow.getStartedAt())
         .completedAt(workflow.getCompletedAt())

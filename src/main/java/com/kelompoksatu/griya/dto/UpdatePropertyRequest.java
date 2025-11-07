@@ -1,45 +1,53 @@
 package com.kelompoksatu.griya.dto;
 
 import java.math.BigDecimal;
-import java.util.List;
+import java.time.LocalDate;
 import lombok.*;
 
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class UpdatePropertyRequest {
+  private Integer developerId;
+  private String developerName;
+  private String propertyType;
+  private String listingType;
   private String title;
   private String description;
-  private BigDecimal price;
+  private String address;
+  private String city;
+  private String province;
+  private String postalCode;
+  private String district;
+  private String village;
+  private BigDecimal latitude;
+  private BigDecimal longitude;
+  private BigDecimal landArea;
+  private BigDecimal buildingArea;
   private Integer bedrooms;
   private Integer bathrooms;
-  private String status; // AVAILABLE/RESERVED/SOLD/...
-
-  // or enum kalau kamu mau mapping langsung
-
-  @Builder
-  @Getter
-  @Setter
-  @NoArgsConstructor
-  @AllArgsConstructor
-  public static class FeatureReq {
-    private String featureName;
-    private String featureValue;
-    private String featureCategory;
-  }
-
-  @Data
-  @NoArgsConstructor
-  @AllArgsConstructor
-  @Builder
-  public static class LocationReq {
-    private String poiName;
-    private Double distanceKm;
-    private String poiType;
-  }
-
-  private List<FeatureReq> features;
-  private List<LocationReq> locations;
+  private Integer floors;
+  private Integer garage;
+  private Integer yearBuilt;
+  private BigDecimal price;
+  private BigDecimal pricePerSqm;
+  private BigDecimal maintenanceFee;
+  private String certificateType;
+  private String certificateNumber;
+  private BigDecimal certificateArea;
+  private BigDecimal pbbValue;
+  private String status;
+  private LocalDate availabilityDate;
+  private LocalDate handoverDate;
+  private Boolean isFeatured;
+  private Boolean isKprEligible;
+  private BigDecimal minDownPaymentPercent;
+  private Integer maxLoanTermYears;
+  private String metaTitle;
+  private String metaDescription;
+  private String keywords;
+  private Integer viewCount;
+  private Integer inquiryCount;
+  private Integer favoriteCount;
 }

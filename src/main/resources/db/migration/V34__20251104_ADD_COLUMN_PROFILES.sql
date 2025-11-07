@@ -1,0 +1,9 @@
+ALTER TABLE user_profiles
+    ADD COLUMN IF NOT EXISTS district VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS sub_district VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS company_address VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS company_city VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS company_province VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS company_postal_code VARCHAR(10),
+    ADD COLUMN IF NOT EXISTS company_district VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS company_subdistrict VARCHAR(255);

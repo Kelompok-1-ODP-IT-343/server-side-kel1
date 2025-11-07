@@ -1,15 +1,10 @@
 package com.kelompoksatu.griya.service;
 
-import com.kelompoksatu.griya.dto.CreatePropertyRequest;
-import com.kelompoksatu.griya.dto.PropertyResponse;
-import com.kelompoksatu.griya.dto.UpdatePropertyRequest;
-import com.kelompoksatu.griya.dto.UpdatePropertyResponse;
+import com.kelompoksatu.griya.dto.*;
 import com.kelompoksatu.griya.entity.Developer;
 import com.kelompoksatu.griya.entity.Property;
-import com.kelompoksatu.griya.entity.PropertyFeature;
-import com.kelompoksatu.griya.entity.PropertyImage;
-import com.kelompoksatu.griya.entity.PropertyLocation;
 import com.kelompoksatu.griya.repository.DeveloperRepository;
+import com.kelompoksatu.griya.repository.PropertyImageRepository;
 import com.kelompoksatu.griya.repository.PropertyRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -31,12 +26,16 @@ public class PropertyService {
 
   private final PropertyRepository propertyRepository;
   private final DeveloperRepository developerRepository;
+  private final PropertyImageRepository propertyImageRepository;
 
   @Autowired
   public PropertyService(
-      PropertyRepository propertyRepository, DeveloperRepository developerRepository) {
+      PropertyRepository propertyRepository,
+      DeveloperRepository developerRepository,
+      PropertyImageRepository propertyImageRepository) {
     this.propertyRepository = propertyRepository;
     this.developerRepository = developerRepository;
+    this.propertyImageRepository = propertyImageRepository;
   }
 
   // ========================================
@@ -58,6 +57,30 @@ public class PropertyService {
   public void deleteProperty(Integer id) {
     validatePropertyExists(id);
     propertyRepository.deleteById(id);
+  }
+
+  /** Delete image by ID */
+  public ImageAdminResponse deleteImageById(Integer id) {
+    var image =
+        propertyImageRepository
+            .findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Image not found with ID: " + id));
+
+    ImageAdminResponse response =
+        ImageAdminResponse.builder()
+            .id(image.getId())
+            .propertyId(image.getPropertyId())
+            .imageUrl(image.getFilePath())
+            .fileName(image.getFileName())
+            .imageType(image.getImageType().name())
+            .imageCategory(image.getImageCategory().name())
+            .caption(image.getCaption())
+            .fileSize(image.getFileSize())
+            .mimeType(image.getMimeType())
+            .build();
+
+    propertyImageRepository.delete(image);
+    return response;
   }
 
   // ========================================
@@ -300,7 +323,6 @@ public class PropertyService {
   // ========================================
   // UPDATE PROPERTY (MAIN + RELATIONS)
   // ========================================
-
   @Transactional
   public UpdatePropertyResponse updateProperty(Integer id, UpdatePropertyRequest request) {
     Property property =
@@ -308,195 +330,145 @@ public class PropertyService {
             .findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Property not found with id: " + id));
 
-    // 1) update field utama
-    updateMainFields(property, request);
-
-    // 2) update relasi
-    //  updateImages(property, request);
-    updateFeatures(property, request);
-    updateLocations(property, request);
-
-    // 3) simpan
-    Property updated = propertyRepository.save(property);
-
-    // 4) bangun response
-    return buildUpdatePropertyResponse(updated);
-  }
-
-  private void updateMainFields(Property property, UpdatePropertyRequest request) {
+    // ✅ Update field utama (langsung semua kolom dari request)
     if (request.getTitle() != null) property.setTitle(request.getTitle());
     if (request.getDescription() != null) property.setDescription(request.getDescription());
-    if (request.getPrice() != null) property.setPrice(request.getPrice());
+    if (request.getAddress() != null) property.setAddress(request.getAddress());
+    if (request.getCity() != null) property.setCity(request.getCity());
+    if (request.getProvince() != null) property.setProvince(request.getProvince());
+    if (request.getPostalCode() != null) property.setPostalCode(request.getPostalCode());
+    if (request.getDistrict() != null) property.setDistrict(request.getDistrict());
+    if (request.getVillage() != null) property.setVillage(request.getVillage());
+    if (request.getLatitude() != null) property.setLatitude(request.getLatitude());
+    if (request.getLongitude() != null) property.setLongitude(request.getLongitude());
+    if (request.getLandArea() != null) property.setLandArea(request.getLandArea());
+    if (request.getBuildingArea() != null) property.setBuildingArea(request.getBuildingArea());
     if (request.getBedrooms() != null) property.setBedrooms(request.getBedrooms());
     if (request.getBathrooms() != null) property.setBathrooms(request.getBathrooms());
+    if (request.getFloors() != null) property.setFloors(request.getFloors());
+    if (request.getGarage() != null) property.setGarage(request.getGarage());
+    if (request.getYearBuilt() != null) property.setYearBuilt(request.getYearBuilt());
+    if (request.getPrice() != null) property.setPrice(request.getPrice());
+    if (request.getPricePerSqm() != null) property.setPricePerSqm(request.getPricePerSqm());
+    if (request.getMaintenanceFee() != null)
+      property.setMaintenanceFee(request.getMaintenanceFee());
+    if (request.getCertificateNumber() != null)
+      property.setCertificateNumber(request.getCertificateNumber());
+    if (request.getCertificateArea() != null)
+      property.setCertificateArea(request.getCertificateArea());
+    if (request.getPbbValue() != null) property.setPbbValue(request.getPbbValue());
+    if (request.getAvailabilityDate() != null)
+      property.setAvailabilityDate(request.getAvailabilityDate());
+    if (request.getHandoverDate() != null) property.setHandoverDate(request.getHandoverDate());
+    if (request.getIsFeatured() != null) property.setIsFeatured(request.getIsFeatured());
+    if (request.getIsKprEligible() != null) property.setIsKprEligible(request.getIsKprEligible());
+    if (request.getMinDownPaymentPercent() != null)
+      property.setMinDownPaymentPercent(request.getMinDownPaymentPercent());
+    if (request.getMaxLoanTermYears() != null)
+      property.setMaxLoanTermYears(request.getMaxLoanTermYears());
+    if (request.getMetaTitle() != null) property.setMetaTitle(request.getMetaTitle());
+    if (request.getMetaDescription() != null)
+      property.setMetaDescription(request.getMetaDescription());
+    if (request.getKeywords() != null) property.setKeywords(request.getKeywords());
+    if (request.getViewCount() != null) property.setViewCount(request.getViewCount());
+    if (request.getInquiryCount() != null) property.setInquiryCount(request.getInquiryCount());
+    if (request.getFavoriteCount() != null) property.setFavoriteCount(request.getFavoriteCount());
+    property.setUpdatedAt(LocalDateTime.now());
 
-    if (request.getStatus() != null && !request.getStatus().isBlank()) {
-      try {
+    // ✅ Enum-safe update
+    try {
+      if (request.getStatus() != null)
         property.setStatus(
             Property.PropertyStatus.valueOf(request.getStatus().trim().toUpperCase()));
-      } catch (IllegalArgumentException ex) {
-        throw new IllegalArgumentException("Invalid status: " + request.getStatus());
-      }
+      if (request.getPropertyType() != null)
+        property.setPropertyType(
+            Property.PropertyType.valueOf(request.getPropertyType().trim().toUpperCase()));
+      if (request.getListingType() != null)
+        property.setListingType(
+            Property.ListingType.valueOf(request.getListingType().trim().toUpperCase()));
+      if (request.getCertificateType() != null)
+        property.setCertificateType(
+            Property.CertificateType.valueOf(request.getCertificateType().trim().toUpperCase()));
+    } catch (IllegalArgumentException ex) {
+      throw new IllegalArgumentException("Invalid enum value: " + ex.getMessage());
     }
 
-    property.setUpdatedAt(LocalDateTime.now());
-  }
+      // ... (sekitar baris 390 di dalam method updateProperty)
 
-  //  private void updateImages(Property property, UpdatePropertyRequest request) {
-  //    if (request.getImages() == null) return;
-  //
-  //    // kosongin list lama (otomatis hapus di DB karena orphanRemoval = true)
-  //    property.getImages().clear();
-  //
-  //    // tambahin image baru dari request
-  //    request
-  //        .getImages()
-  //        .forEach(
-  //            imgReq -> {
-  //              PropertyImage img =
-  //                  PropertyImage.builder()
-  //                      .filePath(imgReq.getFilePath())
-  //                      .isPrimary(Boolean.TRUE.equals(imgReq.getIsPrimary()))
-  //                      .property(property) // penting! relasi balik
-  //                      .build();
-  //              property.getImages().add(img);
-  //            });
-  //
-  //    // pastiin cuma ada 1 primary
-  //    enforceSinglePrimaryImage(property);
-  //  }
+      // ✅ Developer update (optional)
+      if (request.getDeveloperId() != null) {
+          Developer developer =
+                  developerRepository
+                          .findById(request.getDeveloperId())
+                          .orElseThrow(
+                                  () ->
+                                          new IllegalArgumentException(
+                                                  "Developer not found with id: " + request.getDeveloperId()));
 
-  private void enforceSinglePrimaryImage(Property property) {
-    long primaries =
-        property.getImages().stream().filter(i -> Boolean.TRUE.equals(i.getIsPrimary())).count();
+          // >>> LOGIKA UNTUK UPDATE NAMA DEVELOPER <<<
+          if (request.getDeveloperName() != null && !request.getDeveloperName().trim().isEmpty()) {
+              // Menggunakan getCompanyName() dan setCompanyName() dari Developer Entity
+              if (!request.getDeveloperName().equals(developer.getCompanyName())) {
+                  developer.setCompanyName(request.getDeveloperName());
+                  // Simpan perubahan pada Developer Entity
+                  developerRepository.save(developer);
+              }
+          }
+          // >>> END LOGIKA UPDATE NAMA DEVELOPER <<<
 
-    if (primaries == 0 && !property.getImages().isEmpty()) {
-      // kalau gak ada primary, set image pertama jadi primary
-      property.getImages().get(0).setIsPrimary(true);
-    } else if (primaries > 1) {
-      // kalau lebih dari 1 primary, sisain yang pertama aja
-      boolean kept = false;
-      for (PropertyImage i : property.getImages()) {
-        if (Boolean.TRUE.equals(i.getIsPrimary())) {
-          if (!kept) kept = true;
-          else i.setIsPrimary(false);
-        }
+          property.setDeveloper(developer);
       }
-    }
-  }
 
-  private void updateFeatures(Property property, UpdatePropertyRequest request) {
-    if (request.getFeatures() == null) return;
-    property.getFeatures().clear();
+      Property updated = propertyRepository.save(property);
 
-    request
-        .getFeatures()
-        .forEach(
-            featReq -> {
-              PropertyFeature.FeatureCategory category;
-              try {
-                category =
-                    featReq.getFeatureCategory() != null
-                        ? PropertyFeature.FeatureCategory.valueOf(
-                            featReq.getFeatureCategory().toUpperCase())
-                        : PropertyFeature.FeatureCategory.INTERIOR;
-              } catch (IllegalArgumentException e) {
-                category = PropertyFeature.FeatureCategory.INTERIOR;
-              }
+      // ✅ Build full response
+      // ... (kode building response Anda yang sudah ada sudah benar karena akan mengambil nama terbaru dari relasi Developer)
+// ...
 
-              PropertyFeature feat =
-                  PropertyFeature.builder()
-                      .featureCategory(category)
-                      .featureName(featReq.getFeatureName())
-                      .featureValue(featReq.getFeatureValue())
-                      .property(property)
-                      .build();
-
-              property.getFeatures().add(feat);
-            });
-  }
-
-  private void updateLocations(Property property, UpdatePropertyRequest request) {
-    if (request.getLocations() == null) return;
-
-    property.getLocations().clear();
-
-    request
-        .getLocations()
-        .forEach(
-            locReq -> {
-              PropertyLocation.PropertyLocationType type;
-              try {
-                type =
-                    locReq.getPoiType() != null
-                        ? PropertyLocation.PropertyLocationType.valueOf(
-                            locReq.getPoiType().toUpperCase())
-                        : PropertyLocation.PropertyLocationType.OFFICE; // default biar aman
-              } catch (IllegalArgumentException e) {
-                type = PropertyLocation.PropertyLocationType.OFFICE;
-              }
-
-              PropertyLocation loc =
-                  PropertyLocation.builder()
-                      .poiName(locReq.getPoiName())
-                      .distanceKm(locReq.getDistanceKm())
-                      .poiType(type)
-                      .property(property)
-                      .build();
-
-              property.getLocations().add(loc);
-            });
-  }
-
-  private UpdatePropertyResponse buildUpdatePropertyResponse(Property updated) {
-    String developerName =
-        (updated.getDeveloper() != null) ? updated.getDeveloper().getCompanyName() : null;
-
+    // ✅ Build full response
     return UpdatePropertyResponse.builder()
         .id(updated.getId())
+        .developerId(updated.getDeveloper() != null ? updated.getDeveloper().getId() : null)
+        .developerName(
+            updated.getDeveloper() != null ? updated.getDeveloper().getCompanyName() : null)
+        .propertyType(updated.getPropertyType() != null ? updated.getPropertyType().name() : null)
+        .listingType(updated.getListingType() != null ? updated.getListingType().name() : null)
         .title(updated.getTitle())
         .description(updated.getDescription())
-        .price(updated.getPrice())
+        .address(updated.getAddress())
+        .city(updated.getCity())
+        .province(updated.getProvince())
+        .postalCode(updated.getPostalCode())
+        .district(updated.getDistrict())
+        .village(updated.getVillage())
+        .latitude(updated.getLatitude())
+        .longitude(updated.getLongitude())
+        .landArea(updated.getLandArea())
+        .buildingArea(updated.getBuildingArea())
         .bedrooms(updated.getBedrooms())
         .bathrooms(updated.getBathrooms())
+        .floors(updated.getFloors())
+        .garage(updated.getGarage())
+        .yearBuilt(updated.getYearBuilt())
+        .price(updated.getPrice())
+        .pricePerSqm(updated.getPricePerSqm())
+        .maintenanceFee(updated.getMaintenanceFee())
+        .certificateType(
+            updated.getCertificateType() != null ? updated.getCertificateType().name() : null)
+        .certificateNumber(updated.getCertificateNumber())
+        .certificateArea(updated.getCertificateArea())
+        .pbbValue(updated.getPbbValue())
         .status(updated.getStatus() != null ? updated.getStatus().name() : null)
-        .propertyType(updated.getPropertyType() != null ? updated.getPropertyType().name() : null)
-        .city(updated.getCity())
-        .developerName(developerName)
-        .address(updated.getAddress())
-        //        .images(
-        //            updated.getImages() == null
-        //                ? List.of()
-        //                : updated.getImages().stream()
-        //                    .map(
-        //                        img ->
-        //                            UpdatePropertyResponse.ImageData.builder()
-        //                                .filePath(img.getFilePath())
-        //                                .isPrimary(Boolean.TRUE.equals(img.getIsPrimary()))
-        //                                .build())
-        //                    .toList())
-        .features(
-            updated.getFeatures() == null
-                ? List.of()
-                : updated.getFeatures().stream()
-                    .map(
-                        f ->
-                            UpdatePropertyResponse.FeatureData.builder()
-                                .featureName(f.getFeatureName())
-                                .featureValue(f.getFeatureValue())
-                                .build())
-                    .toList())
-        .locations(
-            updated.getLocations() == null
-                ? List.of()
-                : updated.getLocations().stream()
-                    .map(
-                        l ->
-                            UpdatePropertyResponse.LocationData.builder()
-                                .poiName(l.getPoiName())
-                                .distanceKm(l.getDistanceKm())
-                                .build())
-                    .toList())
+        .availabilityDate(updated.getAvailabilityDate())
+        .handoverDate(updated.getHandoverDate())
+        .isFeatured(updated.getIsFeatured())
+        .isKprEligible(updated.getIsKprEligible())
+        .minDownPaymentPercent(updated.getMinDownPaymentPercent())
+        .maxLoanTermYears(updated.getMaxLoanTermYears())
+        .metaTitle(updated.getMetaTitle())
+        .metaDescription(updated.getMetaDescription())
+        .keywords(updated.getKeywords())
+        .updatedAt(updated.getUpdatedAt() != null ? updated.getUpdatedAt().toLocalDate() : null)
         .build();
   }
 

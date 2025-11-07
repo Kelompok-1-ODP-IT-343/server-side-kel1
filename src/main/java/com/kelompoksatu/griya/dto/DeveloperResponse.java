@@ -3,10 +3,15 @@ package com.kelompoksatu.griya.dto;
 import com.kelompoksatu.griya.entity.Developer;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import lombok.Getter;
+import lombok.Setter;
 
 /** DTO for developer response */
+@Setter
+@Getter
 public class DeveloperResponse {
 
+  // Getters and Setters
   private Integer id;
   private String companyName;
   private String companyCode;
@@ -72,198 +77,5 @@ public class DeveloperResponse {
     this.verifiedBy = developer.getVerifiedBy();
     this.createdAt = developer.getCreatedAt();
     this.updatedAt = developer.getUpdatedAt();
-  }
-
-  // Getters and Setters
-  public Integer getId() {
-    return id;
-  }
-
-  public void setId(Integer id) {
-    this.id = id;
-  }
-
-  public String getCompanyName() {
-    return companyName;
-  }
-
-  public void setCompanyName(String companyName) {
-    this.companyName = companyName;
-  }
-
-  public String getCompanyCode() {
-    return companyCode;
-  }
-
-  public void setCompanyCode(String companyCode) {
-    this.companyCode = companyCode;
-  }
-
-  public String getBusinessLicense() {
-    return businessLicense;
-  }
-
-  public void setBusinessLicense(String businessLicense) {
-    this.businessLicense = businessLicense;
-  }
-
-  public String getDeveloperLicense() {
-    return developerLicense;
-  }
-
-  public void setDeveloperLicense(String developerLicense) {
-    this.developerLicense = developerLicense;
-  }
-
-  public String getContactPerson() {
-    return contactPerson;
-  }
-
-  public void setContactPerson(String contactPerson) {
-    this.contactPerson = contactPerson;
-  }
-
-  public String getPhone() {
-    return phone;
-  }
-
-  public void setPhone(String phone) {
-    this.phone = phone;
-  }
-
-  public String getEmail() {
-    return email;
-  }
-
-  public void setEmail(String email) {
-    this.email = email;
-  }
-
-  public String getWebsite() {
-    return website;
-  }
-
-  public void setWebsite(String website) {
-    this.website = website;
-  }
-
-  public String getAddress() {
-    return address;
-  }
-
-  public void setAddress(String address) {
-    this.address = address;
-  }
-
-  public String getCity() {
-    return city;
-  }
-
-  public void setCity(String city) {
-    this.city = city;
-  }
-
-  public String getProvince() {
-    return province;
-  }
-
-  public void setProvince(String province) {
-    this.province = province;
-  }
-
-  public String getPostalCode() {
-    return postalCode;
-  }
-
-  public void setPostalCode(String postalCode) {
-    this.postalCode = postalCode;
-  }
-
-  public Integer getEstablishedYear() {
-    return establishedYear;
-  }
-
-  public void setEstablishedYear(Integer establishedYear) {
-    this.establishedYear = establishedYear;
-  }
-
-  public String getDescription() {
-    return description;
-  }
-
-  public void setDescription(String description) {
-    this.description = description;
-  }
-
-  public Developer.Specialization getSpecialization() {
-    return specialization;
-  }
-
-  public void setSpecialization(Developer.Specialization specialization) {
-    this.specialization = specialization;
-  }
-
-  public Boolean getIsPartner() {
-    return isPartner;
-  }
-
-  public void setIsPartner(Boolean isPartner) {
-    this.isPartner = isPartner;
-  }
-
-  public Developer.PartnershipLevel getPartnershipLevel() {
-    return partnershipLevel;
-  }
-
-  public void setPartnershipLevel(Developer.PartnershipLevel partnershipLevel) {
-    this.partnershipLevel = partnershipLevel;
-  }
-
-  public BigDecimal getCommissionRate() {
-    return commissionRate;
-  }
-
-  public void setCommissionRate(BigDecimal commissionRate) {
-    this.commissionRate = commissionRate;
-  }
-
-  public Developer.DeveloperStatus getStatus() {
-    return status;
-  }
-
-  public void setStatus(Developer.DeveloperStatus status) {
-    this.status = status;
-  }
-
-  public LocalDateTime getVerifiedAt() {
-    return verifiedAt;
-  }
-
-  public void setVerifiedAt(LocalDateTime verifiedAt) {
-    this.verifiedAt = verifiedAt;
-  }
-
-  public Integer getVerifiedBy() {
-    return verifiedBy;
-  }
-
-  public void setVerifiedBy(Integer verifiedBy) {
-    this.verifiedBy = verifiedBy;
-  }
-
-  public LocalDateTime getCreatedAt() {
-    return createdAt;
-  }
-
-  public void setCreatedAt(LocalDateTime createdAt) {
-    this.createdAt = createdAt;
-  }
-
-  public LocalDateTime getUpdatedAt() {
-    return updatedAt;
-  }
-
-  public void setUpdatedAt(LocalDateTime updatedAt) {
-    this.updatedAt = updatedAt;
   }
 }

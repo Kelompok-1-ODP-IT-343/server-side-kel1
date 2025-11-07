@@ -160,7 +160,7 @@ public class Property {
   @JoinColumn(name = "developer_id", insertable = false, updatable = false)
   private Developer developer;
 
-  @OneToMany(mappedBy = "property", cascade = CascadeType.ALL, orphanRemoval = true)
+  @OneToMany(mappedBy = "propertyId", cascade = CascadeType.ALL, orphanRemoval = true)
   @Builder.Default
   private List<PropertyImage> images = new ArrayList<>();
 

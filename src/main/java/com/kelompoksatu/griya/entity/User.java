@@ -78,6 +78,9 @@ public class User {
   @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
   private Developer developer;
 
+  @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+  private UserProfile userProfile;
+
   // Utility methods
   public boolean isAccountLocked() {
     return lockedUntil != null && lockedUntil.isAfter(LocalDateTime.now());

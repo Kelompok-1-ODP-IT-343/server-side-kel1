@@ -64,6 +64,12 @@ public class PersonalData {
   @Pattern(regexp = "^[0-9]{5}$", message = "Postal code must be exactly 5 digits")
   private String postalCode;
 
+  @Size(max = 255, message = "District cannot exceed 255 characters")
+  private String district;
+
+  @Size(max = 255, message = "Sub-district cannot exceed 255 characters")
+  private String subDistrict;
+
   /** Convert string gender to Gender enum */
   public Gender getGenderEnum() {
     return "male".equalsIgnoreCase(gender) ? Gender.MALE : Gender.FEMALE;

@@ -94,13 +94,21 @@ public class KprApplicationDetailResponse {
     private String gender;
     private String maritalStatus;
     private String address;
+    private String district;
+    private String subDistrict;
     private String city;
     private String province;
     private String postalCode;
     private String occupation;
     private String companyName;
     private String companyAddress;
+    private String companyCity;
+    private String companyProvince;
+    private String companyPostalCode;
+    private String companyDistrict;
+    private String companySubdistrict;
     private BigDecimal monthlyIncome;
+    private Integer workExperience;
   }
 
   /** Property information DTO */
