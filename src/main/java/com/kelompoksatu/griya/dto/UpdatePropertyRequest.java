@@ -10,6 +10,7 @@ import lombok.*;
 @Builder
 public class UpdatePropertyRequest {
   private Integer developerId;
+  private String developerName;
   private String propertyType;
   private String listingType;
   private String title;
