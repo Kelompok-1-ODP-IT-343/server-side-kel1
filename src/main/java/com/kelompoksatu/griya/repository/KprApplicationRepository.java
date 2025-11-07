@@ -78,9 +78,19 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
   @Query(
       "SELECT k FROM KprApplication k "
           + "WHERE k.id IN ("
-          + "SELECT DISTINCT aw.applicationId FROM ApprovalWorkflow aw "
+          + "SELECT aw.applicationId FROM ApprovalWorkflow aw "
           + "WHERE aw.assignedTo = :userId "
-          + "AND aw.status IN ('PENDING', 'IN_PROGRESS')) "
+          + "AND aw.status IN ('PENDING', 'IN_PROGRESS') "
+          + "AND aw.stage = 'PROPERTY_APPRAISAL' "
+          + "AND EXISTS (SELECT 1 FROM ApprovalWorkflow ca "
+          + "            WHERE ca.applicationId = aw.applicationId "
+          + "              AND ca.stage = 'CREDIT_ANALYSIS' "
+          + "              AND ca.assignedTo IS NOT NULL) "
+          + "AND EXISTS (SELECT 1 FROM ApprovalWorkflow fa "
+          + "            WHERE fa.applicationId = aw.applicationId "
+          + "              AND fa.stage = 'FINAL_APPROVAL' "
+          + "              AND fa.assignedTo IS NOT NULL)"
+          + ") "
           + "ORDER BY k.createdAt ASC")
   List<KprApplication> findKprApplicationsOnProgressByDeveloper(@Param("userId") Integer userId);
 
@@ -136,7 +146,21 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
           + "k.kprRate.rateName, "
           + "CAST(k.status AS string)) "
           + "FROM KprApplication k WHERE k.id IN "
-          + "(SELECT aw.applicationId FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId AND aw.status IN ('PENDING', 'IN_PROGRESS')) "
+          + "(SELECT aw.applicationId FROM ApprovalWorkflow aw WHERE aw.assignedTo = :userId AND aw.status IN ('PENDING', 'IN_PROGRESS') "
+          + "AND ("
+          + "  aw.stage = 'DOCUMENT_VERIFICATION' "
+          + "  OR aw.stage = 'PROPERTY_APPRAISAL' "
+          + "  OR (aw.stage = 'CREDIT_ANALYSIS' AND EXISTS ("
+          + "       SELECT 1 FROM ApprovalWorkflow prev "
+          + "       WHERE prev.applicationId = aw.applicationId "
+          + "         AND prev.stage = 'PROPERTY_APPRAISAL' "
+          + "         AND prev.status = 'APPROVED')) "
+          + "  OR (aw.stage = 'FINAL_APPROVAL' AND EXISTS ("
+          + "       SELECT 1 FROM ApprovalWorkflow prev2 "
+          + "       WHERE prev2.applicationId = aw.applicationId "
+          + "         AND prev2.stage = 'CREDIT_ANALYSIS' "
+          + "         AND prev2.status = 'APPROVED'))"
+          + ") ) "
           + "ORDER BY k.createdAt ASC")
   List<KprInProgress> findKprApplicationsOnProgressByUserID(@Param("userId") Integer userId);
 

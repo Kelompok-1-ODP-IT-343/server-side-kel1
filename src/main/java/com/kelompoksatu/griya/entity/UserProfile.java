@@ -60,6 +60,12 @@ public class UserProfile {
   @Column(name = "address", columnDefinition = "TEXT")
   private String address;
 
+  @Column(name = "district", length = 255)
+  private String district;
+
+  @Column(name = "sub_district", length = 255)
+  private String subDistrict;
+
   @Column(name = "city", length = 100)
   private String city;
 
@@ -75,6 +81,24 @@ public class UserProfile {
   @Column(name = "company_name", length = 100)
   private String companyName;
 
+  @Column(name = "company_address", length = 255)
+  private String companyAddress;
+
+  @Column(name = "company_city", length = 100)
+  private String companyCity;
+
+  @Column(name = "company_province", length = 100)
+  private String companyProvince;
+
+  @Column(name = "company_postal_code", length = 10)
+  private String companyPostalCode;
+
+  @Column(name = "company_district", length = 255)
+  private String companyDistrict;
+
+  @Column(name = "company_subdistrict", length = 255)
+  private String companySubdistrict;
+
   @Column(name = "monthly_income", precision = 15, scale = 2, nullable = false)
   private BigDecimal monthlyIncome;
 
@@ -89,5 +113,11 @@ public class UserProfile {
   @Column(name = "updated_at", nullable = false)
   private LocalDateTime updatedAt;
 
-  public UserProfile(Integer userId) {}
+  @OneToOne(fetch = FetchType.EAGER)
+  @JoinColumn(name = "user_id", referencedColumnName = "id", insertable = false, updatable = false)
+  private User user;
+
+  public UserProfile(Integer userId) {
+    this.userId = userId;
+  }
 }

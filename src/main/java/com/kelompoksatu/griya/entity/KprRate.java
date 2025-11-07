@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -119,6 +120,11 @@ public class KprRate {
   @UpdateTimestamp
   @Column(name = "updated_at", nullable = false)
   private LocalDateTime updatedAt;
+
+  // Yearly rate breakdown per tenor/year
+  @OneToMany(mappedBy = "kprRate", cascade = CascadeType.ALL, orphanRemoval = true)
+  @OrderBy("tenor ASC, year ASC")
+  private List<KprRateYearly> yearlyRates;
 
   // Enums
   public enum RateType {

@@ -1,15 +1,16 @@
 package com.kelompoksatu.griya.controller;
 
 import com.kelompoksatu.griya.dto.*;
-import com.kelompoksatu.griya.entity.ImageAdmin;
 import com.kelompoksatu.griya.entity.ImageCategory;
 import com.kelompoksatu.griya.entity.ImageType;
-import com.kelompoksatu.griya.repository.ImageAdminRepository;
+import com.kelompoksatu.griya.entity.PropertyImage;
 import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
+import com.kelompoksatu.griya.repository.PropertyImageRepository;
 import com.kelompoksatu.griya.service.AdminService;
 import com.kelompoksatu.griya.service.DeveloperService;
 import com.kelompoksatu.griya.service.PropertyService;
 import com.kelompoksatu.griya.service.UserService;
+import com.kelompoksatu.griya.util.IDCloudHostS3Util;
 import com.kelompoksatu.griya.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -21,10 +22,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -48,12 +45,14 @@ import org.springframework.web.multipart.MultipartFile;
 public class AdminController {
 
   private final DeveloperService developerService;
-  private final ImageAdminRepository imageAdminRepository;
+  //  private final PropertyImageRepository imageAdminRepository;
   private final AdminService adminService;
   private final PropertyFavoriteRepository propertyFavoriteRepository;
   private final PropertyService propertyService;
   private final UserService userService;
   private final JwtUtil jwtUtil;
+  private final IDCloudHostS3Util idCloudHostS3Util;
+  private final PropertyImageRepository propertyImageRepository;
 
   // ==================== DEVELOPER MANAGEMENT ====================
 
@@ -108,54 +107,12 @@ public class AdminController {
   }
 
   /** Update property information (admin only) */
-  @Operation(
-      summary = "Update property information",
-      description =
-          "Update property data including details, images, features, and locations. This endpoint is restricted to admin users only.")
-  @ApiResponses(
-      value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "200",
-            description = "Property updated successfully",
-            content =
-                @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = UpdatePropertyResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "404",
-            description = "Property not found",
-            content =
-                @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ApiResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "500",
-            description = "Internal server error",
-            content =
-                @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ApiResponse.class)))
-      })
   @PutMapping("/properties/{id}")
   public ResponseEntity<ApiResponse<UpdatePropertyResponse>> updateProperty(
-      @PathVariable Integer id, @Valid @RequestBody UpdatePropertyRequest request) {
+      @PathVariable Integer id, @RequestBody @Valid UpdatePropertyRequest request) {
 
-    try {
-      // 🔹 panggil service untuk update semua relasi
-      UpdatePropertyResponse updatedProperty = propertyService.updateProperty(id, request);
-
-      return ResponseEntity.ok(
-          ApiResponse.success("Property updated successfully", updatedProperty));
-
-    } catch (IllegalArgumentException e) {
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .body(ApiResponse.error("Property not found: " + e.getMessage()));
-
-    } catch (Exception e) {
-      log.error("❌ Failed to update property: ", e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Failed to update property: " + e.getMessage()));
-    }
+    UpdatePropertyResponse response = propertyService.updateProperty(id, request);
+    return ResponseEntity.ok(ApiResponse.success("Property updated successfully", response));
   }
 
   @GetMapping("/users/{userId}/favorites")
@@ -177,6 +134,48 @@ public class AdminController {
       log.error("❌ Gagal mengambil favorites user: ", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.error("Gagal mengambil favorites: " + e.getMessage()));
+    }
+  }
+
+  @DeleteMapping("/properties/{id}")
+  public ResponseEntity<ApiResponse<PropertyResponse>> deleteProperty(@PathVariable Integer id) {
+    try {
+      // ambil data sebelum dihapus
+      PropertyResponse deletedProperty =
+          propertyService
+              .getPropertyById(id)
+              .orElseThrow(() -> new IllegalArgumentException("Property not found with id: " + id));
+
+      // hapus property
+      propertyService.deleteProperty(id);
+
+      ApiResponse<PropertyResponse> response =
+          new ApiResponse<>(true, "Property deleted successfully", deletedProperty);
+      return ResponseEntity.ok(response);
+    } catch (IllegalArgumentException e) {
+      ApiResponse<PropertyResponse> response = new ApiResponse<>(false, e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    } catch (Exception e) {
+      ApiResponse<PropertyResponse> response =
+          new ApiResponse<>(false, "Failed to delete property: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  @DeleteMapping("/images/{id}")
+  public ResponseEntity<ApiResponse<ImageAdminResponse>> deleteImage(@PathVariable Integer id) {
+    try {
+      ImageAdminResponse deletedImage = propertyService.deleteImageById(id);
+      ApiResponse<ImageAdminResponse> response =
+          new ApiResponse<>(true, "Image deleted successfully", deletedImage);
+      return ResponseEntity.ok(response);
+    } catch (IllegalArgumentException e) {
+      ApiResponse<ImageAdminResponse> response = new ApiResponse<>(false, e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    } catch (Exception e) {
+      ApiResponse<ImageAdminResponse> response =
+          new ApiResponse<>(false, "Failed to delete image: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
 
@@ -206,7 +205,7 @@ public class AdminController {
     try {
       log.info("Mulai upload image: {}", image.getOriginalFilename());
 
-      // ✅ 1️⃣ Validasi input
+      // Validasi input
       if (image == null || image.isEmpty()) {
         return ResponseEntity.badRequest().body(ApiResponse.error("Image file tidak boleh kosong"));
       }
@@ -215,7 +214,7 @@ public class AdminController {
             .body(ApiResponse.error("Field imageType dan imageCategory wajib diisi"));
       }
 
-      // ✅ 2️⃣ Convert ENUM (handle invalid enum)
+      // Convert ENUM (handle invalid enum)
       ImageType imageType;
       ImageCategory imageCategory;
       try {
@@ -226,42 +225,40 @@ public class AdminController {
             .body(ApiResponse.error("Nilai imageType atau imageCategory tidak valid"));
       }
 
-      // ✅ 3️⃣ Simpan file (langsung di root project)
-      Path filePath = Paths.get(image.getOriginalFilename());
-      Files.copy(image.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-      log.debug("File path: {}", filePath);
+      // Upload ke IDCloudHost
+      String folder =
+          String.valueOf(request.getPropertyId() == null ? "misc" : request.getPropertyId());
+      String imageUrl = idCloudHostS3Util.uploadPropertyImage(image, folder);
+      log.info("Upload ke IDCloudHost sukses: {}", imageUrl);
 
-      // ✅ 4️⃣ Generate public URL
-      String imageUrl = "http://localhost:18080/" + image.getOriginalFilename();
-
-      // ✅ 5️⃣ Simpan metadata ke database
-      ImageAdmin imageAdmin =
-          ImageAdmin.builder()
+      // Simpan metadata ke database
+      PropertyImage propertyImage =
+          PropertyImage.builder()
               .propertyId(request.getPropertyId())
               .imageType(imageType)
               .imageCategory(imageCategory)
               .fileName(UUID.randomUUID().toString())
-              .filePath(filePath.toString())
+              .filePath(imageUrl)
               .fileSize((int) image.getSize())
               .mimeType(image.getContentType())
               .caption(request.getCaption())
               .build();
 
-      imageAdminRepository.save(imageAdmin);
-      log.info("✅ Image berhasil disimpan di DB: {}", imageAdmin.getFileName());
+      propertyImageRepository.save(propertyImage);
+      log.info("Image berhasil disimpan di DB: {}", propertyImage.getFileName());
 
-      // ✅ 6️⃣ Build response data
+      // Build response data
       ImageAdminResponse responseData =
           ImageAdminResponse.builder()
-              .id(imageAdmin.getId())
-              .propertyId(imageAdmin.getPropertyId())
+              .id(propertyImage.getId())
+              .propertyId(propertyImage.getPropertyId())
               .imageUrl(imageUrl)
-              .fileName(imageAdmin.getFileName())
+              .fileName(propertyImage.getFileName())
               .imageType(imageType.name())
               .imageCategory(imageCategory.name())
-              .caption(imageAdmin.getCaption())
-              .fileSize(imageAdmin.getFileSize())
-              .mimeType(imageAdmin.getMimeType())
+              .caption(propertyImage.getCaption())
+              .fileSize(propertyImage.getFileSize())
+              .mimeType(propertyImage.getMimeType())
               .build();
 
       ApiResponse<ImageAdminResponse> response =
@@ -559,6 +556,21 @@ public class AdminController {
     var apiResponse = new ApiResponse<>(true, "", admin);
 
     return ResponseEntity.ok(apiResponse);
+  }
+
+  @GetMapping("/approver")
+  public ResponseEntity<ApiResponse<List<UserResponse>>> getAllApprovers(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+    // Extract user ID from token
+    Integer userId = jwtUtil.extractUserId(token);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(ApiResponse.error("Token tidak valid"));
+    }
+    List<UserResponse> approver = adminService.getAllApprovalPovAdmin(userId);
+    return ResponseEntity.ok(ApiResponse.success("Approver retrieved successfully", approver));
   }
 
   @GetMapping("/users")

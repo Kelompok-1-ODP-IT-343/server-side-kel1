@@ -1,7 +1,9 @@
 package com.kelompoksatu.griya.service;
 
 import com.kelompoksatu.griya.dto.AdminSimpleResponse;
+import com.kelompoksatu.griya.dto.UserResponse;
 import com.kelompoksatu.griya.repository.DeveloperRepository;
+import com.kelompoksatu.griya.repository.RoleRepository;
 import com.kelompoksatu.griya.repository.UserProfileRepository;
 import com.kelompoksatu.griya.repository.UserRepository;
 import com.kelompoksatu.griya.repository.UserSessionRepository;
@@ -21,6 +23,7 @@ public class AdminService {
   private final UserRepository userRepository;
   private final UserSessionRepository userSessionRepository;
   private final UserProfileRepository userProfileRepository;
+  private final RoleRepository roleRepository;
   private final DeveloperRepository developerRepository;
 
   public List<AdminSimpleResponse> getAllAdminSimple() {
@@ -43,5 +46,32 @@ public class AdminService {
     userRepository.delete(user);
 
     log.info("Admin {} hard-delete user {}. reason={}", adminId, targetUserId, reason);
+  }
+
+  // Get All Approval POV Admin
+  public List<UserResponse> getAllApprovalPovAdmin(Integer userID) {
+    var user =
+        userRepository
+            .findById(userID)
+            .orElseThrow(() -> new NotFoundException("User tidak ditemukan"));
+
+    if (!user.getRole().getName().equals("ADMIN")) {
+      throw new IllegalArgumentException("User tidak memiliki role ADMIN");
+    }
+
+    var role =
+        roleRepository
+            .findByName("APPROVER")
+            .orElseThrow(() -> new NotFoundException("Role APPROVER tidak ditemukan"));
+
+    var userResponses =
+        userRepository.findAllUserResponseByRoleId(
+            role.getId(), org.springframework.data.domain.Pageable.unpaged());
+
+    if (userResponses.isEmpty()) {
+      throw new NotFoundException("Tidak ada user dengan role APPROVER");
+    }
+
+    return userResponses.getContent();
   }
 }

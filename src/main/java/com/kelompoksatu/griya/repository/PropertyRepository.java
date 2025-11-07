@@ -54,6 +54,10 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
   /** Check if slug exists */
   boolean existsBySlug(String slug);
 
+  boolean existsByPropertyCodeAndIdNot(String propertyCode, Integer id);
+
+  boolean existsBySlugAndIdNot(String slug, Integer id);
+
   /** Find available properties */
   @Query("SELECT p FROM Property p WHERE p.status = 'AVAILABLE'")
   List<Property> findAvailableProperties();

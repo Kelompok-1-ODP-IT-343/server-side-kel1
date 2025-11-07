@@ -24,6 +24,8 @@ import org.springframework.stereotype.Repository;
 public interface ApprovalWorkflowRepository extends JpaRepository<ApprovalWorkflow, Integer> {
 
   // Basic CRUD operations are inherited from JpaRepository
+  @Query("SELECT COUNT(w) FROM ApprovalWorkflow w WHERE w.kprApplication.id = :applicationId")
+  Long countByKprApplicationId(Integer applicationId);
 
   // Find by application ID
   List<ApprovalWorkflow> findByApplicationId(Integer applicationId);

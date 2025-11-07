@@ -13,7 +13,6 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-/** DTO for user response (without sensitive information) */
 public class UserResponse {
 
   private Integer id;

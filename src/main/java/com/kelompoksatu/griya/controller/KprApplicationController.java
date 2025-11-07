@@ -146,6 +146,8 @@ public class KprApplicationController {
       @RequestParam("personalData.gender") String gender,
       @RequestParam("personalData.maritalStatus") String maritalStatus,
       @RequestParam("personalData.address") String address,
+      @RequestParam(value = "personalData.district", required = false) String district,
+      @RequestParam(value = "personalData.subDistrict", required = false) String subDistrict,
       @RequestParam("personalData.city") String city,
       @RequestParam("personalData.province") String province,
       @RequestParam("personalData.postalCode") String postalCode,
@@ -158,7 +160,10 @@ public class KprApplicationController {
       @RequestParam("employmentData.companyCity") String companyCity,
       @RequestParam("employmentData.companyProvince") String companyProvince,
       @RequestParam("employmentData.companyPostalCode") String companyPostalCode,
-
+      @RequestParam(value = "employmentData.companyDistrict", required = false)
+          String companyDistrict,
+      @RequestParam(value = "employmentData.companySubdistrict", required = false)
+          String companySubdistrict,
       // Document Files
       @RequestParam("ktpDocument") MultipartFile ktpDocument,
       @RequestParam(value = "npwpDocument", required = false) MultipartFile npwpDocument,
@@ -204,6 +209,8 @@ public class KprApplicationController {
                       .gender(gender)
                       .maritalStatus(maritalStatus)
                       .address(address)
+                      .district(district)
+                      .subDistrict(subDistrict)
                       .city(city)
                       .province(province)
                       .postalCode(postalCode)
@@ -217,6 +224,8 @@ public class KprApplicationController {
                       .companyCity(companyCity)
                       .companyProvince(companyProvince)
                       .companyPostalCode(companyPostalCode)
+                      .companyDistrict(companyDistrict)
+                      .companySubdistrict(companySubdistrict)
                       .build())
               .ktpDocument(ktpDocument)
               .npwpDocument(npwpDocument)
@@ -692,6 +701,39 @@ public class KprApplicationController {
       logger.error("Error assigning KPR application: {}", e.getMessage(), e);
       ApiResponse<String> response =
           new ApiResponse<>(false, "Failed to assign KPR application: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  @GetMapping("/admin/all")
+  public ResponseEntity<ApiResponse<List<KprInProgress>>> getAllKprApplicationsAll(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      logger.info("Received request for all KPR applications (admin)");
+
+      // Extract and validate JWT token
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+      // Extract user ID from token
+      Integer userID = jwtUtil.extractUserId(token);
+      if (userID == null) {
+        logger.warn("Invalid token - user ID not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      // Get all KPR applications for admin
+      List<KprInProgress> response = kprApplicationService.getAllKprApplicationsAll(userID);
+
+      logger.info("All KPR applications retrieved successfully (admin)");
+      return ResponseEntity.ok(
+          new ApiResponse<List<KprInProgress>>(
+              true, "All KPR applications retrieved successfully", response));
+    } catch (Exception e) {
+      logger.error("Error retrieving all KPR applications: {}", e.getMessage(), e);
+
+      ApiResponse<List<KprInProgress>> response =
+          new ApiResponse<>(false, "Failed to get all KPR applications: " + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }

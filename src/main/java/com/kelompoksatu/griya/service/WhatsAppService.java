@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class WhatsAppService {
 
-  @Value("${whatsapp.api.url:http://localhost:8080/api/send-message}")
+  @Value("${whatsapp.api.url:http://localhost:9090/api/send-message}")
   private String whatsappApiUrl;
 
   @Value("${whatsapp.api.key:test123}")
