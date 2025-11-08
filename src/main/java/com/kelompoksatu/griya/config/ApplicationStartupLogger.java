@@ -27,18 +27,24 @@ public class ApplicationStartupLogger {
     // Build base URL
     String baseUrl = "http://localhost:" + port + contextPath;
 
-    logger.info("=".repeat(80));
-    logger.info("🚀 GRIYA PROPERTY MANAGEMENT API STARTED SUCCESSFULLY");
-    logger.info("=".repeat(80));
-    logger.info("📚 API Documentation (Swagger UI): {}", baseUrl + "/swagger-ui/index.html");
-    logger.info("📋 OpenAPI JSON Schema: {}", baseUrl + "/v3/api-docs");
-    logger.info("🏥 Health Check: {}", baseUrl + "/actuator/health");
-    logger.info("📊 Application Info: {}", baseUrl + "/actuator/info");
-    logger.info("=".repeat(80));
-    logger.info("💡 Quick Start:");
-    logger.info("   1. Open Swagger UI: {}", baseUrl + "/swagger-ui/index.html");
-    logger.info("   2. Try the 'Register Developer' endpoint");
-    logger.info("   3. Use the interactive API testing interface");
-    logger.info("=".repeat(80));
+    String line = "_".repeat(80);
+
+    if (logger.isInfoEnabled()) {
+      logger.info(line);
+      logger.info("🚀 GRIYA PROPERTY MANAGEMENT API STARTED SUCCESSFULLY");
+      logger.info(line);
+
+      logger.info("📚 API Documentation (Swagger UI): {}/swagger-ui/index.html", baseUrl);
+      logger.info("📋 OpenAPI JSON Schema: {}/v3/api-docs", baseUrl);
+      logger.info("🏥 Health Check: {}/actuator/health", baseUrl);
+      logger.info("📊 Application Info: {}/actuator/info", baseUrl);
+
+      logger.info(line);
+      logger.info("💡 Quick Start:");
+      logger.info("   1. Open Swagger UI: {}/swagger-ui/index.html", baseUrl);
+      logger.info("   2. Try the 'Register Developer' endpoint");
+      logger.info("   3. Use the interactive API testing interface");
+      logger.info(line);
+    }
   }
 }
