@@ -362,7 +362,7 @@ public class AuthController {
   }
 
   @PostMapping("/refresh")
-  public ResponseEntity<?> refreshToken(
+  public ResponseEntity<AuthResponse> refreshToken(
       @RequestBody TokenRefreshRequest request, HttpServletRequest httpRequest) {
     // Get client IP address
     String ipAddress = getClientIpAddress(httpRequest);
@@ -425,7 +425,7 @@ public class AuthController {
   }
 
   @GetMapping("/verify")
-  public ResponseEntity<?> verifyEmail(@RequestParam("token") String token) {
+  public ResponseEntity<VerifyEmailResponse> verifyEmail(@RequestParam("token") String token) {
     try {
       VerifyEmailResponse res = authService.verifyEmail(token);
       return ResponseEntity.ok(res);
@@ -437,7 +437,7 @@ public class AuthController {
   }
 
   @PostMapping("/forgot-password")
-  public ResponseEntity<ApiResponse<?>> forgotPassword(
+  public ResponseEntity<ApiResponse<Boolean>> forgotPassword(
       @Valid @RequestBody() ForgotPasswordRequest request) {
     authService.forgotPassword(request);
     return ResponseEntity.ok(
