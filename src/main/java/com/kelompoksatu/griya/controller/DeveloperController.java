@@ -22,7 +22,7 @@ public class DeveloperController {
 
   private final DeveloperService developerService;
 
-    private static final String ERROR_RETRIEVE_DEVELOPERS = "Failed to retrieve developers: ";
+  private static final String ERROR_RETRIEVE_DEVELOPERS = "Failed to retrieve developers: ";
 
   @Autowired
   public DeveloperController(DeveloperService developerService) {

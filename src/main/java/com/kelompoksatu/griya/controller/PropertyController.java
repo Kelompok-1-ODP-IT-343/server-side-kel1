@@ -34,8 +34,8 @@ public class PropertyController {
 
   private final PropertyService propertyService;
   private final PropertyFavoriteRepository propertyFavoriteRepository;
-    private static final String ERROR_RETRIEVE_PROPERTIES = "Failed to retrieve properties: ";
-    private static final String MSG_PROPERTY_RETRIEVED = "Property retrieved successfully";
+  private static final String ERROR_RETRIEVE_PROPERTIES = "Failed to retrieve properties: ";
+  private static final String MSG_PROPERTY_RETRIEVED = "Property retrieved successfully";
 
   @Autowired
   public PropertyController(
