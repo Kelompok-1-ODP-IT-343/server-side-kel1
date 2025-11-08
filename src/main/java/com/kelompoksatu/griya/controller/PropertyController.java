@@ -34,6 +34,8 @@ public class PropertyController {
 
   private final PropertyService propertyService;
   private final PropertyFavoriteRepository propertyFavoriteRepository;
+    private static final String ERROR_RETRIEVE_PROPERTIES = "Failed to retrieve properties: ";
+    private static final String MSG_PROPERTY_RETRIEVED = "Property retrieved successfully";
 
   @Autowired
   public PropertyController(
@@ -86,7 +88,7 @@ public class PropertyController {
 
     } catch (Exception e) {
       ApiResponse<List<Map<String, Object>>> response =
-          new ApiResponse<>(false, "Failed to retrieve properties: " + e.getMessage(), null);
+          new ApiResponse<>(false, ERROR_RETRIEVE_PROPERTIES + e.getMessage(), null);
 
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
@@ -136,7 +138,7 @@ public class PropertyController {
       Optional<PropertyResponse> property = propertyService.getPropertyById(id);
       if (property.isPresent()) {
         ApiResponse<PropertyResponse> response =
-            new ApiResponse<>(true, "Property retrieved successfully", property.get());
+            new ApiResponse<>(true, MSG_PROPERTY_RETRIEVED, property.get());
         return ResponseEntity.ok(response);
       } else {
         ApiResponse<PropertyResponse> response =
@@ -145,7 +147,7 @@ public class PropertyController {
       }
     } catch (Exception e) {
       ApiResponse<PropertyResponse> response =
-          new ApiResponse<>(false, "Failed to retrieve property: " + e.getMessage(), null);
+          new ApiResponse<>(false, ERROR_RETRIEVE_PROPERTIES + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -158,7 +160,7 @@ public class PropertyController {
       Optional<PropertyResponse> property = propertyService.getPropertyByPropertyCode(propertyCode);
       if (property.isPresent()) {
         ApiResponse<PropertyResponse> response =
-            new ApiResponse<>(true, "Property retrieved successfully", property.get());
+            new ApiResponse<>(true, MSG_PROPERTY_RETRIEVED, property.get());
         return ResponseEntity.ok(response);
       } else {
         ApiResponse<PropertyResponse> response =
@@ -167,7 +169,7 @@ public class PropertyController {
       }
     } catch (Exception e) {
       ApiResponse<PropertyResponse> response =
-          new ApiResponse<>(false, "Failed to retrieve property: " + e.getMessage(), null);
+          new ApiResponse<>(false, ERROR_RETRIEVE_PROPERTIES + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -183,7 +185,7 @@ public class PropertyController {
         propertyService.incrementViewCount(property.get().getId());
 
         ApiResponse<PropertyResponse> response =
-            new ApiResponse<>(true, "Property retrieved successfully", property.get());
+            new ApiResponse<>(true, MSG_PROPERTY_RETRIEVED, property.get());
         return ResponseEntity.ok(response);
       } else {
         ApiResponse<PropertyResponse> response =
@@ -192,7 +194,7 @@ public class PropertyController {
       }
     } catch (Exception e) {
       ApiResponse<PropertyResponse> response =
-          new ApiResponse<>(false, "Failed to retrieve property: " + e.getMessage(), null);
+          new ApiResponse<>(false, ERROR_RETRIEVE_PROPERTIES + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -211,7 +213,7 @@ public class PropertyController {
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       ApiResponse<List<PropertyResponse>> response =
-          new ApiResponse<>(false, "Failed to retrieve properties: " + e.getMessage(), null);
+          new ApiResponse<>(false, ERROR_RETRIEVE_PROPERTIES + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -233,7 +235,7 @@ public class PropertyController {
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     } catch (Exception e) {
       ApiResponse<List<PropertyResponse>> response =
-          new ApiResponse<>(false, "Failed to retrieve properties: " + e.getMessage(), null);
+          new ApiResponse<>(false, ERROR_RETRIEVE_PROPERTIES + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -257,7 +259,7 @@ public class PropertyController {
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     } catch (Exception e) {
       ApiResponse<List<PropertyResponse>> response =
-          new ApiResponse<>(false, "Failed to retrieve properties: " + e.getMessage(), null);
+          new ApiResponse<>(false, ERROR_RETRIEVE_PROPERTIES + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -280,7 +282,7 @@ public class PropertyController {
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     } catch (Exception e) {
       ApiResponse<List<PropertyResponse>> response =
-          new ApiResponse<>(false, "Failed to retrieve properties: " + e.getMessage(), null);
+          new ApiResponse<>(false, ERROR_RETRIEVE_PROPERTIES + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -312,7 +314,7 @@ public class PropertyController {
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       ApiResponse<List<PropertyResponse>> response =
-          new ApiResponse<>(false, "Failed to retrieve properties: " + e.getMessage(), null);
+          new ApiResponse<>(false, ERROR_RETRIEVE_PROPERTIES + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -329,7 +331,7 @@ public class PropertyController {
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       ApiResponse<List<PropertyResponse>> response =
-          new ApiResponse<>(false, "Failed to retrieve properties: " + e.getMessage(), null);
+          new ApiResponse<>(false, ERROR_RETRIEVE_PROPERTIES + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -353,15 +355,10 @@ public class PropertyController {
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       ApiResponse<List<PropertyResponse>> response =
-          new ApiResponse<>(false, "Failed to retrieve properties: " + e.getMessage(), null);
+          new ApiResponse<>(false, ERROR_RETRIEVE_PROPERTIES + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
-
-  /**
-   * Get properties with optional filters (city, status, minPrice, maxPrice) Example:
-   * /api/properties/filter?city=Jakarta&status=AVAILABLE&minPrice=500000000&maxPrice=2000000000
-   */
 
   /** Get properties by area range */
   @GetMapping("/area-range")
@@ -382,7 +379,7 @@ public class PropertyController {
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       ApiResponse<List<PropertyResponse>> response =
-          new ApiResponse<>(false, "Failed to retrieve properties: " + e.getMessage(), null);
+          new ApiResponse<>(false, ERROR_RETRIEVE_PROPERTIES + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -399,7 +396,7 @@ public class PropertyController {
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       ApiResponse<List<PropertyResponse>> response =
-          new ApiResponse<>(false, "Failed to retrieve properties: " + e.getMessage(), null);
+          new ApiResponse<>(false, ERROR_RETRIEVE_PROPERTIES + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -418,7 +415,7 @@ public class PropertyController {
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       ApiResponse<List<PropertyResponse>> response =
-          new ApiResponse<>(false, "Failed to retrieve properties: " + e.getMessage(), null);
+          new ApiResponse<>(false, ERROR_RETRIEVE_PROPERTIES + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }

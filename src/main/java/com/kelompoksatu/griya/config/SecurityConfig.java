@@ -4,7 +4,6 @@ import com.kelompoksatu.griya.security.JwtAuthenticationEntryPoint;
 import com.kelompoksatu.griya.security.JwtAuthenticationFilter;
 import java.util.Arrays;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,10 +31,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
-
-  @Autowired private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-
-  @Autowired private JwtAuthenticationFilter jwtAuthenticationFilter;
 
   // Inject CORS properties from application.properties
   @Value("${security.cors.allowed-origins}")
@@ -138,8 +133,14 @@ public class SecurityConfig {
 
   /** Security filter chain configuration */
   @Bean
-  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+  public SecurityFilterChain filterChain(
+      HttpSecurity http,
+      JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
+      JwtAuthenticationFilter jwtAuthenticationFilter,
+      CorsConfigurationSource corsConfigurationSource)
+      throws Exception {
     http
+
         // Disable CSRF for stateless JWT authentication
         .csrf(AbstractHttpConfigurer::disable)
 

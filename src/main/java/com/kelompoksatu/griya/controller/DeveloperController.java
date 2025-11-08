@@ -22,6 +22,8 @@ public class DeveloperController {
 
   private final DeveloperService developerService;
 
+    private static final String ERROR_RETRIEVE_DEVELOPERS = "Failed to retrieve developers: ";
+
   @Autowired
   public DeveloperController(DeveloperService developerService) {
     this.developerService = developerService;
@@ -56,7 +58,7 @@ public class DeveloperController {
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       ApiResponse<List<DeveloperResponse>> response =
-          ApiResponse.error("Failed to retrieve developers: " + e.getMessage());
+          ApiResponse.error(ERROR_RETRIEVE_DEVELOPERS + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -78,7 +80,7 @@ public class DeveloperController {
       }
     } catch (Exception e) {
       ApiResponse<DeveloperResponse> response =
-          ApiResponse.error("Failed to retrieve developer: " + e.getMessage());
+          ApiResponse.error(ERROR_RETRIEVE_DEVELOPERS + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -101,7 +103,7 @@ public class DeveloperController {
       }
     } catch (Exception e) {
       ApiResponse<DeveloperResponse> response =
-          ApiResponse.error("Failed to retrieve developer: " + e.getMessage());
+          ApiResponse.error(ERROR_RETRIEVE_DEVELOPERS + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }

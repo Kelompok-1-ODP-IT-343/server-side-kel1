@@ -28,7 +28,7 @@ public class RegisterDeveloperRequest {
   @NotBlank(message = "Username is required")
   @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
   @Pattern(
-      regexp = "^[a-zA-Z0-9_]+$",
+      regexp = "^[A-Za-z0-9_]+$",
       message = "Username can only contain letters, numbers, and underscores")
   private String username;
 
@@ -53,7 +53,7 @@ public class RegisterDeveloperRequest {
   @Schema(description = "Phone number in Indonesian format", example = "+6281234567890")
   @NotBlank(message = "Phone number is required")
   @Pattern(
-      regexp = "^(\\+62|62|0)[0-9]{9,13}$",
+      regexp = "^(\\+62|62|0)\\d{9,13}$",
       message = "Please provide a valid Indonesian phone number")
   private String phone;
 
