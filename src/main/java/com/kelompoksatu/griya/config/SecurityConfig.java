@@ -157,6 +157,9 @@ public class SecurityConfig {
                 authz
                     // Public endpoints (no authentication required)
                     .requestMatchers(
+                        "/api/v1/notifications/{id}",
+                        "/api/v1/notifications/**",
+                        "/api/v1/notifications",
                         "/api/v1/auth/register",
                         "/api/v1/auth/register/developer",
                         "/api/v1/auth/login",
