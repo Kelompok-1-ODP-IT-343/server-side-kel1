@@ -123,6 +123,11 @@ public class OtpService {
         purpose = "verification";
       }
 
+      if (PHONE_ALLOWED_TO_BYPASS_OTP.contains(phone)) {
+        log.info("Nomor {} diizinkan untuk melewati OTP", phone);
+        return "000000";
+      }
+
       String identifier = phone + ":" + purpose;
       // Check rate limiting
       String rateLimitKey = "rate_limit:" + identifier;
