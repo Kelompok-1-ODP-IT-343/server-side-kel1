@@ -160,7 +160,11 @@ public class StatStaffService {
     while (!cur.isAfter(last)) {
       List<KprApplication> monthApps = byMonth.getOrDefault(cur, List.of());
       int submitted = monthApps.size();
-      int approved = (int) monthApps.stream().filter(a -> "APPROVED".equals(a.getStatus())).count();
+      int approved =
+          (int)
+              monthApps.stream()
+                  .filter(a -> a.getStatus() == KprApplication.ApplicationStatus.APPROVED)
+                  .count();
       SubmissionVsApprovedItem item = new SubmissionVsApprovedItem();
       item.setMonth(capitalize(cur.format(fmt)));
       item.setSubmitted(submitted);
@@ -206,11 +210,25 @@ public class StatStaffService {
 
   private List<FunnelItem> buildFunnel(List<KprApplication> apps) {
     int appraisal =
-        (int) apps.stream().filter(a -> "PROPERTY_APPRAISAL".equals(a.getStatus())).count();
-    int analysis = (int) apps.stream().filter(a -> "CREDIT_ANALYSIS".equals(a.getStatus())).count();
+        (int)
+            apps.stream()
+                .filter(a -> a.getStatus() == KprApplication.ApplicationStatus.PROPERTY_APPRAISAL)
+                .count();
+    int analysis =
+        (int)
+            apps.stream()
+                .filter(a -> a.getStatus() == KprApplication.ApplicationStatus.CREDIT_ANALYSIS)
+                .count();
     int finalApproval =
-        (int) apps.stream().filter(a -> "APPROVAL_PENDING".equals(a.getStatus())).count();
-    int approved = (int) apps.stream().filter(a -> "APPROVED".equals(a.getStatus())).count();
+        (int)
+            apps.stream()
+                .filter(a -> a.getStatus() == KprApplication.ApplicationStatus.APPROVAL_PENDING)
+                .count();
+    int approved =
+        (int)
+            apps.stream()
+                .filter(a -> a.getStatus() == KprApplication.ApplicationStatus.APPROVED)
+                .count();
 
     List<FunnelItem> out = new ArrayList<>();
     out.add(new FunnelItem("Property Appraisal", appraisal));
