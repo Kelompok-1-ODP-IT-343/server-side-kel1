@@ -141,7 +141,7 @@ public class DeveloperController {
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     } catch (Exception e) {
       ApiResponse<List<DeveloperResponse>> response =
-          ApiResponse.error(ERROR_RETRIEVE_DEVELOPERS + e.getMessage());
+          ApiResponse.error("Failed to retrieve developers: " + e.getMessage());
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -180,7 +180,7 @@ public class DeveloperController {
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     } catch (Exception e) {
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(false, ERROR_RETRIEVE_DEVELOPERS + e.getMessage(), null);
+          new ApiResponse<>(false, "Failed to retrieve developers: " + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -196,7 +196,7 @@ public class DeveloperController {
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(false, ERROR_RETRIEVE_DEVELOPERS + e.getMessage(), null);
+          new ApiResponse<>(false, "Failed to retrieve developers: " + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
@@ -213,7 +213,7 @@ public class DeveloperController {
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       ApiResponse<List<DeveloperResponse>> response =
-          new ApiResponse<>(false, ERROR_RETRIEVE_DEVELOPERS + e.getMessage(), null);
+          new ApiResponse<>(false, "Failed to retrieve developers: " + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
