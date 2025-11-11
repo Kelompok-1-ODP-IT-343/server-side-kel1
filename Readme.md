@@ -87,3 +87,4 @@ R__rebuild_materialized_views.sql
 ### 5. Code Formating
 - You can simply formating using spotless plugin
 - How to use : go to maven plugin then click spotless and click ```spotless:apply```
+

@@ -111,3 +111,14 @@ The script produces:
 ## Notes
 - If the API becomes slow, increase DB indexing, optimize queries, or tune connection pooling.
 - Threshold failures mean performance targets are unmet — not that the API is broken.
+
+##  Run verify-otp-loadtest.js
+- k6 run --vus 10 --duration 10s verify-otp-loadtest.js
+OR 
+- k6 run \
+  -e HOST=http://localhost:18080 \
+  -e VERIFY_PATH=/api/v1/auth/verify-otp \
+  -e IDENTIFIERS="testingiano" \
+  -e OTPS="000000" \
+  -e LOG_FAIL=true \
+  verify-otp-loadtest.js

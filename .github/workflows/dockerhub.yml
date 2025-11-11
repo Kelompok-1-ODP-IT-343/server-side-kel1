@@ -83,6 +83,17 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # # [Step 11] Extract Docker Metadata
+      # - name: Extract Docker metadata (tags, labels)
+      #   id: meta
+      #   uses: docker/metadata-action@v5
+      #   with:
+      #     images: ${{ secrets.DOCKERHUB_USERNAME }}/griya-kpr
+      #     tags: |
+      #       type=ref,event=tag
+      #       type=raw,value=latest,enable={{is_default_branch}}
+      #       type=sha,format=short
+
       # [Step 11] Extract Docker Metadata
       - name: Extract Docker metadata (tags, labels)
         id: meta
@@ -90,9 +101,8 @@ jobs:
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/griya-kpr
           tags: |
-            type=ref,event=tag
-            type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short
+            type=raw,value=latest,enable=true
 
       # [Step 12] Build and Push Docker Image
       - name: Build and push
