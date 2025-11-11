@@ -1,6 +1,7 @@
 package com.kelompoksatu.griya.controller;
 
 import com.kelompoksatu.griya.dto.AdminStatsResponse;
+import com.kelompoksatu.griya.dto.ApiResponse;
 import com.kelompoksatu.griya.service.StatAdminService;
 import com.kelompoksatu.griya.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,17 +25,21 @@ public class StatAdminController {
   private final JwtUtil jwtUtil;
 
   @GetMapping("/dashboard")
-  public ResponseEntity<?> dashboard(
+  public ResponseEntity<ApiResponse<AdminStatsResponse>> dashboard(
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader,
-      @RequestParam("range") String range) {
+      @RequestParam(name = "range", required = false) String range) {
+    try {
+      String token = jwtUtil.extractTokenFromHeader(authHeader);
+      String role = jwtUtil.extractUserRole(token);
+      if (role == null || !"ADMIN".equalsIgnoreCase(role)) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ApiResponse.error("Akses ditolak: bukan ADMIN"));
+      }
 
-    String token = jwtUtil.extractTokenFromHeader(authHeader);
-    String role = jwtUtil.extractUserRole(token);
-    if (role == null || !"ADMIN".equalsIgnoreCase(role)) {
-      return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Akses ditolak: bukan ADMIN");
+      AdminStatsResponse resp = service.getDashboard(range);
+      return ResponseEntity.ok(ApiResponse.success("Statistics fetched", resp));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
     }
-
-    AdminStatsResponse resp = service.getDashboard(range);
-    return ResponseEntity.ok(resp);
   }
 }
