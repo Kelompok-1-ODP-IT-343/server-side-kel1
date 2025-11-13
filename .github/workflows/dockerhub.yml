@@ -130,7 +130,8 @@ jobs:
           # Jika menggunakan Latest
           # image-ref: docker.io/satuatap/bot-wa-kpr:latest
           # Jika mengggunakan SHA
-          image-ref: ${{ steps.image.outputs.sha_tag }}
+          image-ref: docker.io/satuatap/griya-kpr:sha-0e35510
+          #image-ref: ${{ steps.image.outputs.sha_tag }}
           format: 'table'
           vuln-type: 'os,library'
           severity: 'HIGH,CRITICAL'
