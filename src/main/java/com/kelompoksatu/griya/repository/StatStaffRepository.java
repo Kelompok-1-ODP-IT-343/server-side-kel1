@@ -14,8 +14,8 @@ public interface StatStaffRepository extends JpaRepository<KprApplication, Integ
 
   /** Applications assigned to a staff within date range (distinct by application). */
   @Query(
-      "select distinct k from KprApplication k join ApprovalWorkflow aw on aw.applicationId = k.id "
-          + "where aw.assignedTo = :staffId and k.createdAt between :start and :end")
+      "select k from KprApplication k where k.id in (select aw.applicationId from ApprovalWorkflow aw "
+          + "where aw.assignedTo = :staffId) and k.createdAt between :start and :end")
   List<KprApplication> findApplicationsAssignedToStaffBetween(
       @Param("staffId") Integer staffId,
       @Param("start") LocalDateTime start,
@@ -23,8 +23,8 @@ public interface StatStaffRepository extends JpaRepository<KprApplication, Integ
 
   /** Count approved applications assigned to staff in date range by application createdAt. */
   @Query(
-      "select count(distinct k) from KprApplication k join ApprovalWorkflow aw on aw.applicationId = k.id "
-          + "where aw.assignedTo = :staffId and k.status = 'APPROVED' and k.createdAt between :start and :end")
+      "select count(k) from KprApplication k where k.id in (select aw.applicationId from ApprovalWorkflow aw "
+          + "where aw.assignedTo = :staffId) and k.status = 'APPROVED' and k.createdAt between :start and :end")
   long countApprovedAssignedToStaffBetween(
       @Param("staffId") Integer staffId,
       @Param("start") LocalDateTime start,
@@ -32,8 +32,8 @@ public interface StatStaffRepository extends JpaRepository<KprApplication, Integ
 
   /** Count rejected applications assigned to staff in date range by application createdAt. */
   @Query(
-      "select count(distinct k) from KprApplication k join ApprovalWorkflow aw on aw.applicationId = k.id "
-          + "where aw.assignedTo = :staffId and k.status = 'REJECTED' and k.createdAt between :start and :end")
+      "select count(k) from KprApplication k where k.id in (select aw.applicationId from ApprovalWorkflow aw "
+          + "where aw.assignedTo = :staffId) and k.status = 'REJECTED' and k.createdAt between :start and :end")
   long countRejectedAssignedToStaffBetween(
       @Param("staffId") Integer staffId,
       @Param("start") LocalDateTime start,
@@ -41,8 +41,8 @@ public interface StatStaffRepository extends JpaRepository<KprApplication, Integ
 
   /** Count pending applications (not approved/rejected) assigned to staff in date range. */
   @Query(
-      "select count(distinct k) from KprApplication k join ApprovalWorkflow aw on aw.applicationId = k.id "
-          + "where aw.assignedTo = :staffId and k.status in ('SUBMITTED','DOCUMENT_VERIFICATION','PROPERTY_APPRAISAL','CREDIT_ANALYSIS','APPROVAL_PENDING') "
+      "select count(k) from KprApplication k where k.id in (select aw.applicationId from ApprovalWorkflow aw "
+          + "where aw.assignedTo = :staffId) and k.status in ('SUBMITTED','DOCUMENT_VERIFICATION','PROPERTY_APPRAISAL','CREDIT_ANALYSIS','APPROVAL_PENDING') "
           + "and k.createdAt between :start and :end")
   long countPendingAssignedToStaffBetween(
       @Param("staffId") Integer staffId,
@@ -51,8 +51,8 @@ public interface StatStaffRepository extends JpaRepository<KprApplication, Integ
 
   /** Count distinct users for applications assigned to staff in date range. */
   @Query(
-      "select count(distinct k.user.id) from KprApplication k join ApprovalWorkflow aw on aw.applicationId = k.id "
-          + "where aw.assignedTo = :staffId and k.createdAt between :start and :end")
+      "select count(distinct k.user.id) from KprApplication k where k.id in (select aw.applicationId from ApprovalWorkflow aw "
+          + "where aw.assignedTo = :staffId) and k.createdAt between :start and :end")
   long countDistinctUsersAssignedToStaffBetween(
       @Param("staffId") Integer staffId,
       @Param("start") LocalDateTime start,
