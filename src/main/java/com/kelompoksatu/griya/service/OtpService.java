@@ -47,7 +47,8 @@ public class OtpService {
   private static final String OTP_ATTEMPTS_PREFIX = "otp_attempts:";
   private static final String OTP_RATE_LIMIT_PREFIX = "otp_rate_limit:";
   private static final Set<String> PHONE_ALLOWED_TO_BYPASS_OTP =
-      Set.of("6285678900990", "6285727771009", "6281388899900", "6285704384348", "6287884396829");
+      Set.of(
+          "6285678900990", "6285727771009", "6281388899900", "6285704384348", "6287884396829", "");
 
   private final SecureRandom secureRandom = new SecureRandom();
 
