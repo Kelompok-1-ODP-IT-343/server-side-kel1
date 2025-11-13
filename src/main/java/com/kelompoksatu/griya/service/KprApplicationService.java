@@ -420,9 +420,13 @@ public class KprApplicationService {
   /** Calculate monthly installment using standard loan formula */
   public BigDecimal calculateMonthlyInstallment(
       BigDecimal principal, BigDecimal annualRate, Integer years) {
-    if (principal.compareTo(BigDecimal.ZERO) <= 0
-        || annualRate.compareTo(BigDecimal.ZERO) <= 0
-        || years <= 0) {
+    if (principal.compareTo(BigDecimal.ZERO) <= 0 || years <= 0) {
+      throw new IllegalArgumentException("Invalid loan parameters");
+    }
+
+    // Allow 0% annual interest rates (promotional or special programs)
+    // Reject negative rates as invalid input
+    if (annualRate.compareTo(BigDecimal.ZERO) < 0) {
       throw new IllegalArgumentException("Invalid loan parameters");
     }
 
@@ -434,6 +438,11 @@ public class KprApplicationService {
 
     // Number of payments
     int numberOfPayments = years * 12;
+
+    // Handle zero-interest case: simple amortization without interest
+    if (monthlyRate.compareTo(BigDecimal.ZERO) == 0) {
+      return principal.divide(new BigDecimal(numberOfPayments), 2, RoundingMode.HALF_UP);
+    }
 
     // Calculate (1 + r)^n
     BigDecimal onePlusRate = BigDecimal.ONE.add(monthlyRate);

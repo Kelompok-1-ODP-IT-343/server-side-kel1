@@ -212,6 +212,7 @@ SELECT
     p.property_type,
     p.listing_type,
     p.description,
+    p.developer_id,
     COALESCE(
         json_agg(DISTINCT pi.file_path) FILTER (WHERE pi.file_path IS NOT NULL),
         '[]'
