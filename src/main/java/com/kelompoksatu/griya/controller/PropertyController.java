@@ -8,6 +8,7 @@ import com.kelompoksatu.griya.dto.PropertyResponse;
 import com.kelompoksatu.griya.entity.Property;
 import com.kelompoksatu.griya.entity.PropertyFavorite;
 import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
+import com.kelompoksatu.griya.service.DeveloperService;
 import com.kelompoksatu.griya.service.PropertyService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
@@ -33,14 +34,18 @@ import org.springframework.web.bind.annotation.*;
 public class PropertyController {
 
   private final PropertyService propertyService;
+  private final DeveloperService developerService;
   private final PropertyFavoriteRepository propertyFavoriteRepository;
   private static final String ERROR_RETRIEVE_PROPERTIES = "Failed to retrieve properties: ";
   private static final String MSG_PROPERTY_RETRIEVED = "Property retrieved successfully";
 
   @Autowired
   public PropertyController(
-      PropertyService propertyService, PropertyFavoriteRepository propertyFavoriteRepository) {
+      PropertyService propertyService,
+      DeveloperService developerService,
+      PropertyFavoriteRepository propertyFavoriteRepository) {
     this.propertyService = propertyService;
+    this.developerService = developerService;
     this.propertyFavoriteRepository = propertyFavoriteRepository;
   }
 
@@ -647,6 +652,12 @@ public class PropertyController {
                 new TypeReference<List<Map<String, Object>>>() {}));
       }
       // --- sampai sini ---
+
+      var developer =
+          developerService.getDeveloperById(
+              Integer.parseInt(propertyDetail.get("developer_id").toString()));
+
+      propertyDetail.put("developer", developer);
 
       ApiResponse<Map<String, Object>> response =
           new ApiResponse<>(true, "Property detail retrieved successfully", propertyDetail);
