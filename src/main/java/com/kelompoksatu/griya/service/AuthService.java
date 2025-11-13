@@ -18,10 +18,10 @@ import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 /** Service class for authentication operations */
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class AuthService {
 
   private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
@@ -39,16 +40,16 @@ public class AuthService {
   @Value("${app.mail.verification.forgotPasswordExpiredTime}")
   private Long forgotPasswordExpiredTime;
 
-  @Autowired private UserService userService;
-  @Autowired private DeveloperService developerService;
-  @Autowired private RoleRepository roleRepository;
-  @Autowired private UserSessionRepository userSessionRepository;
-  @Autowired private PasswordEncoder passwordEncoder;
-  @Autowired private JwtUtil jwtUtil;
-  @Autowired private UserRepository userRepo;
-  @Autowired private VerificationTokenRepository tokenRepo;
-  @Autowired private EmailService emailService;
-  @Autowired private OtpService otpService;
+  private final UserService userService;
+  private final DeveloperService developerService;
+  private final RoleRepository roleRepository;
+  private final UserSessionRepository userSessionRepository;
+  private final PasswordEncoder passwordEncoder;
+  private final JwtUtil jwtUtil;
+  private final UserRepository userRepo;
+  private final VerificationTokenRepository tokenRepo;
+  private final EmailService emailService;
+  private final OtpService otpService;
 
   // ========================================
   // REGISTRATION OPERATIONS
