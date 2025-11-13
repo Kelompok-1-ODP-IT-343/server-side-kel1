@@ -13,9 +13,9 @@ import com.kelompoksatu.griya.repository.UserRepository;
 import jakarta.validation.ValidationException;
 import java.time.LocalDateTime;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -28,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 /** Service class for user management operations */
 @Service
 @Transactional
-@RequiredArgsConstructor
 public class UserService {
 
   private static final Logger logger = LoggerFactory.getLogger(UserService.class);
@@ -36,13 +35,13 @@ public class UserService {
   @Value("${app.mail.verification.emailExpiredTime}")
   private Long emailVerificationExpiredTime;
 
-  private final UserRepository userRepository;
-  private final UserProfileRepository userProfileRepository;
-  private final RoleRepository roleRepository;
-  private final PasswordEncoder passwordEncoder;
-  private final EmailService emailService;
-  private final AuthService authService;
-  private final UserMapper userMapper;
+  @Autowired private UserRepository userRepository;
+  @Autowired private UserProfileRepository userProfileRepository;
+  @Autowired private RoleRepository roleRepository;
+  @Autowired private PasswordEncoder passwordEncoder;
+  @Autowired private EmailService emailService;
+  @Autowired private AuthService authService;
+  @Autowired private UserMapper userMapper;
 
   // ========================================
   // USER REGISTRATION AND CREATION
