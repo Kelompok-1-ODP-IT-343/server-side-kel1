@@ -45,7 +45,6 @@ import org.springframework.web.multipart.MultipartFile;
 public class AdminController {
 
   private final DeveloperService developerService;
-  //  private final PropertyImageRepository imageAdminRepository;
   private final AdminService adminService;
   private final PropertyFavoriteRepository propertyFavoriteRepository;
   private final PropertyService propertyService;
