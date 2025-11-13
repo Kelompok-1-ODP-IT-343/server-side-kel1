@@ -112,8 +112,9 @@ jobs:
           file: Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outpu
-          
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+    
       - name: Get SHA Tag
         id: image
         run: |
@@ -152,4 +153,3 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat trivy-report.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-    
