@@ -176,6 +176,12 @@
             <version>5.10.0</version>
             <scope>test</scope>
         </dependency>
+
+				<dependency>
+            <groupId>com.rabbitmq</groupId>
+            <artifactId>amqp-client</artifactId>
+            <version>5.27.0</version> <!-- versi terbaru stabil -->
+        </dependency>
     </dependencies>
 
 	<build>
