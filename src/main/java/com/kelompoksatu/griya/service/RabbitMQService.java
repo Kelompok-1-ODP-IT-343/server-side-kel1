@@ -36,16 +36,16 @@ public class RabbitMQService {
 
   private static final Logger log = LoggerFactory.getLogger(RabbitMQService.class);
 
-  @Value("${app.rabbitmq.host:10.10.0.3}")
+  @Value("${app.rabbitmq.host}")
   private String host;
 
   @Value("${app.rabbitmq.port:5672}")
   private int port;
 
-  @Value("${app.rabbitmq.username:admin}")
+  @Value("${app.rabbitmq.username}")
   private String username;
 
-  @Value("${app.rabbitmq.password:admin123}")
+  @Value("${app.rabbitmq.password}")
   private String password;
 
   @Value("${app.rabbitmq.virtualHost:/}")

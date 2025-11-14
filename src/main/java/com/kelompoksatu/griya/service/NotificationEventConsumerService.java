@@ -64,6 +64,11 @@ public class NotificationEventConsumerService {
       int userId = intValue(node, "userId");
       String title = text(node, "title");
       String message = text(node, "message");
+      String channel = text(node, "channel");
+
+      if (channel == null || !"WHATSAPP".equalsIgnoreCase(channel)) {
+        return;
+      }
 
       Optional<User> userOpt = userRepository.findById(userId);
       if (userOpt.isEmpty()) {
