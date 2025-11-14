@@ -50,6 +50,7 @@ public class AuthService {
   private final VerificationTokenRepository tokenRepo;
   private final EmailService emailService;
   private final OtpService otpService;
+  private final SystemNotificationService systemNotificationService;
 
   // ========================================
   // REGISTRATION OPERATIONS
@@ -70,6 +71,30 @@ public class AuthService {
     // Send OTP to user's phone number instead of returning user data immediately
     OtpResponse otpResponse = otpService.sendOtp(user.getPhone(), "registration");
 
+    // Save notification for registration OTP
+    try {
+      String title =
+          otpResponse.isSuccess()
+              ? "Registrasi berhasil, OTP dikirim"
+              : "Gagal mengirim OTP registrasi";
+      String detail =
+          otpResponse.isSuccess()
+              ? "Silakan verifikasi OTP yang dikirim ke nomor Anda"
+              : (otpResponse.getErrorDetail() != null
+                  ? otpResponse.getErrorDetail().getMessage()
+                  : otpResponse.getMessage());
+      systemNotificationService.saveNotification(
+          SystemNotification.builder()
+              .userId(user.getId())
+              .notificationType(NotificationType.APPLICATION_UPDATE)
+              .title(title)
+              .message(detail)
+              .channel(NotificationChannel.IN_APP)
+              .build());
+    } catch (Exception ex) {
+      logger.warn("Failed to save registration notification: {}", ex.getMessage());
+    }
+
     logger.info("User registered successfully and OTP sent: {}", user.getUsername());
     return otpResponse;
   }
@@ -85,6 +110,20 @@ public class AuthService {
       User savedUser = createDeveloperUser(request, developerRole);
       DeveloperResponse developerResponse = createDeveloperProfile(request, savedUser);
       UserResponse userResponse = userService.convertToUserResponse(savedUser, null, null);
+
+      // Notify developer account creation
+      try {
+        systemNotificationService.saveNotification(
+            SystemNotification.builder()
+                .userId(savedUser.getId())
+                .notificationType(NotificationType.APPLICATION_UPDATE)
+                .title("Akun developer berhasil dibuat")
+                .message("Silakan lengkapi profil perusahaan Anda")
+                .channel(NotificationChannel.IN_APP)
+                .build());
+      } catch (Exception ex) {
+        logger.warn("Failed to save developer registration notification: {}", ex.getMessage());
+      }
 
       logger.info("Developer registered successfully: {}", savedUser.getUsername());
       return new RegisterDeveloperResponse(userResponse, developerResponse);
@@ -133,6 +172,27 @@ public class AuthService {
             errorType,
             detail);
       }
+      // Notify login OTP status
+      try {
+        String title = otpResponse.isSuccess() ? "OTP login dikirim" : "Gagal mengirim OTP login";
+        String detail =
+            otpResponse.isSuccess()
+                ? "Silakan verifikasi OTP untuk melanjutkan login"
+                : (otpResponse.getErrorDetail() != null
+                    ? otpResponse.getErrorDetail().getMessage()
+                    : otpResponse.getMessage());
+        systemNotificationService.saveNotification(
+            SystemNotification.builder()
+                .userId(user.getId())
+                .notificationType(NotificationType.APPLICATION_UPDATE)
+                .title(title)
+                .message(detail)
+                .channel(NotificationChannel.IN_APP)
+                .build());
+      } catch (Exception ex) {
+        logger.warn("Failed to save login OTP notification: {}", ex.getMessage());
+      }
+
       return otpResponse;
 
     } catch (Exception e) {
@@ -152,6 +212,19 @@ public class AuthService {
                 session.setLastActivity(LocalDateTime.now());
                 userSessionRepository.save(session);
                 logger.info("User session revoked for token: {}", refreshToken);
+                // Notify user logout
+                try {
+                  systemNotificationService.saveNotification(
+                      SystemNotification.builder()
+                          .userId(session.getUserId())
+                          .notificationType(NotificationType.APPLICATION_UPDATE)
+                          .title("Logout berhasil")
+                          .message("Anda telah keluar dari sesi aktif")
+                          .channel(NotificationChannel.IN_APP)
+                          .build());
+                } catch (Exception ex) {
+                  logger.warn("Failed to save logout notification: {}", ex.getMessage());
+                }
               });
     } catch (Exception e) {
       logger.error("Logout failed: {}", e.getMessage());
@@ -202,6 +275,19 @@ public class AuthService {
     updateUserSession(session, user, newRefreshToken, request);
 
     logger.info("Access token refreshed for user: {}", username);
+    // Notify token refresh
+    try {
+      systemNotificationService.saveNotification(
+          SystemNotification.builder()
+              .userId(user.getId())
+              .notificationType(NotificationType.APPLICATION_UPDATE)
+              .title("Token berhasil diperbarui")
+              .message("Sesi Anda diperpanjang dengan token baru")
+              .channel(NotificationChannel.IN_APP)
+              .build());
+    } catch (Exception ex) {
+      logger.warn("Failed to save token refresh notification: {}", ex.getMessage());
+    }
     return new AuthResponse(newAccessToken, newRefreshToken);
   }
 
@@ -242,6 +328,19 @@ public class AuthService {
       userRepo.save(user);
     }
 
+    // Notify email verification success
+    try {
+      systemNotificationService.saveNotification(
+          SystemNotification.builder()
+              .userId(user.getId())
+              .notificationType(NotificationType.APPLICATION_UPDATE)
+              .title("Email berhasil diverifikasi")
+              .message("Terima kasih telah memverifikasi email Anda")
+              .channel(NotificationChannel.IN_APP)
+              .build());
+    } catch (Exception ex) {
+      logger.warn("Failed to save email verification notification: {}", ex.getMessage());
+    }
     return new VerifyEmailResponse(true, "Email verified successfully", user.getEmail());
   }
 
@@ -260,6 +359,20 @@ public class AuthService {
         request.getEmail(),
         generateEmailVerificationToken(user, forgotPasswordExpiredTime),
         forgotPasswordExpiredTime);
+
+    // Notify forgot password email sent
+    try {
+      systemNotificationService.saveNotification(
+          SystemNotification.builder()
+              .userId(user.getId())
+              .notificationType(NotificationType.APPLICATION_UPDATE)
+              .title("Email reset password dikirim")
+              .message("Periksa email Anda untuk tautan reset password")
+              .channel(NotificationChannel.IN_APP)
+              .build());
+    } catch (Exception ex) {
+      logger.warn("Failed to save forgot password notification: {}", ex.getMessage());
+    }
   }
 
   /** Reset password with token */
@@ -280,6 +393,19 @@ public class AuthService {
 
     user.setPasswordHash(passwordEncoder.encode(newPassword));
     userRepo.save(user);
+    // Notify password reset success
+    try {
+      systemNotificationService.saveNotification(
+          SystemNotification.builder()
+              .userId(user.getId())
+              .notificationType(NotificationType.APPLICATION_UPDATE)
+              .title("Password berhasil direset")
+              .message("Silakan gunakan password baru Anda untuk login")
+              .channel(NotificationChannel.IN_APP)
+              .build());
+    } catch (Exception ex) {
+      logger.warn("Failed to save password reset notification: {}", ex.getMessage());
+    }
   }
 
   // ========================================
@@ -335,6 +461,19 @@ public class AuthService {
 
       logger.info(
           "OTP verified successfully and tokens generated for user: {}", user.getUsername());
+      // Notify successful login
+      try {
+        systemNotificationService.saveNotification(
+            SystemNotification.builder()
+                .userId(user.getId())
+                .notificationType(NotificationType.APPLICATION_UPDATE)
+                .title("Login berhasil")
+                .message("Anda berhasil masuk dari perangkat: " + userAgent)
+                .channel(NotificationChannel.IN_APP)
+                .build());
+      } catch (Exception ex) {
+        logger.warn("Failed to save login success notification: {}", ex.getMessage());
+      }
       return new AuthResponse(accessToken, refreshToken);
 
     } catch (Exception e) {
@@ -381,6 +520,19 @@ public class AuthService {
       UserResponse userResponse = userService.convertToUserResponse(user, user.getRole(), null);
 
       logger.info("Registration OTP verified successfully for user: {}", user.getUsername());
+      // Notify registration verification success
+      try {
+        systemNotificationService.saveNotification(
+            SystemNotification.builder()
+                .userId(user.getId())
+                .notificationType(NotificationType.APPLICATION_UPDATE)
+                .title("Verifikasi registrasi berhasil")
+                .message("Akun Anda telah diaktifkan")
+                .channel(NotificationChannel.IN_APP)
+                .build());
+      } catch (Exception ex) {
+        logger.warn("Failed to save registration OTP notification: {}", ex.getMessage());
+      }
       return new RegisterResponse(userResponse);
 
     } catch (Exception e) {

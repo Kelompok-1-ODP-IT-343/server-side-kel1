@@ -4,7 +4,7 @@ import { Rate, Counter } from 'k6/metrics';
 
 // ============== ENV & DEFAULTS ==============
 const HOST_RAW    = __ENV.HOST || 'http://localhost:18080';
-const HOST        = HOST_RAW.replace(/\/+$/,'');                 // hapus trailing slash
+const HOST        = HOST_RAW.replace(/\/+$/,'');
 const VERIFY_PATH = (__ENV.VERIFY_PATH || '/api/v1/auth/verify-otp').startsWith('/')
     ? (__ENV.VERIFY_PATH || '/api/v1/auth/verify-otp')
     : `/${__ENV.VERIFY_PATH}`;
@@ -13,7 +13,7 @@ const THINK_MS    = Number(__ENV.THINK_MS || 200);
 const LOG_FAIL    = String(__ENV.LOG_FAIL || 'false').toLowerCase() === 'true';
 
 // daftar user & OTP (comma-separated)
-const IDENTIFIERS = (__ENV.IDENTIFIERS || 'testingiano')
+const IDENTIFIERS = (__ENV.IDENTIFIERS || 'testingiano', 'dev_nusantara', '')
     .split(',').map(s => s.trim()).filter(Boolean);
 const OTPS = (__ENV.OTPS || '000000')
     .split(',').map(s => s.trim()).filter(Boolean);

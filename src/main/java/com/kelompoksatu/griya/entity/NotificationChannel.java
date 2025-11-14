@@ -4,5 +4,6 @@ public enum NotificationChannel {
   EMAIL,
   SMS,
   PUSH,
-  IN_APP
+  IN_APP,
+  WHATSAPP
 }

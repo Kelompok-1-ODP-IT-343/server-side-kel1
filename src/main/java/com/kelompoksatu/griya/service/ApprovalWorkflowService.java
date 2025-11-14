@@ -3,6 +3,9 @@ package com.kelompoksatu.griya.service;
 import com.kelompoksatu.griya.dto.ApprovalConfirmation;
 import com.kelompoksatu.griya.entity.ApprovalWorkflow;
 import com.kelompoksatu.griya.entity.KprApplication.ApplicationStatus;
+import com.kelompoksatu.griya.entity.NotificationChannel;
+import com.kelompoksatu.griya.entity.NotificationType;
+import com.kelompoksatu.griya.entity.SystemNotification;
 import com.kelompoksatu.griya.entity.User;
 import com.kelompoksatu.griya.repository.ApprovalWorkflowRepository;
 import com.kelompoksatu.griya.repository.DeveloperRepository;
@@ -28,6 +31,7 @@ public class ApprovalWorkflowService {
   private final DeveloperRepository developerRepository;
   private final UserRepository userRepository;
   private final KprApplicationRepository kprApplicationRepository;
+  private final SystemNotificationService systemNotificationService;
 
   public boolean approveOrRejectWorkflowDeveloper(ApprovalConfirmation request, Integer userID) {
     var user =
@@ -51,6 +55,37 @@ public class ApprovalWorkflowService {
       if (updatedRows > 0) {
         approvalWorkflowRepository.updateStatusKPRApplication(
             request.getApplicationId(), ApplicationStatus.PROPERTY_APPRAISAL, now);
+
+        // Notifications: actor and applicant
+        try {
+          var optApp = kprApplicationRepository.findById(request.getApplicationId());
+          Integer applicantId = optApp.map(a -> a.getUser().getId()).orElse(null);
+          String appNumber = optApp.map(a -> a.getApplicationNumber()).orElse("N/A");
+
+          // Actor notification
+          systemNotificationService.saveNotification(
+              SystemNotification.builder()
+                  .userId(userID)
+                  .notificationType(NotificationType.APPLICATION_UPDATE)
+                  .title("Anda menyetujui verifikasi awal")
+                  .message("Aplikasi: " + appNumber + ", status ke PROPERTY_APPRAISAL")
+                  .channel(NotificationChannel.IN_APP)
+                  .build());
+
+          // Applicant notification
+          if (applicantId != null) {
+            systemNotificationService.saveNotification(
+                SystemNotification.builder()
+                    .userId(applicantId)
+                    .notificationType(NotificationType.APPLICATION_UPDATE)
+                    .title("Aplikasi Anda lanjut ke tahap appraisal")
+                    .message("Nomor aplikasi: " + appNumber)
+                    .channel(NotificationChannel.IN_APP)
+                    .build());
+          }
+        } catch (Exception notifEx) {
+          log.warn("Failed to save developer approval notifications: {}", notifEx.getMessage());
+        }
       }
 
       return updatedRows > 0;
@@ -61,6 +96,35 @@ public class ApprovalWorkflowService {
             userID, request.getApplicationId(), now, reason);
     approvalWorkflowRepository.updateStatusKPRApplication(
         request.getApplicationId(), ApplicationStatus.REJECTED, now);
+
+    // Notifications: actor and applicant for rejection
+    try {
+      var optApp = kprApplicationRepository.findById(request.getApplicationId());
+      Integer applicantId = optApp.map(a -> a.getUser().getId()).orElse(null);
+      String appNumber = optApp.map(a -> a.getApplicationNumber()).orElse("N/A");
+
+      systemNotificationService.saveNotification(
+          SystemNotification.builder()
+              .userId(userID)
+              .notificationType(NotificationType.APPLICATION_UPDATE)
+              .title("Anda menolak aplikasi pada verifikasi awal")
+              .message("Aplikasi: " + appNumber + ", status REJECTED")
+              .channel(NotificationChannel.IN_APP)
+              .build());
+
+      if (applicantId != null) {
+        systemNotificationService.saveNotification(
+            SystemNotification.builder()
+                .userId(applicantId)
+                .notificationType(NotificationType.APPLICATION_UPDATE)
+                .title("Aplikasi KPR Anda ditolak")
+                .message("Nomor aplikasi: " + appNumber)
+                .channel(NotificationChannel.IN_APP)
+                .build());
+      }
+    } catch (Exception notifEx) {
+      log.warn("Failed to save developer rejection notifications: {}", notifEx.getMessage());
+    }
     return updatedRows > 0;
   }
 
@@ -119,6 +183,39 @@ public class ApprovalWorkflowService {
           approvalWorkflowRepository.updateStatusKPRApplication(
               request.getApplicationId(), nextStatus, now);
         }
+
+        // Notifications: actor and applicant for approval & transition
+        try {
+          var optApp = kprApplicationRepository.findById(request.getApplicationId());
+          Integer applicantId = optApp.map(a -> a.getUser().getId()).orElse(null);
+          String appNumber = optApp.map(a -> a.getApplicationNumber()).orElse("N/A");
+
+          systemNotificationService.saveNotification(
+              SystemNotification.builder()
+                  .userId(userID)
+                  .notificationType(NotificationType.APPLICATION_UPDATE)
+                  .title("Anda menyetujui tahap " + workflow.getStage())
+                  .message("Aplikasi: " + appNumber + ", status ke " + nextStatus)
+                  .channel(NotificationChannel.IN_APP)
+                  .build());
+
+          if (applicantId != null) {
+            String title =
+                (nextStatus == ApplicationStatus.APPROVED)
+                    ? "Aplikasi KPR Anda disetujui"
+                    : "Status aplikasi berubah ke " + nextStatus;
+            systemNotificationService.saveNotification(
+                SystemNotification.builder()
+                    .userId(applicantId)
+                    .notificationType(NotificationType.APPLICATION_UPDATE)
+                    .title(title)
+                    .message("Nomor aplikasi: " + appNumber)
+                    .channel(NotificationChannel.IN_APP)
+                    .build());
+          }
+        } catch (Exception notifEx) {
+          log.warn("Failed to save verifier approval notifications: {}", notifEx.getMessage());
+        }
       }
 
       return updatedRows > 0;
@@ -133,7 +230,49 @@ public class ApprovalWorkflowService {
             userID, request.getApplicationId(), now, reason);
     approvalWorkflowRepository.updateStatusKPRApplication(
         request.getApplicationId(), ApplicationStatus.REJECTED, now);
+
+    // Notifications: actor and applicant for rejection
+    try {
+      var optApp = kprApplicationRepository.findById(request.getApplicationId());
+      Integer applicantId = optApp.map(a -> a.getUser().getId()).orElse(null);
+      String appNumber = optApp.map(a -> a.getApplicationNumber()).orElse("N/A");
+
+      systemNotificationService.saveNotification(
+          SystemNotification.builder()
+              .userId(userID)
+              .notificationType(NotificationType.APPLICATION_UPDATE)
+              .title(
+                  "Anda menolak aplikasi pada tahap "
+                      + (workflowStageSafe(request.getApplicationId(), userID)))
+              .message("Aplikasi: " + appNumber + ", status REJECTED")
+              .channel(NotificationChannel.IN_APP)
+              .build());
+
+      if (applicantId != null) {
+        systemNotificationService.saveNotification(
+            SystemNotification.builder()
+                .userId(applicantId)
+                .notificationType(NotificationType.APPLICATION_UPDATE)
+                .title("Aplikasi KPR Anda ditolak")
+                .message("Nomor aplikasi: " + appNumber)
+                .channel(NotificationChannel.IN_APP)
+                .build());
+      }
+    } catch (Exception notifEx) {
+      log.warn("Failed to save verifier rejection notifications: {}", notifEx.getMessage());
+    }
     return updatedRows > 0;
+  }
+
+  // Helper to get current pending stage name for rejection message
+  private String workflowStageSafe(Integer applicationId, Integer userID) {
+    return approvalWorkflowRepository
+        .findByApplicationIdAndStatus(applicationId, ApprovalWorkflow.WorkflowStatus.PENDING)
+        .stream()
+        .filter(w -> w.getAssignedTo().equals(userID))
+        .findFirst()
+        .map(w -> String.valueOf(w.getStage()))
+        .orElse("UNKNOWN_STAGE");
   }
 
   /** Determine next application status based on current workflow stage */
