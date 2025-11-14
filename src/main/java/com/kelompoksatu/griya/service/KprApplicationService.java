@@ -39,6 +39,7 @@ public class KprApplicationService {
   private final ApplicationDocumentRepository applicationDocumentRepository;
   private final FileStorageService fileStorageService;
   private final IDCloudHostS3Util idCloudHostS3Util;
+  private final SystemNotificationService systemNotificationService;
 
   Logger logger = LoggerFactory.getLogger(KprApplicationService.class);
 
@@ -132,6 +133,21 @@ public class KprApplicationService {
 
       // 14. Create initial approval workflow
       createDeveloperApprovalWorkflow(savedApplication.getId(), developer.getUser().getId());
+
+      // 15. Notify applicant about successful submission
+      try {
+        systemNotificationService.saveNotification(
+            SystemNotification.builder()
+                .userId(userId)
+                .notificationType(NotificationType.APPLICATION_UPDATE)
+                .title("Aplikasi KPR berhasil disubmit")
+                .message("Nomor aplikasi: " + applicationNumber)
+                .channel(NotificationChannel.IN_APP)
+                .build());
+      } catch (Exception notifEx) {
+        logger.warn(
+            "Failed to save submission notification for user {}: {}", userId, notifEx.getMessage());
+      }
 
       // 15. Build response
       return KprApplicationResponse.builder()
@@ -697,6 +713,15 @@ public class KprApplicationService {
     List<ApplicationDocument> documents = new ArrayList<>();
 
     try {
+      // Ambil user pemohon untuk notifikasi upload dokumen
+      KprApplication application =
+          kprApplicationRepository
+              .findById(applicationId)
+              .orElseThrow(
+                  () -> new RuntimeException("Application not found with ID: " + applicationId));
+      Integer applicantUserId = application.getUserId();
+      String appNumber = application.getApplicationNumber();
+
       // Store each document type
       if (formRequest.getKtpDocument() != null && !formRequest.getKtpDocument().isEmpty()) {
         ApplicationDocument doc =
@@ -704,6 +729,16 @@ public class KprApplicationService {
                 applicationId, ApplicationDocument.DocumentType.KTP, formRequest.getKtpDocument());
         documents.add(applicationDocumentRepository.save(doc));
         logger.info("Successfully uploaded KTP document for application {}", applicationId);
+
+        // Send notification
+        systemNotificationService.saveNotification(
+            SystemNotification.builder()
+                .userId(applicantUserId)
+                .notificationType(NotificationType.APPLICATION_UPDATE)
+                .title("Dokumen KTP berhasil diunggah")
+                .message("Nomor aplikasi: " + appNumber)
+                .channel(NotificationChannel.IN_APP)
+                .build());
       }
 
       if (formRequest.getNpwpDocument() != null && !formRequest.getNpwpDocument().isEmpty()) {
@@ -714,6 +749,15 @@ public class KprApplicationService {
                 formRequest.getNpwpDocument());
         documents.add(applicationDocumentRepository.save(doc));
         logger.info("Successfully uploaded NPWP document for application {}", applicationId);
+
+        systemNotificationService.saveNotification(
+            SystemNotification.builder()
+                .userId(applicantUserId)
+                .notificationType(NotificationType.APPLICATION_UPDATE)
+                .title("Dokumen NPWP berhasil diunggah")
+                .message("Nomor aplikasi: " + appNumber)
+                .channel(NotificationChannel.IN_APP)
+                .build());
       }
 
       if (formRequest.getSalarySlipDocument() != null
@@ -725,6 +769,15 @@ public class KprApplicationService {
                 formRequest.getSalarySlipDocument());
         documents.add(applicationDocumentRepository.save(doc));
         logger.info("Successfully uploaded salary slip document for application {}", applicationId);
+
+        systemNotificationService.saveNotification(
+            SystemNotification.builder()
+                .userId(applicantUserId)
+                .notificationType(NotificationType.APPLICATION_UPDATE)
+                .title("Dokumen Slip Gaji berhasil diunggah")
+                .message("Nomor aplikasi: " + appNumber)
+                .channel(NotificationChannel.IN_APP)
+                .build());
       }
 
       if (formRequest.getOtherDocument() != null && !formRequest.getOtherDocument().isEmpty()) {
@@ -735,6 +788,15 @@ public class KprApplicationService {
                 formRequest.getOtherDocument());
         documents.add(applicationDocumentRepository.save(doc));
         logger.info("Successfully uploaded other document for application {}", applicationId);
+
+        systemNotificationService.saveNotification(
+            SystemNotification.builder()
+                .userId(applicantUserId)
+                .notificationType(NotificationType.APPLICATION_UPDATE)
+                .title("Dokumen lain berhasil diunggah")
+                .message("Nomor aplikasi: " + appNumber)
+                .channel(NotificationChannel.IN_APP)
+                .build());
       }
 
       logger.info(
@@ -777,6 +839,28 @@ public class KprApplicationService {
             .build();
 
     approvalWorkflowRepository.save(workflow);
+
+    // Notify developer assigned to workflow
+    try {
+      String appNumber =
+          kprApplicationRepository
+              .findById(applicationId)
+              .map(KprApplication::getApplicationNumber)
+              .orElse("N/A");
+      systemNotificationService.saveNotification(
+          SystemNotification.builder()
+              .userId(developerId)
+              .notificationType(NotificationType.APPLICATION_UPDATE)
+              .title("Workflow verifikasi properti ditugaskan")
+              .message("Aplikasi: " + appNumber)
+              .channel(NotificationChannel.IN_APP)
+              .build());
+    } catch (Exception notifEx) {
+      logger.warn(
+          "Failed to save developer workflow assignment notification for user {}: {}",
+          developerId,
+          notifEx.getMessage());
+    }
   }
 
   /** Create first approval workflow */
@@ -795,6 +879,28 @@ public class KprApplicationService {
             .build();
 
     approvalWorkflowRepository.save(workflow);
+
+    // Notify first approver assigned
+    try {
+      String appNumber =
+          kprApplicationRepository
+              .findById(applicationId)
+              .map(KprApplication::getApplicationNumber)
+              .orElse("N/A");
+      systemNotificationService.saveNotification(
+          SystemNotification.builder()
+              .userId(approvalStaffId)
+              .notificationType(NotificationType.APPLICATION_UPDATE)
+              .title("Workflow analisis kredit ditugaskan")
+              .message("Aplikasi: " + appNumber)
+              .channel(NotificationChannel.IN_APP)
+              .build());
+    } catch (Exception notifEx) {
+      logger.warn(
+          "Failed to save first approver assignment notification for user {}: {}",
+          approvalStaffId,
+          notifEx.getMessage());
+    }
   }
 
   /** Create second approval workflow */
@@ -812,6 +918,28 @@ public class KprApplicationService {
             .build();
 
     approvalWorkflowRepository.save(workflow);
+
+    // Notify second approver assigned
+    try {
+      String appNumber =
+          kprApplicationRepository
+              .findById(applicationId)
+              .map(KprApplication::getApplicationNumber)
+              .orElse("N/A");
+      systemNotificationService.saveNotification(
+          SystemNotification.builder()
+              .userId(approvalStaffId)
+              .notificationType(NotificationType.APPLICATION_UPDATE)
+              .title("Workflow final approval ditugaskan")
+              .message("Aplikasi: " + appNumber)
+              .channel(NotificationChannel.IN_APP)
+              .build());
+    } catch (Exception notifEx) {
+      logger.warn(
+          "Failed to save second approver assignment notification for user {}: {}",
+          approvalStaffId,
+          notifEx.getMessage());
+    }
   }
 
   // ========================================
@@ -886,6 +1014,21 @@ public class KprApplicationService {
         savedApplication.getId(),
         savedApplication.getApplicationNumber());
 
+    // Notify applicant about successful submission
+    try {
+      systemNotificationService.saveNotification(
+          SystemNotification.builder()
+              .userId(userId)
+              .notificationType(NotificationType.APPLICATION_UPDATE)
+              .title("Aplikasi KPR berhasil disubmit")
+              .message("Nomor aplikasi: " + savedApplication.getApplicationNumber())
+              .channel(NotificationChannel.IN_APP)
+              .build());
+    } catch (Exception notifEx) {
+      logger.warn(
+          "Failed to save submission notification for user {}: {}", userId, notifEx.getMessage());
+    }
+
     return new KprApplicationResponse(
         savedApplication.getId(),
         savedApplication.getApplicationNumber(),
@@ -939,6 +1082,23 @@ public class KprApplicationService {
     // 2. Workflow Creation Phase
     createFirstApprovalWorkflow(application.getId(), request.getFirstApprovalId());
     createSecondApprovalWorkflow(application.getId(), request.getSecondApprovalId());
+
+    // Notify admin about successful assignment
+    try {
+      systemNotificationService.saveNotification(
+          SystemNotification.builder()
+              .userId(adminId)
+              .notificationType(NotificationType.APPLICATION_UPDATE)
+              .title("Assign approval workflow berhasil")
+              .message("Aplikasi: " + application.getApplicationNumber())
+              .channel(NotificationChannel.IN_APP)
+              .build());
+    } catch (Exception notifEx) {
+      logger.warn(
+          "Failed to save admin assignment notification for user {}: {}",
+          adminId,
+          notifEx.getMessage());
+    }
 
     // 3. Response Building
     return AssignWorkflowResponse.builder()
