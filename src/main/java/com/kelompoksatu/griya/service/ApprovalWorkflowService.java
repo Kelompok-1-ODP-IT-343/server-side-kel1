@@ -139,15 +139,22 @@ public class ApprovalWorkflowService {
   /** Determine next application status based on current workflow stage */
   private ApplicationStatus determineNextApplicationStatus(
       ApprovalWorkflow.WorkflowStage currentStage) {
+    if (currentStage == null) {
+      throw new IllegalArgumentException("Current workflow stage is null");
+    }
+
     switch (currentStage) {
+      case DOCUMENT_VERIFICATION:
+        return ApplicationStatus.PROPERTY_APPRAISAL;
       case PROPERTY_APPRAISAL:
         return ApplicationStatus.CREDIT_ANALYSIS;
       case CREDIT_ANALYSIS:
-        return ApplicationStatus.APPROVAL_PENDING;
+        return ApplicationStatus.FINAL_APPROVAL;
       case FINAL_APPROVAL:
         return ApplicationStatus.APPROVED;
       default:
-        return ApplicationStatus.APPROVAL_PENDING;
+        throw new IllegalArgumentException(
+            "Unknown or unsupported workflow stage: " + currentStage);
     }
   }
 }
