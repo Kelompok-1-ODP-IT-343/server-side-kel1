@@ -79,10 +79,9 @@ public class WhatsAppService {
         return false;
       }
 
-      // Buat request body
-      Map<String, String> requestBody = Map.of("phone", formattedPhone, "message", message.trim());
-
-      String jsonBody = objectMapper.writeValueAsString(requestBody);
+      String jsonBody =
+          objectMapper.writeValueAsString(
+              Map.of("phone", formattedPhone, "message", message.trim(), "type", "notif"));
 
       // Buat HTTP request
       log.info(
@@ -156,6 +155,92 @@ public class WhatsAppService {
     }
   }
 
+  public boolean sendMessage(String phone, String message, String type, String otp) {
+    try {
+      lastFailureDetail = null;
+      lastStatusCode = 0;
+      if (phone == null || phone.trim().isEmpty()) {
+        return false;
+      }
+      if (message == null || message.trim().isEmpty()) {
+        return false;
+      }
+      String formattedPhone = formatPhoneNumber(phone);
+      if (formattedPhone == null) {
+        return false;
+      }
+      Map<String, String> body =
+          (otp != null && !otp.isBlank())
+              ? Map.of(
+                  "phone",
+                  formattedPhone,
+                  "message",
+                  message.trim(),
+                  "type",
+                  type != null ? type : "notif",
+                  "otp",
+                  otp)
+              : Map.of(
+                  "phone",
+                  formattedPhone,
+                  "message",
+                  message.trim(),
+                  "type",
+                  type != null ? type : "notif");
+
+      String jsonBody = objectMapper.writeValueAsString(body);
+
+      HttpRequest request =
+          HttpRequest.newBuilder()
+              .uri(URI.create(whatsappApiUrl))
+              .timeout(Duration.ofSeconds(timeoutSeconds))
+              .header("Content-Type", "application/json")
+              .header(apiKeyHeaderName, apiKey)
+              .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+              .build();
+
+      HttpResponse<String> response =
+          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+      if (response.statusCode() >= 200 && response.statusCode() < 300) {
+        return true;
+      } else {
+        lastStatusCode = response.statusCode();
+        if (response.statusCode() == 401) {
+          lastFailureDetail =
+              String.format(
+                  "WhatsApp API unauthorized (401). Periksa API key dan header '%s'. Response: %s",
+                  apiKeyHeaderName, response.body());
+        } else if (response.statusCode() == 403) {
+          lastFailureDetail =
+              String.format(
+                  "WhatsApp API forbidden (403). Kredensial tidak memiliki akses. Response: %s",
+                  response.body());
+        } else if (response.statusCode() >= 500) {
+          lastFailureDetail =
+              String.format(
+                  "WhatsApp API error (%d). Coba lagi nanti. Response: %s",
+                  response.statusCode(), response.body());
+        } else {
+          lastFailureDetail =
+              String.format(
+                  "WhatsApp API returned %d. Response: %s", response.statusCode(), response.body());
+        }
+        return false;
+      }
+    } catch (IOException e) {
+      lastFailureDetail = "IO error saat menghubungi WhatsApp API: " + e.getMessage();
+      return false;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      lastFailureDetail = "Request ke WhatsApp API terinterupsi: " + e.getMessage();
+      return false;
+    } catch (Exception e) {
+      lastFailureDetail = "Unexpected error WhatsApp API: " + e.getMessage();
+      return false;
+    }
+  }
+
   /**
    * Mengirim notifikasi KPR ke nomor telepon
    *
@@ -174,7 +259,7 @@ public class WhatsAppService {
                 + "Untuk informasi lebih lanjut, silakan hubungi customer service kami.",
             applicationNumber, status);
 
-    return sendMessage(phone, message);
+    return sendMessage(phone, message, "notif", null);
   }
 
   /**
@@ -194,7 +279,7 @@ public class WhatsAppService {
                 + "Jika Anda tidak meminta kode ini, abaikan pesan ini.",
             otp);
 
-    return sendMessage(phone, message);
+    return sendMessage(phone, message, "otp", otp);
   }
 
   /**
