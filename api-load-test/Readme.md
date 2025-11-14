@@ -113,7 +113,7 @@ The script produces:
 - Threshold failures mean performance targets are unmet — not that the API is broken.
 
 ##  Run verify-otp-loadtest.js
-- k6 run --vus 10 --duration 10s verify-otp-loadtest.js
+- k6 run --vus 100 --duration 10s verify-otp-loadtest.js
 OR 
 - k6 run \
   -e HOST=http://localhost:18080 \
@@ -122,3 +122,13 @@ OR
   -e OTPS="000000" \
   -e LOG_FAIL=true \
   verify-otp-loadtest.js
+
+## Run properties-loadtest.js
+k6 run \
+-e HOST=http://localhost:18080 \
+-e BASE_PATH=/api/v1 \
+-e K6_SCENARIO=constant \
+-e RPS=10 \
+-e DURATION=5s \
+-e SHOW_MSG=true \
+properties-loadtest.js
