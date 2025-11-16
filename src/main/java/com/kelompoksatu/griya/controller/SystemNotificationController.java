@@ -33,7 +33,7 @@ public class SystemNotificationController {
         "CONTROLLER: Received POST request to create notification at path: {}",
         request.getRequestURI());
 
-    var token = jwtUtil.extractTokenFromHeader(authHeader);
+    String token = jwtUtil.extractTokenFromHeader(authHeader);
     Integer userId = jwtUtil.extractUserId(token);
     if (userId == null) {
       ApiResponse<SystemNotification> unauthorized =
@@ -61,7 +61,7 @@ public class SystemNotificationController {
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader,
       HttpServletRequest request) {
 
-    var token = jwtUtil.extractTokenFromHeader(authHeader);
+    String token = jwtUtil.extractTokenFromHeader(authHeader);
 
     // Extract user ID from token
     Integer userId = jwtUtil.extractUserId(token);

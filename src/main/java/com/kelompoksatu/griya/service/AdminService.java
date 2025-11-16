@@ -1,7 +1,6 @@
 package com.kelompoksatu.griya.service;
 
 import com.kelompoksatu.griya.dto.AdminSimpleResponse;
-import com.kelompoksatu.griya.dto.ImageAdminRequest;
 import com.kelompoksatu.griya.dto.ImageAdminResponse;
 import com.kelompoksatu.griya.dto.UserResponse;
 import com.kelompoksatu.griya.entity.ImageCategory;
@@ -45,77 +44,77 @@ public class AdminService {
 
   @Transactional
   public List<ImageAdminResponse> uploadAdminImages(
-          List<MultipartFile> images, Integer propertyId, String caption) throws IOException { // Signature baru
+      List<MultipartFile> images, Integer propertyId, String caption)
+      throws IOException { // Signature baru
 
-      // 1. Validasi File
-      if (images == null || images.isEmpty() || images.stream().allMatch(MultipartFile::isEmpty)) {
-          throw new IllegalArgumentException("Image file tidak boleh kosong");
+    // 1. Validasi File
+    if (images == null || images.isEmpty() || images.stream().allMatch(MultipartFile::isEmpty)) {
+      throw new IllegalArgumentException("Image file tidak boleh kosong");
+    }
+
+    // 2. Tentukan Nilai Default ENUM (berlaku untuk semua gambar)
+    // Default: ImageType = EXTERIOR (karena MISC tidak ada), ImageCategory = GALLERY
+    ImageType imageType = ImageType.valueOf("EXTERIOR");
+    ImageCategory imageCategory = ImageCategory.valueOf("GALLERY");
+
+    // Tentukan Folder S3
+    String folder = String.valueOf(propertyId == null ? "misc" : propertyId);
+
+    List<ImageAdminResponse> responses = new ArrayList<>();
+
+    // Looping file
+    for (MultipartFile image : images) {
+
+      if (image.isEmpty()) {
+        log.warn("Skipping empty file.");
+        continue;
       }
 
-      // 2. Tentukan Nilai Default ENUM (berlaku untuk semua gambar)
-      // Default: ImageType = EXTERIOR (karena MISC tidak ada), ImageCategory = GALLERY
-      ImageType imageType = ImageType.valueOf("EXTERIOR");
-      ImageCategory imageCategory = ImageCategory.valueOf("GALLERY");
+      log.info("Mulai upload image: {}", image.getOriginalFilename());
 
-      // Tentukan Folder S3
-      String folder =
-              String.valueOf(propertyId == null ? "misc" : propertyId);
+      // Upload ke IDCloudHost
+      String imageUrl = idCloudHostS3Util.uploadPropertyImage(image, folder);
+      log.info("Upload ke IDCloudHost sukses: {}", imageUrl);
 
-      List<ImageAdminResponse> responses = new ArrayList<>();
+      // Simpan metadata ke database
+      PropertyImage propertyImage =
+          PropertyImage.builder()
+              .propertyId(propertyId) // Langsung dari parameter
+              .imageType(imageType) // Default EXTERIOR
+              .imageCategory(imageCategory) // Default GALLERY
+              .fileName(UUID.randomUUID().toString())
+              .filePath(imageUrl)
+              .fileSize((int) image.getSize())
+              .mimeType(image.getContentType())
+              .caption(caption) // Langsung dari parameter (bisa null)
+              .build();
 
-      // Looping file
-      for (MultipartFile image : images) {
+      propertyImageRepository.save(propertyImage);
+      log.info("Image berhasil disimpan di DB: {}", propertyImage.getFileName());
 
-          if (image.isEmpty()) {
-              log.warn("Skipping empty file.");
-              continue;
-          }
+      // Build response data
+      ImageAdminResponse responseData =
+          ImageAdminResponse.builder()
+              .id(propertyImage.getId())
+              .propertyId(propertyImage.getPropertyId())
+              .imageUrl(imageUrl)
+              .fileName(propertyImage.getFileName())
+              .imageType(imageType.name())
+              .imageCategory(imageCategory.name())
+              .caption(propertyImage.getCaption())
+              .fileSize(propertyImage.getFileSize())
+              .mimeType(propertyImage.getMimeType())
+              .build();
 
-          log.info("Mulai upload image: {}", image.getOriginalFilename());
+      responses.add(responseData);
+    }
 
-          // Upload ke IDCloudHost
-          String imageUrl = idCloudHostS3Util.uploadPropertyImage(image, folder);
-          log.info("Upload ke IDCloudHost sukses: {}", imageUrl);
+    // Check if any file was actually processed successfully
+    if (responses.isEmpty()) {
+      throw new IllegalArgumentException("Semua file image yang diupload kosong.");
+    }
 
-          // Simpan metadata ke database
-          PropertyImage propertyImage =
-                  PropertyImage.builder()
-                          .propertyId(propertyId) // Langsung dari parameter
-                          .imageType(imageType) // Default EXTERIOR
-                          .imageCategory(imageCategory) // Default GALLERY
-                          .fileName(UUID.randomUUID().toString())
-                          .filePath(imageUrl)
-                          .fileSize((int) image.getSize())
-                          .mimeType(image.getContentType())
-                          .caption(caption) // Langsung dari parameter (bisa null)
-                          .build();
-
-          propertyImageRepository.save(propertyImage);
-          log.info("Image berhasil disimpan di DB: {}", propertyImage.getFileName());
-
-          // Build response data
-          ImageAdminResponse responseData =
-                  ImageAdminResponse.builder()
-                          .id(propertyImage.getId())
-                          .propertyId(propertyImage.getPropertyId())
-                          .imageUrl(imageUrl)
-                          .fileName(propertyImage.getFileName())
-                          .imageType(imageType.name())
-                          .imageCategory(imageCategory.name())
-                          .caption(propertyImage.getCaption())
-                          .fileSize(propertyImage.getFileSize())
-                          .mimeType(propertyImage.getMimeType())
-                          .build();
-
-          responses.add(responseData);
-      }
-
-      // Check if any file was actually processed successfully
-      if (responses.isEmpty()) {
-          throw new IllegalArgumentException("Semua file image yang diupload kosong.");
-      }
-
-      return responses;
+    return responses;
   }
 
   public void hardDeleteUser(Integer targetUserId, Integer adminId, @Nullable String reason) {

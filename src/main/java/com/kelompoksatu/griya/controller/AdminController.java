@@ -220,29 +220,115 @@ public class AdminController {
       })
   @PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<ApiResponse<List<ImageAdminResponse>>> uploadAdminImages(
-          @RequestPart("images") List<MultipartFile> images,
-          @RequestPart(value = "propertyId", required = false) Integer propertyId, // HANYA propertyId
-          @RequestPart(value = "caption", required = false) String caption) {      // HANYA caption
-      try {
+      @RequestParam("images") List<MultipartFile> images,
+      @RequestParam(value = "propertyId", required = false) Integer propertyId,
+      @RequestParam(value = "caption", required = false) String caption) {
+    try {
 
-          List<ImageAdminResponse> responseData = adminService.uploadAdminImages(images, propertyId, caption);
+      List<ImageAdminResponse> responseData =
+          adminService.uploadAdminImages(images, propertyId, caption);
 
-          ApiResponse<List<ImageAdminResponse>> response =
-                  ApiResponse.success("Images uploaded successfully", responseData);
-          return ResponseEntity.ok(response);
+      ApiResponse<List<ImageAdminResponse>> response =
+          ApiResponse.success("Images uploaded successfully", responseData);
+      return ResponseEntity.ok(response);
 
-      } catch (IllegalArgumentException e) {
-          log.error("Gagal upload image (Bad Request): ", e);
-          return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-      } catch (IOException e) {
-          log.error("Gagal menyimpan file: ", e);
-          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                  .body(ApiResponse.error("Gagal menyimpan file: " + e.getMessage()));
-      } catch (Exception e) {
-          log.error("Gagal upload image: ", e);
-          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                  .body(ApiResponse.error("Gagal upload image: " + e.getMessage()));
+    } catch (IllegalArgumentException e) {
+      log.error("Gagal upload image (Bad Request): ", e);
+      return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+    } catch (IOException e) {
+      log.error("Gagal menyimpan file: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal menyimpan file: " + e.getMessage()));
+    } catch (Exception e) {
+      log.error("Gagal upload image: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal upload image: " + e.getMessage()));
+    }
+  }
+
+  @PostMapping(value = "/image", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+  public ResponseEntity<ApiResponse<List<ImageAdminResponse>>> uploadAdminImagesOctet(
+      @RequestBody byte[] file,
+      @RequestParam(value = "propertyId", required = false) Integer propertyId,
+      @RequestParam(value = "caption", required = false) String caption,
+      @RequestHeader(value = "X-Filename", required = false) String filename) {
+    try {
+      String effectiveName = (filename != null && !filename.isBlank()) ? filename : "upload.bin";
+      MultipartFile wrapped =
+          new ByteArrayMultipartFile(file, effectiveName, MediaType.APPLICATION_OCTET_STREAM_VALUE);
+      List<ImageAdminResponse> responseData =
+          adminService.uploadAdminImages(java.util.List.of(wrapped), propertyId, caption);
+
+      ApiResponse<List<ImageAdminResponse>> response =
+          ApiResponse.success("Images uploaded successfully", responseData);
+      return ResponseEntity.ok(response);
+    } catch (IllegalArgumentException e) {
+      log.error("Gagal upload image (Bad Request): ", e);
+      return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+    } catch (IOException e) {
+      log.error("Gagal menyimpan file: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal menyimpan file: " + e.getMessage()));
+    } catch (Exception e) {
+      log.error("Gagal upload image: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal upload image: " + e.getMessage()));
+    }
+  }
+
+  private static class ByteArrayMultipartFile implements MultipartFile {
+    private final byte[] data;
+    private final String fileName;
+    private final String contentType;
+
+    ByteArrayMultipartFile(byte[] data, String fileName, String contentType) {
+      this.data = (data != null) ? data : new byte[0];
+      this.fileName = (fileName != null) ? fileName : "upload.bin";
+      this.contentType =
+          (contentType != null) ? contentType : MediaType.APPLICATION_OCTET_STREAM_VALUE;
+    }
+
+    @Override
+    public String getName() {
+      return fileName;
+    }
+
+    @Override
+    public String getOriginalFilename() {
+      return fileName;
+    }
+
+    @Override
+    public String getContentType() {
+      return contentType;
+    }
+
+    @Override
+    public boolean isEmpty() {
+      return data.length == 0;
+    }
+
+    @Override
+    public long getSize() {
+      return data.length;
+    }
+
+    @Override
+    public byte[] getBytes() {
+      return data;
+    }
+
+    @Override
+    public java.io.InputStream getInputStream() {
+      return new java.io.ByteArrayInputStream(data);
+    }
+
+    @Override
+    public void transferTo(java.io.File dest) throws IOException {
+      try (java.io.FileOutputStream fos = new java.io.FileOutputStream(dest)) {
+        fos.write(data);
       }
+    }
   }
 
   /** Get developer by ID (admin only) */
