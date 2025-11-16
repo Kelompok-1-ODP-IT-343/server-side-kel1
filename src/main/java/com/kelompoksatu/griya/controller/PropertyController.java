@@ -84,8 +84,8 @@ public class PropertyController {
       @RequestParam(required = false, name = "propertyType") String propertyType,
       @RequestParam(required = false) String description,
       @RequestParam(required = false) String title,
-      @RequestParam (required = false) int offset,
-      @RequestParam (required = false) int limit) {
+      @RequestParam(required = false) int offset,
+      @RequestParam(required = false) int limit) {
 
     try {
       List<Map<String, Object>> properties =
