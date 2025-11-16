@@ -1,9 +1,8 @@
 package com.kelompoksatu.griya.entity;
 
+import com.kelompoksatu.griya.entity.converter.FeatureCategoryConverter;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.JdbcType;
-import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 @Getter
 @Setter
@@ -19,9 +18,9 @@ public class PropertyFeature {
   private Integer id;
 
   @Enumerated(EnumType.STRING)
-  @JdbcType(PostgreSQLEnumJdbcType.class)
-  @Column(name = "feature_category", nullable = false)
-  private FeatureCategory featureCategory; //
+  @Convert(converter = FeatureCategoryConverter.class)
+  @Column(name = "feature_category", nullable = false, columnDefinition = "feature_category")
+  private FeatureCategory featureCategory;
 
   @Column(name = "feature_name", nullable = false)
   private String featureName;

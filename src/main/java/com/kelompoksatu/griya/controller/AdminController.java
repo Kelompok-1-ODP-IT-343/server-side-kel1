@@ -220,13 +220,31 @@ public class AdminController {
       })
   @PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<ApiResponse<List<ImageAdminResponse>>> uploadAdminImages(
-      @RequestParam("images") List<MultipartFile> images,
+      @RequestParam(value = "images", required = false) List<MultipartFile> images,
+      @RequestParam(value = "image", required = false) MultipartFile imageSingle,
+      @RequestParam(value = "file", required = false) MultipartFile fileSingle,
+      @RequestParam(value = "files", required = false) List<MultipartFile> filesAlt,
       @RequestParam(value = "propertyId", required = false) Integer propertyId,
-      @RequestParam(value = "caption", required = false) String caption) {
+      @RequestParam(value = "caption", required = false) String caption,
+      org.springframework.web.multipart.MultipartHttpServletRequest multipartRequest) {
     try {
+      java.util.List<MultipartFile> allFiles = new java.util.ArrayList<>();
+      if (images != null) allFiles.addAll(images);
+      if (filesAlt != null) allFiles.addAll(filesAlt);
+      if (imageSingle != null) allFiles.add(imageSingle);
+      if (fileSingle != null) allFiles.add(fileSingle);
+      if (allFiles.isEmpty() && multipartRequest != null) {
+        for (MultipartFile mf : multipartRequest.getFileMap().values()) {
+          if (mf != null && !mf.isEmpty()) allFiles.add(mf);
+        }
+      }
+      if (allFiles.isEmpty()) {
+        throw new IllegalArgumentException(
+            "Part 'images' atau file upload tidak ditemukan pada request");
+      }
 
       List<ImageAdminResponse> responseData =
-          adminService.uploadAdminImages(images, propertyId, caption);
+          adminService.uploadAdminImages(allFiles, propertyId, caption);
 
       ApiResponse<List<ImageAdminResponse>> response =
           ApiResponse.success("Images uploaded successfully", responseData);
