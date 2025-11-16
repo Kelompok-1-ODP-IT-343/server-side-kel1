@@ -665,7 +665,13 @@ public class PropertyController {
   public ResponseEntity<ApiResponse<Map<String, Object>>> getPropertyDetails(
       @PathVariable Integer id) {
     try {
-      Map<String, Object> propertyDetail = new HashMap<>(propertyService.getPropertyDetails(id));
+      Map<String, Object> raw = propertyService.getPropertyDetails(id);
+      if (raw == null || raw.isEmpty()) {
+        ApiResponse<Map<String, Object>> notFound =
+            new ApiResponse<>(false, "Property not found with id: " + id, null);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(notFound);
+      }
+      Map<String, Object> propertyDetail = new HashMap<>(raw);
 
       // --- tambahkan ini ---
       ObjectMapper mapper = new ObjectMapper();
