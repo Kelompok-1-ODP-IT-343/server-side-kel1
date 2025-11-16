@@ -117,6 +117,41 @@ public class AdminService {
     return responses;
   }
 
+  @Transactional
+  public List<String> deleteAdminImagesByLinks(List<String> links, Integer propertyId)
+      throws IOException {
+    if (links == null || links.isEmpty()) {
+      throw new IllegalArgumentException("Links tidak boleh kosong");
+    }
+    if (propertyId == null || propertyId <= 0) {
+      throw new IllegalArgumentException("propertyId harus valid");
+    }
+
+    List<PropertyImage> images =
+        propertyImageRepository.findByPropertyIdAndFilePathIn(propertyId, links);
+    if (images.isEmpty()) {
+      throw new NotFoundException(
+          "Tidak ada image yang cocok untuk propertyId/links yang diberikan");
+    }
+
+    List<String> deleted = new ArrayList<>();
+    for (PropertyImage img : images) {
+      try {
+        boolean s3Deleted = idCloudHostS3Util.deleteByUrl(img.getFilePath());
+        propertyImageRepository.delete(img);
+        if (s3Deleted) {
+          deleted.add(img.getFilePath());
+        } else {
+          deleted.add(img.getFilePath());
+        }
+      } catch (Exception e) {
+        log.warn("Gagal menghapus image {}: {}", img.getId(), e.getMessage());
+      }
+    }
+
+    return deleted;
+  }
+
   public void hardDeleteUser(Integer targetUserId, Integer adminId, @Nullable String reason) {
     var user =
         userRepository

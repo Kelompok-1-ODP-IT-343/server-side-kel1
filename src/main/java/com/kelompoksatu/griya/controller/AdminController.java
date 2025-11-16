@@ -294,6 +294,50 @@ public class AdminController {
     }
   }
 
+  @PostMapping(value = "/image/delete", consumes = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<ApiResponse<List<String>>> deleteAdminImages(
+      @RequestBody DeleteImagesRequest request) {
+    try {
+      if (request == null || request.getLinks() == null || request.getLinks().isEmpty()) {
+        return ResponseEntity.badRequest().body(ApiResponse.error("Links tidak boleh kosong"));
+      }
+      if (request.getPropertyId() == null || request.getPropertyId() <= 0) {
+        return ResponseEntity.badRequest().body(ApiResponse.error("propertyId harus valid"));
+      }
+
+      List<String> deleted =
+          adminService.deleteAdminImagesByLinks(request.getLinks(), request.getPropertyId());
+      return ResponseEntity.ok(ApiResponse.success("Images deleted successfully", deleted));
+    } catch (org.webjars.NotFoundException e) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
+    } catch (Exception e) {
+      log.error("Gagal delete image: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal delete image: " + e.getMessage()));
+    }
+  }
+
+  public static class DeleteImagesRequest {
+    private List<String> links;
+    private Integer propertyId;
+
+    public List<String> getLinks() {
+      return links;
+    }
+
+    public void setLinks(List<String> links) {
+      this.links = links;
+    }
+
+    public Integer getPropertyId() {
+      return propertyId;
+    }
+
+    public void setPropertyId(Integer propertyId) {
+      this.propertyId = propertyId;
+    }
+  }
+
   private static class ByteArrayMultipartFile implements MultipartFile {
     private final byte[] data;
     private final String fileName;
