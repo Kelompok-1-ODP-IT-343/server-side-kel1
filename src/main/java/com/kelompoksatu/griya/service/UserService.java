@@ -336,6 +336,7 @@ public class UserService {
         .orElseThrow(() -> new RuntimeException("Default role 'USER' not found"));
   }
 
+  @Transactional
   private User createUserEntity(RegisterRequest request, Role userRole) {
     User user = new User();
     user.setUsername(request.getUsername());
@@ -354,6 +355,7 @@ public class UserService {
     return savedUser;
   }
 
+  @Transactional
   private UserProfile createUserProfile(RegisterRequest request, Integer userId) {
     UserProfile userProfile = new UserProfile();
     userProfile.setUserId(userId);

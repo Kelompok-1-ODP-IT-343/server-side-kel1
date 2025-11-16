@@ -3,6 +3,8 @@ package com.kelompoksatu.griya.controller;
 import com.kelompoksatu.griya.dto.ApiResponse;
 import com.kelompoksatu.griya.entity.SystemNotification;
 import com.kelompoksatu.griya.service.SystemNotificationService;
+import com.kelompoksatu.griya.util.JwtUtil;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletRequest; // Import yang umum digunakan di Controller lain
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -15,17 +17,33 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/notifications")
 @RequiredArgsConstructor
 @Slf4j
+@io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
 public class SystemNotificationController {
 
   private final SystemNotificationService notificationService;
+  private final JwtUtil jwtUtil;
 
   /** [POST] /api/v1/notifications: Membuat notifikasi baru. */
   @PostMapping
   public ResponseEntity<ApiResponse<SystemNotification>> createNotification(
-      @RequestBody SystemNotification notification, HttpServletRequest request) {
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader,
+      @RequestBody SystemNotification notification,
+      HttpServletRequest request) {
     log.info(
         "CONTROLLER: Received POST request to create notification at path: {}",
         request.getRequestURI());
+
+    var token = jwtUtil.extractTokenFromHeader(authHeader);
+    Integer userId = jwtUtil.extractUserId(token);
+    if (userId == null) {
+      ApiResponse<SystemNotification> unauthorized =
+          ApiResponse.error("Token tidak valid", request.getRequestURI());
+      return new ResponseEntity<>(unauthorized, HttpStatus.UNAUTHORIZED);
+    }
+
+    if (notification.getUserId() == null) {
+      notification.setUserId(userId);
+    }
 
     SystemNotification savedNotification = notificationService.saveNotification(notification);
 
@@ -38,13 +56,21 @@ public class SystemNotificationController {
   }
 
   /** [GET] /api/v1/notifications/user/{userId}: Mendapatkan semua notifikasi untuk user. */
-  @GetMapping("/user/{userId}")
+  @GetMapping("/user")
   public ResponseEntity<ApiResponse<List<SystemNotification>>> getNotificationsForUser(
-      @PathVariable Integer userId, HttpServletRequest request) {
-    log.info(
-        "CONTROLLER: Received GET request for user ID: {} at path: {}",
-        userId,
-        request.getRequestURI());
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader,
+      HttpServletRequest request) {
+
+    var token = jwtUtil.extractTokenFromHeader(authHeader);
+
+    // Extract user ID from token
+    Integer userId = jwtUtil.extractUserId(token);
+    if (userId == null) {
+      // Handle case where user ID is not found in token
+      ApiResponse<List<SystemNotification>> response =
+          ApiResponse.error("User ID not found in token.", request.getRequestURI());
+      return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED); // 401 UNAUTHORIZED
+    }
 
     List<SystemNotification> notifications = notificationService.getNotificationsByUserId(userId);
 
@@ -59,7 +85,9 @@ public class SystemNotificationController {
   /** [PATCH] /api/v1/notifications/{id}/read: Menandai notifikasi sebagai sudah dibaca. */
   @PatchMapping("/{id}/read")
   public ResponseEntity<ApiResponse<SystemNotification>> markNotificationAsRead(
-      @PathVariable Long id, HttpServletRequest request) {
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader,
+      @PathVariable Long id,
+      HttpServletRequest request) {
     log.info(
         "CONTROLLER: Received PATCH request to mark notification ID {} as read at path: {}",
         id,
