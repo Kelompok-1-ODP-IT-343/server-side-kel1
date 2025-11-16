@@ -193,7 +193,6 @@ WHERE p.status = 'AVAILABLE'
     and (:title is null or p.title ilike CONCAT('%', :title, '%'))
 GROUP BY p.id
 ORDER BY p.id
-LIMIT :limit OFFSET :offset;
     """,
       nativeQuery = true)
   List<Map<String, Object>> findPropertiesWithFilter(
@@ -202,9 +201,9 @@ LIMIT :limit OFFSET :offset;
       @Param("maxPrice") BigDecimal maxPrice,
       @Param("propertyType") String propertyType,
       @Param("description") String description,
-      @Param("title") String title,
-      @Param("offset") int offset,
-      @Param("limit") int limit);
+      @Param("title") String title);
+//      @Param("offset") int offset,
+//      @Param("limit") int limit);
 
   @Query(
       value =
