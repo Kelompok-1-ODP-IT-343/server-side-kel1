@@ -202,8 +202,9 @@ ORDER BY p.id
       @Param("propertyType") String propertyType,
       @Param("description") String description,
       @Param("title") String title);
-//      @Param("offset") int offset,
-//      @Param("limit") int limit);
+
+  //      @Param("offset") int offset,
+  //      @Param("limit") int limit);
 
   @Query(
       value =
