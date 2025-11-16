@@ -91,7 +91,7 @@ public class AdminController {
           ApiResponse.success("Properties retrieved successfully", properties));
 
     } catch (Exception e) {
-      log.error("❌ Gagal mengambil properties: ", e);
+      log.error(" Gagal mengambil properties: ", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.error("Gagal mengambil properties: " + e.getMessage()));
     }
@@ -122,7 +122,7 @@ public class AdminController {
       return ResponseEntity.ok(ApiResponse.success("Favorites retrieved successfully", favorites));
 
     } catch (Exception e) {
-      log.error("❌ Gagal mengambil favorites user: ", e);
+      log.error(" Gagal mengambil favorites user: ", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.error("Gagal mengambil favorites: " + e.getMessage()));
     }
