@@ -403,11 +403,21 @@ public class UserService {
         || (request.getGender() != null && !request.getGender().trim().isEmpty())
         || (request.getMaritalStatus() != null && !request.getMaritalStatus().trim().isEmpty())
         || (request.getAddress() != null && !request.getAddress().trim().isEmpty())
+        || (request.getDistrict() != null && !request.getDistrict().trim().isEmpty())
+        || (request.getSubDistrict() != null && !request.getSubDistrict().trim().isEmpty())
         || (request.getCity() != null && !request.getCity().trim().isEmpty())
         || (request.getProvince() != null && !request.getProvince().trim().isEmpty())
         || (request.getPostalCode() != null && !request.getPostalCode().trim().isEmpty())
         || (request.getOccupation() != null && !request.getOccupation().trim().isEmpty())
         || (request.getCompanyName() != null && !request.getCompanyName().trim().isEmpty())
+        || (request.getCompanyAddress() != null && !request.getCompanyAddress().trim().isEmpty())
+        || (request.getCompanyCity() != null && !request.getCompanyCity().trim().isEmpty())
+        || (request.getCompanyProvince() != null && !request.getCompanyProvince().trim().isEmpty())
+        || (request.getCompanyPostalCode() != null
+            && !request.getCompanyPostalCode().trim().isEmpty())
+        || (request.getCompanyDistrict() != null && !request.getCompanyDistrict().trim().isEmpty())
+        || (request.getCompanySubdistrict() != null
+            && !request.getCompanySubdistrict().trim().isEmpty())
         || request.getMonthlyIncome() != null
         || request.getWorkExperience() != null;
   }
@@ -425,11 +435,19 @@ public class UserService {
     request.setGender(normalize(request.getGender()));
     request.setMaritalStatus(normalize(request.getMaritalStatus()));
     request.setAddress(normalize(request.getAddress()));
+    request.setDistrict(normalize(request.getDistrict()));
+    request.setSubDistrict(normalize(request.getSubDistrict()));
     request.setCity(normalize(request.getCity()));
     request.setProvince(normalize(request.getProvince()));
     request.setPostalCode(normalize(request.getPostalCode()));
     request.setOccupation(normalize(request.getOccupation()));
     request.setCompanyName(normalize(request.getCompanyName()));
+    request.setCompanyAddress(normalize(request.getCompanyAddress()));
+    request.setCompanyCity(normalize(request.getCompanyCity()));
+    request.setCompanyProvince(normalize(request.getCompanyProvince()));
+    request.setCompanyPostalCode(normalize(request.getCompanyPostalCode()));
+    request.setCompanyDistrict(normalize(request.getCompanyDistrict()));
+    request.setCompanySubdistrict(normalize(request.getCompanySubdistrict()));
     return request;
   }
 
