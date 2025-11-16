@@ -21,7 +21,7 @@ public class PropertyFeature {
   @Enumerated(EnumType.STRING)
   @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "feature_category", nullable = false)
-  private FeatureCategory featureCategory; //
+  private FeatureCategory featureCategory;
 
   @Column(name = "feature_name", nullable = false)
   private String featureName;

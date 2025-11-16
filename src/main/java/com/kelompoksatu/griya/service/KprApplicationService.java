@@ -1214,7 +1214,8 @@ public class KprApplicationService {
           .originalFilename(originalFilename)
           .filePath(fileUrl)
           .fileSize((int) file.getSize())
-          .mimeType(file.getContentType())
+          .mimeType(
+              file.getContentType() != null ? file.getContentType() : "application/octet-stream")
           .isVerified(false)
           .uploadedAt(LocalDateTime.now())
           .build();

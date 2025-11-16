@@ -27,15 +27,19 @@ public class PropertyService {
   private final PropertyRepository propertyRepository;
   private final DeveloperRepository developerRepository;
   private final PropertyImageRepository propertyImageRepository;
+  private final com.kelompoksatu.griya.repository.PropertyFeatureRepository
+      propertyFeatureRepository;
 
   @Autowired
   public PropertyService(
       PropertyRepository propertyRepository,
       DeveloperRepository developerRepository,
-      PropertyImageRepository propertyImageRepository) {
+      PropertyImageRepository propertyImageRepository,
+      com.kelompoksatu.griya.repository.PropertyFeatureRepository propertyFeatureRepository) {
     this.propertyRepository = propertyRepository;
     this.developerRepository = developerRepository;
     this.propertyImageRepository = propertyImageRepository;
+    this.propertyFeatureRepository = propertyFeatureRepository;
   }
 
   // ========================================
@@ -49,6 +53,8 @@ public class PropertyService {
 
     Property property = createPropertyEntity(request, developer);
     Property savedProperty = propertyRepository.save(property);
+
+    createDefaultFeatures(savedProperty);
 
     return new PropertyResponse(savedProperty);
   }
@@ -665,6 +671,159 @@ public class PropertyService {
     property.setViewCount(request.getViewCount() != null ? request.getViewCount() : 0);
     property.setInquiryCount(request.getInquiryCount() != null ? request.getInquiryCount() : 0);
     property.setFavoriteCount(request.getFavoriteCount() != null ? request.getFavoriteCount() : 0);
+  }
+
+  private void createDefaultFeatures(Property p) {
+    java.util.List<com.kelompoksatu.griya.entity.PropertyFeature> features =
+        new java.util.ArrayList<>();
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.INTERIOR,
+        "bedrooms",
+        p.getBedrooms());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.INTERIOR,
+        "bathrooms",
+        p.getBathrooms());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.INTERIOR,
+        "floors",
+        p.getFloors());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.EXTERIOR,
+        "garage",
+        p.getGarage());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.EXTERIOR,
+        "land_area",
+        p.getLandArea());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.INTERIOR,
+        "building_area",
+        p.getBuildingArea());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.EXTERIOR,
+        "year_built",
+        p.getYearBuilt());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.SECURITY,
+        "certificate_type",
+        p.getCertificateType() != null ? p.getCertificateType().name() : null);
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.SECURITY,
+        "certificate_number",
+        p.getCertificateNumber());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.SECURITY,
+        "certificate_area",
+        p.getCertificateArea());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.UTILITIES,
+        "pbb_value",
+        p.getPbbValue());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.UTILITIES,
+        "maintenance_fee",
+        p.getMaintenanceFee());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.LOCATION,
+        "district",
+        p.getDistrict());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.LOCATION,
+        "village",
+        p.getVillage());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.LOCATION,
+        "latitude",
+        p.getLatitude());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.LOCATION,
+        "longitude",
+        p.getLongitude());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.AMENITIES,
+        "is_featured",
+        p.getIsFeatured());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.AMENITIES,
+        "is_kpr_eligible",
+        p.getIsKprEligible());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.UTILITIES,
+        "min_down_payment_percent",
+        p.getMinDownPaymentPercent());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.UTILITIES,
+        "max_loan_term_years",
+        p.getMaxLoanTermYears());
+    if (!features.isEmpty()) {
+      propertyFeatureRepository.saveAll(features);
+    }
+  }
+
+  private void addFeature(
+      java.util.List<com.kelompoksatu.griya.entity.PropertyFeature> list,
+      Property p,
+      com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory category,
+      String name,
+      Object value) {
+    if (value == null) return;
+    String v;
+    if (value instanceof java.time.LocalDate) {
+      v = value.toString();
+    } else if (value instanceof java.lang.Enum<?> en) {
+      v = en.name();
+    } else {
+      v = String.valueOf(value);
+    }
+    com.kelompoksatu.griya.entity.PropertyFeature pf =
+        com.kelompoksatu.griya.entity.PropertyFeature.builder()
+            .featureCategory(category)
+            .featureName(name)
+            .featureValue(v)
+            .property(p)
+            .build();
+    list.add(pf);
   }
 
   private void setPublishedDateIfAvailable(Property property, Property.PropertyStatus status) {

@@ -289,4 +289,21 @@ public class IDCloudHostS3Util {
       return false;
     }
   }
+
+  /** Delete object by public URL */
+  public boolean deleteByUrl(String fileUrl) {
+    if (this.s3Client == null) {
+      this.s3Client = createIDCloudHostS3Client();
+    }
+    if (fileUrl == null || fileUrl.isBlank()) return false;
+    try {
+      String prefix = String.format("%s/%s/", endpoint, bucketName);
+      String key = fileUrl.startsWith(prefix) ? fileUrl.substring(prefix.length()) : fileUrl;
+      s3Client.deleteObject(builder -> builder.bucket(bucketName).key(key));
+      return true;
+    } catch (Exception e) {
+      log.warn("Failed to delete S3 object for url {}: {}", fileUrl, e.getMessage());
+      return false;
+    }
+  }
 }
