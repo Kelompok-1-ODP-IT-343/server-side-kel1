@@ -287,12 +287,14 @@ public class PropertyService {
       BigDecimal minPrice,
       BigDecimal maxPrice,
       String propertyType,
+      String description,
+      String title,
       int offset,
       int limit) {
 
     List<Map<String, Object>> rows =
         propertyRepository.findPropertiesWithFilter(
-            city, minPrice, maxPrice, propertyType, offset, limit);
+            city, minPrice, maxPrice, propertyType, description, title, offset, limit);
 
     return processFilterResults(rows);
   }

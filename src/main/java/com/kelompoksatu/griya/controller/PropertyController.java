@@ -82,13 +82,22 @@ public class PropertyController {
       @RequestParam(required = false) BigDecimal minPrice,
       @RequestParam(required = false) BigDecimal maxPrice,
       @RequestParam(required = false, name = "propertyType") String propertyType,
-      @RequestParam(defaultValue = "0") int offset,
-      @RequestParam(defaultValue = "10") int limit) {
+      @RequestParam(required = false) String description,
+      @RequestParam(required = false) String title,
+      @RequestParam (required = false) int offset,
+      @RequestParam (required = false) int limit) {
 
     try {
       List<Map<String, Object>> properties =
           propertyService.getPropertiesWithFilter(
-              city, minPrice, maxPrice, propertyType, offset, limit);
+              city,
+              minPrice,
+              maxPrice,
+              propertyType,
+              description,
+              title,
+              offset,
+              limit); // <-- keyword DITAMBAHKAN
 
       ApiResponse<List<Map<String, Object>>> response =
           new ApiResponse<>(true, "Properties retrieved successfully", properties);
