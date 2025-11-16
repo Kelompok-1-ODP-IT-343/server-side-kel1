@@ -165,10 +165,15 @@ public class KprApplicationController {
       @RequestParam(value = "employmentData.companySubdistrict", required = false)
           String companySubdistrict,
       // Document Files
-      @RequestParam("ktpDocument") MultipartFile ktpDocument,
+      @RequestParam(value = "ktpDocument", required = false) MultipartFile ktpDocument,
+      @RequestParam(value = "ktp", required = false) MultipartFile ktpAlt,
       @RequestParam(value = "npwpDocument", required = false) MultipartFile npwpDocument,
-      @RequestParam("salarySlipDocument") MultipartFile salarySlipDocument,
+      @RequestParam(value = "npwp", required = false) MultipartFile npwpAlt,
+      @RequestParam(value = "salarySlipDocument", required = false)
+          MultipartFile salarySlipDocument,
+      @RequestParam(value = "salarySlip", required = false) MultipartFile salarySlipAlt,
       @RequestParam(value = "otherDocument", required = false) MultipartFile otherDocument,
+      @RequestParam(value = "other", required = false) MultipartFile otherAlt,
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
 
     try {
@@ -188,6 +193,13 @@ public class KprApplicationController {
       logger.info("Processing KPR application for user ID: {}", userId);
 
       // Build form request object
+      // Resolve possible alternative file field names
+      MultipartFile ktpResolved = ktpDocument != null ? ktpDocument : ktpAlt;
+      MultipartFile npwpResolved = npwpDocument != null ? npwpDocument : npwpAlt;
+      MultipartFile salarySlipResolved =
+          salarySlipDocument != null ? salarySlipDocument : salarySlipAlt;
+      MultipartFile otherResolved = otherDocument != null ? otherDocument : otherAlt;
+
       var formRequest =
           KprApplicationFormRequest.builder()
               .propertyId(propertyId)
@@ -227,10 +239,10 @@ public class KprApplicationController {
                       .companyDistrict(companyDistrict)
                       .companySubdistrict(companySubdistrict)
                       .build())
-              .ktpDocument(ktpDocument)
-              .npwpDocument(npwpDocument)
-              .salarySlipDocument(salarySlipDocument)
-              .otherDocument(otherDocument)
+              .ktpDocument(ktpResolved)
+              .npwpDocument(npwpResolved)
+              .salarySlipDocument(salarySlipResolved)
+              .otherDocument(otherResolved)
               .build();
 
       // Submit application through service

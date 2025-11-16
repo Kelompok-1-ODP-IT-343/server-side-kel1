@@ -51,11 +51,11 @@ public class KprApplicationFormRequest {
   // DOCUMENT UPLOADS
   // ========================================
 
-  @NotNull(message = "KTP document is required") private MultipartFile ktpDocument;
+  private MultipartFile ktpDocument;
 
   private MultipartFile npwpDocument;
 
-  @NotNull(message = "Salary slip document is required") private MultipartFile salarySlipDocument;
+  private MultipartFile salarySlipDocument;
 
   private MultipartFile otherDocument;
 
@@ -97,10 +97,10 @@ public class KprApplicationFormRequest {
 
   /** Check if required documents are provided */
   public boolean hasRequiredDocuments() {
-    return ktpDocument != null
-        && !ktpDocument.isEmpty()
-        && salarySlipDocument != null
-        && !salarySlipDocument.isEmpty();
+    return (ktpDocument != null && !ktpDocument.isEmpty())
+        || (salarySlipDocument != null && !salarySlipDocument.isEmpty())
+        || (npwpDocument != null && !npwpDocument.isEmpty())
+        || (otherDocument != null && !otherDocument.isEmpty());
   }
 
   /** Get all uploaded documents as array for processing */
