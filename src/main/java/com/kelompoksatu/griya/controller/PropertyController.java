@@ -10,6 +10,7 @@ import com.kelompoksatu.griya.entity.PropertyFavorite;
 import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
 import com.kelompoksatu.griya.service.DeveloperService;
 import com.kelompoksatu.griya.service.PropertyService;
+import com.kelompoksatu.griya.util.JwtUtil;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,15 +39,18 @@ public class PropertyController {
   private final PropertyFavoriteRepository propertyFavoriteRepository;
   private static final String ERROR_RETRIEVE_PROPERTIES = "Failed to retrieve properties: ";
   private static final String MSG_PROPERTY_RETRIEVED = "Property retrieved successfully";
+  private final JwtUtil jwtUtil;
 
   @Autowired
   public PropertyController(
       PropertyService propertyService,
       DeveloperService developerService,
-      PropertyFavoriteRepository propertyFavoriteRepository) {
+      PropertyFavoriteRepository propertyFavoriteRepository,
+      JwtUtil jwtUtil) {
     this.propertyService = propertyService;
     this.developerService = developerService;
     this.propertyFavoriteRepository = propertyFavoriteRepository;
+    this.jwtUtil = jwtUtil;
   }
 
   /** Create a new property */
@@ -101,9 +105,17 @@ public class PropertyController {
 
   @PostMapping("/favorites")
   public ResponseEntity<ApiResponse<Map<String, Object>>> toggleFavorite(
-      @RequestParam Integer userId, @RequestParam Integer propertyId) {
+      @RequestParam Integer propertyId, @RequestHeader("Authorization") String authHeader) {
 
     try {
+      String token = jwtUtil.extractTokenFromHeader(authHeader);
+      Integer userId = jwtUtil.extractUserId(token);
+
+      if (userId == null) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(ApiResponse.error("Token tidak valid atau telah kedaluwarsa"));
+      }
+
       Optional<PropertyFavorite> existing =
           propertyFavoriteRepository.findByUserIdAndPropertyId(userId, propertyId);
 
@@ -130,9 +142,38 @@ public class PropertyController {
       return ResponseEntity.ok(ApiResponse.success("Toggle favorite success", responseData));
 
     } catch (Exception e) {
-      log.error("❌ Gagal toggle favorite: ", e);
+      log.error("Gagal toggle favorite: ", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.error("Gagal toggle favorite: " + e.getMessage()));
+    }
+  }
+
+  @GetMapping("/favorites")
+  public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyFavorites(
+      @RequestHeader("Authorization") String authHeader) {
+
+    try {
+      String token = jwtUtil.extractTokenFromHeader(authHeader);
+      Integer userId = jwtUtil.extractUserId(token);
+
+      if (userId == null) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(ApiResponse.error("Token tidak valid atau telah kedaluwarsa"));
+      }
+      List<Map<String, Object>> favorites =
+          propertyFavoriteRepository.findFavoritesByUserId(userId);
+
+      if (favorites.isEmpty()) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error("No favorites found for current user ID " + userId));
+      }
+
+      return ResponseEntity.ok(ApiResponse.success("Favorites retrieved successfully", favorites));
+
+    } catch (Exception e) {
+      log.error("Gagal mengambil favorites user: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal mengambil favorites: " + e.getMessage()));
     }
   }
 
