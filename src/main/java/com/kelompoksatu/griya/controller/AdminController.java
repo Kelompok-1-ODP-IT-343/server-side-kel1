@@ -220,28 +220,29 @@ public class AdminController {
       })
   @PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<ApiResponse<List<ImageAdminResponse>>> uploadAdminImages(
-      @RequestPart("images") List<MultipartFile> images,
-      @RequestPart("data") ImageAdminRequest request) {
-    try {
+          @RequestPart("images") List<MultipartFile> images,
+          @RequestPart(value = "propertyId", required = false) Integer propertyId, // HANYA propertyId
+          @RequestPart(value = "caption", required = false) String caption) {      // HANYA caption
+      try {
 
-      List<ImageAdminResponse> responseData = adminService.uploadAdminImages(images, request);
+          List<ImageAdminResponse> responseData = adminService.uploadAdminImages(images, propertyId, caption);
 
-      ApiResponse<List<ImageAdminResponse>> response =
-          ApiResponse.success("Images uploaded successfully", responseData);
-      return ResponseEntity.ok(response);
+          ApiResponse<List<ImageAdminResponse>> response =
+                  ApiResponse.success("Images uploaded successfully", responseData);
+          return ResponseEntity.ok(response);
 
-    } catch (IllegalArgumentException e) {
-      log.error("Gagal upload image (Bad Request): ", e);
-      return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-    } catch (IOException e) {
-      log.error("Gagal menyimpan file: ", e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Gagal menyimpan file: " + e.getMessage()));
-    } catch (Exception e) {
-      log.error("Gagal upload image: ", e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.error("Gagal upload image: " + e.getMessage()));
-    }
+      } catch (IllegalArgumentException e) {
+          log.error("Gagal upload image (Bad Request): ", e);
+          return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+      } catch (IOException e) {
+          log.error("Gagal menyimpan file: ", e);
+          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                  .body(ApiResponse.error("Gagal menyimpan file: " + e.getMessage()));
+      } catch (Exception e) {
+          log.error("Gagal upload image: ", e);
+          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                  .body(ApiResponse.error("Gagal upload image: " + e.getMessage()));
+      }
   }
 
   /** Get developer by ID (admin only) */
