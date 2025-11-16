@@ -88,14 +88,6 @@ public class UserService {
   /** Get user profile by user ID */
   public UserResponse getUserProfile(Integer userId) {
     User user = validateAndGetUser(userId);
-
-    // Check if user is a developer - developers don't have UserProfile
-    if (user.getDeveloper() != null) {
-      // For developers, return user info without profile data
-      return convertToUserResponse(user, user.getRole(), null);
-    }
-
-    // For regular users, try to get their profile
     UserProfile userProfile = userProfileRepository.findByUserId(userId).orElse(null);
     return convertToUserResponse(user, user.getRole(), userProfile);
   }
@@ -229,12 +221,10 @@ public class UserService {
       response.setRoleName(role.getName());
     }
 
-    // Check if user is a developer
     boolean isDeveloper = user.getDeveloper() != null;
     response.setDeveloper(isDeveloper);
 
-    // User profile information (only for non-developers)
-    if (!isDeveloper && userProfile != null) {
+    if (userProfile != null) {
       response.setFullName(userProfile.getFullName());
       response.setNik(userProfile.getNik());
       response.setNpwp(userProfile.getNpwp());
@@ -251,7 +241,6 @@ public class UserService {
       response.setMonthlyIncome(userProfile.getMonthlyIncome());
       response.setWorkExperience(userProfile.getWorkExperience());
     } else if (isDeveloper) {
-      // Developer information (only if developer exists)
       Developer developer = user.getDeveloper();
       if (developer != null) {
         response.setFullName(developer.getCompanyName());
