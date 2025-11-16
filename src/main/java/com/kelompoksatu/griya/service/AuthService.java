@@ -275,19 +275,6 @@ public class AuthService {
     updateUserSession(session, user, newRefreshToken, request);
 
     logger.info("Access token refreshed for user: {}", username);
-    // Notify token refresh
-    try {
-      systemNotificationService.saveNotification(
-          SystemNotification.builder()
-              .userId(user.getId())
-              .notificationType(NotificationType.APPLICATION_UPDATE)
-              .title("Token berhasil diperbarui")
-              .message("Sesi Anda diperpanjang dengan token baru")
-              .channel(NotificationChannel.IN_APP)
-              .build());
-    } catch (Exception ex) {
-      logger.warn("Failed to save token refresh notification: {}", ex.getMessage());
-    }
     return new AuthResponse(newAccessToken, newRefreshToken);
   }
 
