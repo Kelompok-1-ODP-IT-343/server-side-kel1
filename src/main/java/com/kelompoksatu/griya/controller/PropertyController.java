@@ -83,7 +83,13 @@ public class PropertyController {
       @RequestParam(required = false) BigDecimal maxPrice,
       @RequestParam(required = false, name = "propertyType") String propertyType,
       @RequestParam(required = false) String description,
+<<<<<<< HEAD
       @RequestParam(required = false) String title) {
+=======
+      @RequestParam(required = false) String title,
+      @RequestParam(required = false) int offset,
+      @RequestParam(required = false) int limit) {
+>>>>>>> 972a4641628a026ae54e4b341289d8eaaf56be1d
 
     try {
       List<Map<String, Object>> properties =
