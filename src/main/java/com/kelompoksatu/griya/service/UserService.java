@@ -118,6 +118,9 @@ public class UserService {
     // 1️⃣ Apply user account updates (if fields are present)
     if (hasUserAccountFields(request)) {
       userMapper.updateUserFromRequest(request, user);
+      if (request.getStatus() != null) {
+        user.setStatus(request.getUserStatusEnum());
+      }
     }
 
     // 2️⃣ Apply profile updates (if fields are present)
