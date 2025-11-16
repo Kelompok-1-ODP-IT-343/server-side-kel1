@@ -110,7 +110,7 @@ public class PropertyController {
 
   @PostMapping("/favorites")
   public ResponseEntity<ApiResponse<Map<String, Object>>> toggleFavorite(
-      @RequestParam Integer propertyId, @RequestHeader("Authorization") String authHeader) {
+      @RequestParam String propertyId, @RequestHeader("Authorization") String authHeader) {
 
     try {
       String token = jwtUtil.extractTokenFromHeader(authHeader);
@@ -121,8 +121,16 @@ public class PropertyController {
             .body(ApiResponse.error("Token tidak valid atau telah kedaluwarsa"));
       }
 
+      Integer pid;
+      try {
+        pid = Integer.valueOf(propertyId);
+      } catch (NumberFormatException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error("propertyId harus berupa angka valid"));
+      }
+
       Optional<PropertyFavorite> existing =
-          propertyFavoriteRepository.findByUserIdAndPropertyId(userId, propertyId);
+          propertyFavoriteRepository.findByUserIdAndPropertyId(userId, pid);
 
       Map<String, Object> responseData = new HashMap<>();
 
@@ -133,7 +141,7 @@ public class PropertyController {
         PropertyFavorite favorite =
             PropertyFavorite.builder()
                 .userId(userId)
-                .propertyId(propertyId)
+                .propertyId(pid)
                 .createdAt(LocalDateTime.now())
                 .build();
         propertyFavoriteRepository.save(favorite);
@@ -142,7 +150,7 @@ public class PropertyController {
       }
 
       responseData.put("userId", userId);
-      responseData.put("propertyId", propertyId);
+      responseData.put("propertyId", pid);
 
       return ResponseEntity.ok(ApiResponse.success("Toggle favorite success", responseData));
 
