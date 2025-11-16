@@ -1,16 +1,11 @@
 package com.kelompoksatu.griya.controller;
 
 import com.kelompoksatu.griya.dto.*;
-import com.kelompoksatu.griya.entity.ImageCategory;
-import com.kelompoksatu.griya.entity.ImageType;
-import com.kelompoksatu.griya.entity.PropertyImage;
 import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
-import com.kelompoksatu.griya.repository.PropertyImageRepository;
 import com.kelompoksatu.griya.service.AdminService;
 import com.kelompoksatu.griya.service.DeveloperService;
 import com.kelompoksatu.griya.service.PropertyService;
 import com.kelompoksatu.griya.service.UserService;
-import com.kelompoksatu.griya.util.IDCloudHostS3Util;
 import com.kelompoksatu.griya.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -25,7 +20,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -50,8 +44,6 @@ public class AdminController {
   private final PropertyService propertyService;
   private final UserService userService;
   private final JwtUtil jwtUtil;
-  private final IDCloudHostS3Util idCloudHostS3Util;
-  private final PropertyImageRepository propertyImageRepository;
 
   // ==================== DEVELOPER MANAGEMENT ====================
 
@@ -198,78 +190,55 @@ public class AdminController {
     return ResponseEntity.ok(response);
   }
 
+  @Operation(
+      summary = "Upload one or more property images",
+      description =
+          "Uploads multiple images associated with a property (or general use 'misc'). Restricted to admin users.")
+  @ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Images uploaded successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400",
+            description = "Bad request - invalid input or file/metadata mismatch",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class)))
+      })
   @PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public ResponseEntity<ApiResponse<ImageAdminResponse>> uploadAdminImage(
-      @RequestPart("image") MultipartFile image, @RequestPart("data") ImageAdminRequest request) {
+  public ResponseEntity<ApiResponse<List<ImageAdminResponse>>> uploadAdminImages(
+      @RequestPart("images") List<MultipartFile> images,
+      @RequestPart("data") ImageAdminRequest request) {
     try {
-      log.info("Mulai upload image: {}", image.getOriginalFilename());
 
-      // Validasi input
-      if (image == null || image.isEmpty()) {
-        return ResponseEntity.badRequest().body(ApiResponse.error("Image file tidak boleh kosong"));
-      }
-      if (request == null || request.getImageType() == null || request.getImageCategory() == null) {
-        return ResponseEntity.badRequest()
-            .body(ApiResponse.error("Field imageType dan imageCategory wajib diisi"));
-      }
+      List<ImageAdminResponse> responseData = adminService.uploadAdminImages(images, request);
 
-      // Convert ENUM (handle invalid enum)
-      ImageType imageType;
-      ImageCategory imageCategory;
-      try {
-        imageType = ImageType.valueOf(request.getImageType().name());
-        imageCategory = ImageCategory.valueOf(request.getImageCategory().name());
-      } catch (IllegalArgumentException ex) {
-        return ResponseEntity.badRequest()
-            .body(ApiResponse.error("Nilai imageType atau imageCategory tidak valid"));
-      }
-
-      // Upload ke IDCloudHost
-      String folder =
-          String.valueOf(request.getPropertyId() == null ? "misc" : request.getPropertyId());
-      String imageUrl = idCloudHostS3Util.uploadPropertyImage(image, folder);
-      log.info("Upload ke IDCloudHost sukses: {}", imageUrl);
-
-      // Simpan metadata ke database
-      PropertyImage propertyImage =
-          PropertyImage.builder()
-              .propertyId(request.getPropertyId())
-              .imageType(imageType)
-              .imageCategory(imageCategory)
-              .fileName(UUID.randomUUID().toString())
-              .filePath(imageUrl)
-              .fileSize((int) image.getSize())
-              .mimeType(image.getContentType())
-              .caption(request.getCaption())
-              .build();
-
-      propertyImageRepository.save(propertyImage);
-      log.info("Image berhasil disimpan di DB: {}", propertyImage.getFileName());
-
-      // Build response data
-      ImageAdminResponse responseData =
-          ImageAdminResponse.builder()
-              .id(propertyImage.getId())
-              .propertyId(propertyImage.getPropertyId())
-              .imageUrl(imageUrl)
-              .fileName(propertyImage.getFileName())
-              .imageType(imageType.name())
-              .imageCategory(imageCategory.name())
-              .caption(propertyImage.getCaption())
-              .fileSize(propertyImage.getFileSize())
-              .mimeType(propertyImage.getMimeType())
-              .build();
-
-      ApiResponse<ImageAdminResponse> response =
-          ApiResponse.success("Image uploaded successfully", responseData);
+      ApiResponse<List<ImageAdminResponse>> response =
+          ApiResponse.success("Images uploaded successfully", responseData);
       return ResponseEntity.ok(response);
 
+    } catch (IllegalArgumentException e) {
+      log.error("Gagal upload image (Bad Request): ", e);
+      return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
     } catch (IOException e) {
-      log.error("❌ Gagal menyimpan file: ", e);
+      log.error("Gagal menyimpan file: ", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.error("Gagal menyimpan file: " + e.getMessage()));
     } catch (Exception e) {
-      log.error("❌ Gagal upload image: ", e);
+      log.error("Gagal upload image: ", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.error("Gagal upload image: " + e.getMessage()));
     }

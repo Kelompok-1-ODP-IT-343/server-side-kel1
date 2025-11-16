@@ -1,18 +1,29 @@
 package com.kelompoksatu.griya.service;
 
 import com.kelompoksatu.griya.dto.AdminSimpleResponse;
+import com.kelompoksatu.griya.dto.ImageAdminRequest;
+import com.kelompoksatu.griya.dto.ImageAdminResponse;
 import com.kelompoksatu.griya.dto.UserResponse;
+import com.kelompoksatu.griya.entity.ImageCategory;
+import com.kelompoksatu.griya.entity.ImageType;
+import com.kelompoksatu.griya.entity.PropertyImage;
 import com.kelompoksatu.griya.repository.DeveloperRepository;
+import com.kelompoksatu.griya.repository.PropertyImageRepository;
 import com.kelompoksatu.griya.repository.RoleRepository;
 import com.kelompoksatu.griya.repository.UserProfileRepository;
 import com.kelompoksatu.griya.repository.UserRepository;
 import com.kelompoksatu.griya.repository.UserSessionRepository;
+import com.kelompoksatu.griya.util.IDCloudHostS3Util;
 import io.micrometer.common.lang.Nullable;
 import jakarta.transaction.Transactional;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.webjars.NotFoundException;
 
 @Service
@@ -25,12 +36,119 @@ public class AdminService {
   private final UserProfileRepository userProfileRepository;
   private final RoleRepository roleRepository;
   private final DeveloperRepository developerRepository;
+  private final IDCloudHostS3Util idCloudHostS3Util;
+  private final PropertyImageRepository propertyImageRepository;
 
   public List<AdminSimpleResponse> getAllAdminSimple() {
     return userRepository.findAllAdminSimple();
   }
 
   @Transactional
+  public List<ImageAdminResponse> uploadAdminImages(
+      List<MultipartFile> images, ImageAdminRequest request) throws IOException {
+
+    if (images == null || images.isEmpty() || images.stream().allMatch(MultipartFile::isEmpty)) {
+      throw new IllegalArgumentException("Image file tidak boleh kosong");
+    }
+    if (request == null) {
+      request = new ImageAdminRequest();
+    }
+
+    String defaultImageType = "EXTERIOR";
+    String defaultImageCategory = "GALLERY";
+
+    ImageType imageType;
+    ImageCategory imageCategory;
+
+    try {
+      imageType =
+          (request.getImageType() == null
+                  || request.getImageType().name() == null
+                  || request.getImageType().name().trim().isEmpty())
+              ? ImageType.valueOf(defaultImageType)
+              : ImageType.valueOf(request.getImageType().name());
+    } catch (IllegalArgumentException ex) {
+      log.warn(
+          "Nilai ImageType tidak valid ({}). Menggunakan default: {}",
+          request.getImageType() != null
+              ? request.getImageType().name()
+              : "null", // Log yang lebih aman
+          defaultImageType);
+      imageType = ImageType.valueOf(defaultImageType);
+    }
+
+    try {
+      imageCategory =
+          (request.getImageCategory() == null
+                  || request.getImageCategory().name() == null
+                  || request.getImageCategory().name().trim().isEmpty())
+              ? ImageCategory.valueOf(defaultImageCategory)
+              : ImageCategory.valueOf(request.getImageCategory().name());
+    } catch (IllegalArgumentException ex) {
+      log.warn(
+          "Nilai ImageCategory tidak valid ({}). Menggunakan default: {}",
+          request.getImageCategory() != null
+              ? request.getImageCategory().name()
+              : "null", // Log yang lebih aman
+          defaultImageCategory);
+      imageCategory = ImageCategory.valueOf(defaultImageCategory);
+    }
+
+    String folder =
+        String.valueOf(request.getPropertyId() == null ? "misc" : request.getPropertyId());
+
+    List<ImageAdminResponse> responses = new ArrayList<>();
+
+    for (MultipartFile image : images) {
+
+      if (image.isEmpty()) {
+        log.warn("Skipping empty file.");
+        continue;
+      }
+
+      log.info("Mulai upload image: {}", image.getOriginalFilename());
+
+      String imageUrl = idCloudHostS3Util.uploadPropertyImage(image, folder);
+      log.info("Upload ke IDCloudHost sukses: {}", imageUrl);
+
+      PropertyImage propertyImage =
+          PropertyImage.builder()
+              .propertyId(request.getPropertyId())
+              .imageType(imageType) // Menggunakan nilai default jika null
+              .imageCategory(imageCategory) // Menggunakan nilai default jika null
+              .fileName(UUID.randomUUID().toString())
+              .filePath(imageUrl)
+              .fileSize((int) image.getSize())
+              .mimeType(image.getContentType())
+              .caption(request.getCaption()) // Caption opsional (bisa null)
+              .build();
+
+      propertyImageRepository.save(propertyImage);
+      log.info("Image berhasil disimpan di DB: {}", propertyImage.getFileName());
+
+      ImageAdminResponse responseData =
+          ImageAdminResponse.builder()
+              .id(propertyImage.getId())
+              .propertyId(propertyImage.getPropertyId())
+              .imageUrl(imageUrl)
+              .fileName(propertyImage.getFileName())
+              .imageType(imageType.name())
+              .imageCategory(imageCategory.name())
+              .caption(propertyImage.getCaption())
+              .fileSize(propertyImage.getFileSize())
+              .mimeType(propertyImage.getMimeType())
+              .build();
+
+      responses.add(responseData);
+    }
+
+    if (responses.isEmpty()) {
+      throw new IllegalArgumentException("Semua file image yang diupload kosong.");
+    }
+
+    return responses;
+  }
+
   public void hardDeleteUser(Integer targetUserId, Integer adminId, @Nullable String reason) {
     var user =
         userRepository
