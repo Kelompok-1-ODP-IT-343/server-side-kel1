@@ -4,7 +4,6 @@ import com.kelompoksatu.griya.dto.UpdateUserRequest;
 import com.kelompoksatu.griya.dto.UserResponse;
 import com.kelompoksatu.griya.entity.User;
 import com.kelompoksatu.griya.entity.UserProfile;
-import com.kelompoksatu.griya.entity.UserStatus;
 import org.mapstruct.*;
 
 /**
@@ -38,7 +37,6 @@ public interface UserMapper {
   @Mapping(target = "updatedAt", ignore = true)
   @Mapping(target = "role", ignore = true)
   @Mapping(target = "consentAt", ignore = true)
-  @Mapping(target = "status", source = "request", qualifiedByName = "requestToUserStatus")
   void updateUserFromRequest(UpdateUserRequest request, @MappingTarget User existingUser);
 
   /**
@@ -90,15 +88,4 @@ public interface UserMapper {
   @Mapping(target = "maritalStatus", ignore = true)
   void updateUserProfileFromRequest(
       UpdateUserRequest request, @MappingTarget UserProfile existingProfile);
-
-  /**
-   * Convert UpdateUserRequest to UserStatus enum.
-   *
-   * @param request The update request
-   * @return UserStatus enum or null if status is null/empty
-   */
-  @Named("requestToUserStatus")
-  default UserStatus requestToUserStatus(UpdateUserRequest request) {
-    return request.getUserStatusEnum();
-  }
 }
