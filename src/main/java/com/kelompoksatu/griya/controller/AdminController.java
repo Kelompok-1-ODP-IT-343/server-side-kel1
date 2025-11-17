@@ -1,16 +1,11 @@
 package com.kelompoksatu.griya.controller;
 
 import com.kelompoksatu.griya.dto.*;
-import com.kelompoksatu.griya.entity.ImageCategory;
-import com.kelompoksatu.griya.entity.ImageType;
-import com.kelompoksatu.griya.entity.PropertyImage;
 import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
-import com.kelompoksatu.griya.repository.PropertyImageRepository;
 import com.kelompoksatu.griya.service.AdminService;
 import com.kelompoksatu.griya.service.DeveloperService;
 import com.kelompoksatu.griya.service.PropertyService;
 import com.kelompoksatu.griya.service.UserService;
-import com.kelompoksatu.griya.util.IDCloudHostS3Util;
 import com.kelompoksatu.griya.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -25,7 +20,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -50,8 +44,6 @@ public class AdminController {
   private final PropertyService propertyService;
   private final UserService userService;
   private final JwtUtil jwtUtil;
-  private final IDCloudHostS3Util idCloudHostS3Util;
-  private final PropertyImageRepository propertyImageRepository;
 
   // ==================== DEVELOPER MANAGEMENT ====================
 
@@ -99,7 +91,7 @@ public class AdminController {
           ApiResponse.success("Properties retrieved successfully", properties));
 
     } catch (Exception e) {
-      log.error("❌ Gagal mengambil properties: ", e);
+      log.error(" Gagal mengambil properties: ", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.error("Gagal mengambil properties: " + e.getMessage()));
     }
@@ -130,7 +122,7 @@ public class AdminController {
       return ResponseEntity.ok(ApiResponse.success("Favorites retrieved successfully", favorites));
 
     } catch (Exception e) {
-      log.error("❌ Gagal mengambil favorites user: ", e);
+      log.error(" Gagal mengambil favorites user: ", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.error("Gagal mengambil favorites: " + e.getMessage()));
     }
@@ -198,80 +190,206 @@ public class AdminController {
     return ResponseEntity.ok(response);
   }
 
+  @Operation(
+      summary = "Upload one or more property images",
+      description =
+          "Uploads multiple images associated with a property (or general use 'misc'). Restricted to admin users.")
+  @ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Images uploaded successfully",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400",
+            description = "Bad request - invalid input or file/metadata mismatch",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content =
+                @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ApiResponse.class)))
+      })
   @PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public ResponseEntity<ApiResponse<ImageAdminResponse>> uploadAdminImage(
-      @RequestPart("image") MultipartFile image, @RequestPart("data") ImageAdminRequest request) {
+  public ResponseEntity<ApiResponse<List<ImageAdminResponse>>> uploadAdminImages(
+      @RequestParam(value = "images", required = false) List<MultipartFile> images,
+      @RequestParam(value = "image", required = false) MultipartFile imageSingle,
+      @RequestParam(value = "file", required = false) MultipartFile fileSingle,
+      @RequestParam(value = "files", required = false) List<MultipartFile> filesAlt,
+      @RequestParam(value = "propertyId", required = false) Integer propertyId,
+      @RequestParam(value = "caption", required = false) String caption,
+      org.springframework.web.multipart.MultipartHttpServletRequest multipartRequest) {
     try {
-      log.info("Mulai upload image: {}", image.getOriginalFilename());
-
-      // Validasi input
-      if (image == null || image.isEmpty()) {
-        return ResponseEntity.badRequest().body(ApiResponse.error("Image file tidak boleh kosong"));
+      java.util.List<MultipartFile> allFiles = new java.util.ArrayList<>();
+      if (images != null) allFiles.addAll(images);
+      if (filesAlt != null) allFiles.addAll(filesAlt);
+      if (imageSingle != null) allFiles.add(imageSingle);
+      if (fileSingle != null) allFiles.add(fileSingle);
+      if (allFiles.isEmpty() && multipartRequest != null) {
+        for (MultipartFile mf : multipartRequest.getFileMap().values()) {
+          if (mf != null && !mf.isEmpty()) allFiles.add(mf);
+        }
       }
-      if (request == null || request.getImageType() == null || request.getImageCategory() == null) {
-        return ResponseEntity.badRequest()
-            .body(ApiResponse.error("Field imageType dan imageCategory wajib diisi"));
-      }
-
-      // Convert ENUM (handle invalid enum)
-      ImageType imageType;
-      ImageCategory imageCategory;
-      try {
-        imageType = ImageType.valueOf(request.getImageType().name());
-        imageCategory = ImageCategory.valueOf(request.getImageCategory().name());
-      } catch (IllegalArgumentException ex) {
-        return ResponseEntity.badRequest()
-            .body(ApiResponse.error("Nilai imageType atau imageCategory tidak valid"));
+      if (allFiles.isEmpty()) {
+        throw new IllegalArgumentException(
+            "Part 'images' atau file upload tidak ditemukan pada request");
       }
 
-      // Upload ke IDCloudHost
-      String folder =
-          String.valueOf(request.getPropertyId() == null ? "misc" : request.getPropertyId());
-      String imageUrl = idCloudHostS3Util.uploadPropertyImage(image, folder);
-      log.info("Upload ke IDCloudHost sukses: {}", imageUrl);
+      List<ImageAdminResponse> responseData =
+          adminService.uploadAdminImages(allFiles, propertyId, caption);
 
-      // Simpan metadata ke database
-      PropertyImage propertyImage =
-          PropertyImage.builder()
-              .propertyId(request.getPropertyId())
-              .imageType(imageType)
-              .imageCategory(imageCategory)
-              .fileName(UUID.randomUUID().toString())
-              .filePath(imageUrl)
-              .fileSize((int) image.getSize())
-              .mimeType(image.getContentType())
-              .caption(request.getCaption())
-              .build();
-
-      propertyImageRepository.save(propertyImage);
-      log.info("Image berhasil disimpan di DB: {}", propertyImage.getFileName());
-
-      // Build response data
-      ImageAdminResponse responseData =
-          ImageAdminResponse.builder()
-              .id(propertyImage.getId())
-              .propertyId(propertyImage.getPropertyId())
-              .imageUrl(imageUrl)
-              .fileName(propertyImage.getFileName())
-              .imageType(imageType.name())
-              .imageCategory(imageCategory.name())
-              .caption(propertyImage.getCaption())
-              .fileSize(propertyImage.getFileSize())
-              .mimeType(propertyImage.getMimeType())
-              .build();
-
-      ApiResponse<ImageAdminResponse> response =
-          ApiResponse.success("Image uploaded successfully", responseData);
+      ApiResponse<List<ImageAdminResponse>> response =
+          ApiResponse.success("Images uploaded successfully", responseData);
       return ResponseEntity.ok(response);
 
+    } catch (IllegalArgumentException e) {
+      log.error("Gagal upload image (Bad Request): ", e);
+      return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
     } catch (IOException e) {
-      log.error("❌ Gagal menyimpan file: ", e);
+      log.error("Gagal menyimpan file: ", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.error("Gagal menyimpan file: " + e.getMessage()));
     } catch (Exception e) {
-      log.error("❌ Gagal upload image: ", e);
+      log.error("Gagal upload image: ", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.error("Gagal upload image: " + e.getMessage()));
+    }
+  }
+
+  @PostMapping(value = "/image", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+  public ResponseEntity<ApiResponse<List<ImageAdminResponse>>> uploadAdminImagesOctet(
+      @RequestBody byte[] file,
+      @RequestParam(value = "propertyId", required = false) Integer propertyId,
+      @RequestParam(value = "caption", required = false) String caption,
+      @RequestHeader(value = "X-Filename", required = false) String filename) {
+    try {
+      String effectiveName = (filename != null && !filename.isBlank()) ? filename : "upload.bin";
+      MultipartFile wrapped =
+          new ByteArrayMultipartFile(file, effectiveName, MediaType.APPLICATION_OCTET_STREAM_VALUE);
+      List<ImageAdminResponse> responseData =
+          adminService.uploadAdminImages(java.util.List.of(wrapped), propertyId, caption);
+
+      ApiResponse<List<ImageAdminResponse>> response =
+          ApiResponse.success("Images uploaded successfully", responseData);
+      return ResponseEntity.ok(response);
+    } catch (IllegalArgumentException e) {
+      log.error("Gagal upload image (Bad Request): ", e);
+      return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+    } catch (IOException e) {
+      log.error("Gagal menyimpan file: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal menyimpan file: " + e.getMessage()));
+    } catch (Exception e) {
+      log.error("Gagal upload image: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal upload image: " + e.getMessage()));
+    }
+  }
+
+  @PostMapping(value = "/image/delete", consumes = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<ApiResponse<List<String>>> deleteAdminImages(
+      @RequestBody DeleteImagesRequest request) {
+    try {
+      if (request == null || request.getLinks() == null || request.getLinks().isEmpty()) {
+        return ResponseEntity.badRequest().body(ApiResponse.error("Links tidak boleh kosong"));
+      }
+      if (request.getPropertyId() == null || request.getPropertyId() <= 0) {
+        return ResponseEntity.badRequest().body(ApiResponse.error("propertyId harus valid"));
+      }
+
+      List<String> deleted =
+          adminService.deleteAdminImagesByLinks(request.getLinks(), request.getPropertyId());
+      return ResponseEntity.ok(ApiResponse.success("Images deleted successfully", deleted));
+    } catch (org.webjars.NotFoundException e) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
+    } catch (Exception e) {
+      log.error("Gagal delete image: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal delete image: " + e.getMessage()));
+    }
+  }
+
+  public static class DeleteImagesRequest {
+    private List<String> links;
+    private Integer propertyId;
+
+    public List<String> getLinks() {
+      return links;
+    }
+
+    public void setLinks(List<String> links) {
+      this.links = links;
+    }
+
+    public Integer getPropertyId() {
+      return propertyId;
+    }
+
+    public void setPropertyId(Integer propertyId) {
+      this.propertyId = propertyId;
+    }
+  }
+
+  private static class ByteArrayMultipartFile implements MultipartFile {
+    private final byte[] data;
+    private final String fileName;
+    private final String contentType;
+
+    ByteArrayMultipartFile(byte[] data, String fileName, String contentType) {
+      this.data = (data != null) ? data : new byte[0];
+      this.fileName = (fileName != null) ? fileName : "upload.bin";
+      this.contentType =
+          (contentType != null) ? contentType : MediaType.APPLICATION_OCTET_STREAM_VALUE;
+    }
+
+    @Override
+    public String getName() {
+      return fileName;
+    }
+
+    @Override
+    public String getOriginalFilename() {
+      return fileName;
+    }
+
+    @Override
+    public String getContentType() {
+      return contentType;
+    }
+
+    @Override
+    public boolean isEmpty() {
+      return data.length == 0;
+    }
+
+    @Override
+    public long getSize() {
+      return data.length;
+    }
+
+    @Override
+    public byte[] getBytes() {
+      return data;
+    }
+
+    @Override
+    public java.io.InputStream getInputStream() {
+      return new java.io.ByteArrayInputStream(data);
+    }
+
+    @Override
+    public void transferTo(java.io.File dest) throws IOException {
+      try (java.io.FileOutputStream fos = new java.io.FileOutputStream(dest)) {
+        fos.write(data);
+      }
     }
   }
 

@@ -147,49 +147,65 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
   @Query(
       value =
           """
-    SELECT
-        p.id,
-        p.property_code,
-        p.title,
-        p.city,
-        p.price,
-        p.property_type,
-        p.listing_type,
-        -- ambil nama file utama
-        COALESCE(
-            (SELECT pi.file_name FROM property_images pi
-             WHERE pi.property_id = p.id AND pi.is_primary = TRUE
-             ORDER BY pi.id ASC
-             LIMIT 1),
-            (SELECT pi.file_name FROM property_images pi
-             WHERE pi.property_id = p.id
-             ORDER BY pi.id ASC
-             LIMIT 1)
-        ) AS file_name,
-        -- ambil file path utama (URL)
-        COALESCE(
-            (SELECT pi.file_path FROM property_images pi
-             WHERE pi.property_id = p.id AND pi.is_primary = TRUE
-             ORDER BY pi.id ASC
-             LIMIT 1),
-            (SELECT pi.file_path FROM property_images pi
-             WHERE pi.property_id = p.id
-             ORDER BY pi.id ASC
-             LIMIT 1)
-        ) AS file_path,
-        STRING_AGG(DISTINCT pf.feature_name || ' : ' || pf.feature_value, ', ') AS features,
-        STRING_AGG(DISTINCT pl.poi_name || ' (' || pl.distance_km || ' km)', ', ') AS nearby_places
-    FROM properties p
-    LEFT JOIN property_features pf ON pf.property_id = p.id
-    LEFT JOIN property_locations pl ON pl.property_id = p.id
-        WHERE p.status = 'AVAILABLE'
-            AND (:city IS NULL OR p.city ILIKE CONCAT('%', :city, '%'))
-      AND (:minPrice IS NULL OR p.price >= :minPrice)
-      AND (:maxPrice IS NULL OR p.price <= :maxPrice)
-      AND (:propertyType IS NULL OR LOWER(p.property_type::text) = LOWER(:propertyType))
-    GROUP BY p.id
-    ORDER BY p.id
-    LIMIT :limit OFFSET :offset
+SELECT
+    p.id,
+    p.property_code,
+    p.title,
+    p.city,
+    p.price,
+    p.land_area,
+    p.building_area,
+    p.property_type,
+    p.listing_type,
+    p.description,
+    -- ambil nama file utama
+    COALESCE(
+        (SELECT pi.file_name FROM property_images pi
+         WHERE pi.property_id = p.id AND pi.is_primary = TRUE
+         ORDER BY pi.id ASC
+         LIMIT 1),
+        (SELECT pi.file_name FROM property_images pi
+         WHERE pi.property_id = p.id
+         ORDER BY pi.id ASC
+         LIMIT 1)
+    ) AS file_name,
+    -- ambil file path utama (URL)
+    COALESCE(
+        (SELECT pi.file_path FROM property_images pi
+         WHERE pi.property_id = p.id AND pi.is_primary = TRUE
+         ORDER BY pi.id ASC
+         LIMIT 1),
+        (SELECT pi.file_path FROM property_images pi
+         WHERE pi.property_id = p.id
+         ORDER BY pi.id ASC
+         LIMIT 1)
+    ) AS file_path,
+    STRING_AGG(DISTINCT pf.feature_name || ' : ' || pf.feature_value, ', ') AS features,
+    COALESCE(
+        (
+          SELECT json_agg(row_to_json(pf2))
+          FROM property_features pf2
+          WHERE pf2.property_id = p.id
+        ),
+        '[]'::json
+    ) AS features_json,
+    STRING_AGG(DISTINCT pl.poi_name || ' (' || pl.distance_km || ' km)', ', ') AS nearby_places
+FROM properties p
+LEFT JOIN property_features pf ON pf.property_id = p.id
+LEFT JOIN property_locations pl ON pl.property_id = p.id
+WHERE p.status = 'AVAILABLE'
+    AND (:city IS NULL OR p.city ILIKE CONCAT('%', :city, '%'))
+    AND (:minPrice IS NULL OR p.price >= :minPrice)
+    AND (:maxPrice IS NULL OR p.price <= :maxPrice)
+    AND (:propertyType IS NULL OR LOWER(p.property_type::text) = LOWER(:propertyType))
+    -- PERUBAHAN KRITIS: Ganti AND menjadi OR dan kelompokkan kondisi pencarian teks
+    AND (
+        (:description is null or p.description ilike CONCAT('%', :description, '%'))
+        OR
+        (:title is null or p.title ilike CONCAT('%', :title, '%'))
+    )
+GROUP BY p.id
+ORDER BY p.id
     """,
       nativeQuery = true)
   List<Map<String, Object>> findPropertiesWithFilter(
@@ -197,8 +213,11 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
       @Param("minPrice") BigDecimal minPrice,
       @Param("maxPrice") BigDecimal maxPrice,
       @Param("propertyType") String propertyType,
-      @Param("offset") int offset,
-      @Param("limit") int limit);
+      @Param("description") String description,
+      @Param("title") String title);
+
+  //      @Param("offset") int offset,
+  //      @Param("limit") int limit);
 
   @Query(
       value =
@@ -207,11 +226,46 @@ SELECT
     p.id,
     p.property_code,
     p.title,
+    p.description,
+    p.address,
     p.city,
+    p.province,
+    p.postal_code,
+    p.district,
+    p.village,
+    p.latitude,
+    p.longitude,
+    p.land_area,
+    p.building_area,
+    p.bedrooms,
+    p.bathrooms,
+    p.floors,
+    p.garage,
+    p.year_built,
     p.price,
+    p.price_per_sqm,
+    p.maintenance_fee,
+    p.certificate_type,
+    p.certificate_number,
+    p.certificate_area,
+    p.pbb_value,
+    p.status,
+    p.availability_date,
+    p.handover_date,
+    p.is_featured,
+    p.is_kpr_eligible,
+    p.min_down_payment_percent,
+    p.max_loan_term_years,
+    p.slug,
+    p.meta_title,
+    p.meta_description,
+    p.keywords,
+    p.view_count,
+    p.inquiry_count,
+    p.favorite_count,
+    p.published_at,
     p.property_type,
     p.listing_type,
-    p.description,
     p.developer_id,
     COALESCE(
         json_agg(DISTINCT pi.file_path) FILTER (WHERE pi.file_path IS NOT NULL),

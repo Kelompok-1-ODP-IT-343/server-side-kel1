@@ -21,6 +21,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 import org.webjars.NotFoundException;
 
@@ -137,6 +138,25 @@ public class GlobalExceptionHandler {
     // sendErrorNotification(status, message, req, ex);
 
     return apiError(status, message, req, fieldErrors);
+  }
+
+  // @RequestParam / @PathVariable type mismatch
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  public ResponseEntity<Map<String, Object>> handleTypeMismatch(
+      MethodArgumentTypeMismatchException ex, WebRequest req) {
+    HttpStatus status = HttpStatus.BAD_REQUEST;
+    String message = "Invalid parameter: " + ex.getName() + " with value '" + ex.getValue() + "'";
+
+    Map<String, Object> data = new LinkedHashMap<>();
+    data.put("parameter", ex.getName());
+    data.put("value", ex.getValue());
+    data.put(
+        "requiredType", ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : null);
+
+    // Treat as client error, but still notify for visibility if needed
+    // sendErrorNotification(status, message, req, ex);
+
+    return apiError(status, message, req, data);
   }
 
   // @RequestParam / @PathVariable (aktifkan @Validated di controller/class)

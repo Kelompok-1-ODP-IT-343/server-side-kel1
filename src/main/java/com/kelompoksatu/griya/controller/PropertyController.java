@@ -10,6 +10,7 @@ import com.kelompoksatu.griya.entity.PropertyFavorite;
 import com.kelompoksatu.griya.repository.PropertyFavoriteRepository;
 import com.kelompoksatu.griya.service.DeveloperService;
 import com.kelompoksatu.griya.service.PropertyService;
+import com.kelompoksatu.griya.util.JwtUtil;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,15 +39,18 @@ public class PropertyController {
   private final PropertyFavoriteRepository propertyFavoriteRepository;
   private static final String ERROR_RETRIEVE_PROPERTIES = "Failed to retrieve properties: ";
   private static final String MSG_PROPERTY_RETRIEVED = "Property retrieved successfully";
+  private final JwtUtil jwtUtil;
 
   @Autowired
   public PropertyController(
       PropertyService propertyService,
       DeveloperService developerService,
-      PropertyFavoriteRepository propertyFavoriteRepository) {
+      PropertyFavoriteRepository propertyFavoriteRepository,
+      JwtUtil jwtUtil) {
     this.propertyService = propertyService;
     this.developerService = developerService;
     this.propertyFavoriteRepository = propertyFavoriteRepository;
+    this.jwtUtil = jwtUtil;
   }
 
   /** Create a new property */
@@ -78,13 +82,18 @@ public class PropertyController {
       @RequestParam(required = false) BigDecimal minPrice,
       @RequestParam(required = false) BigDecimal maxPrice,
       @RequestParam(required = false, name = "propertyType") String propertyType,
-      @RequestParam(defaultValue = "0") int offset,
-      @RequestParam(defaultValue = "10") int limit) {
+      @RequestParam(required = false) String description,
+      @RequestParam(required = false) String title) {
 
     try {
       List<Map<String, Object>> properties =
           propertyService.getPropertiesWithFilter(
-              city, minPrice, maxPrice, propertyType, offset, limit);
+              city,
+              minPrice,
+              maxPrice,
+              propertyType,
+              description,
+              title); // <-- keyword DITAMBAHKAN
 
       ApiResponse<List<Map<String, Object>>> response =
           new ApiResponse<>(true, "Properties retrieved successfully", properties);
@@ -101,11 +110,27 @@ public class PropertyController {
 
   @PostMapping("/favorites")
   public ResponseEntity<ApiResponse<Map<String, Object>>> toggleFavorite(
-      @RequestParam Integer userId, @RequestParam Integer propertyId) {
+      @RequestParam String propertyId, @RequestHeader("Authorization") String authHeader) {
 
     try {
+      String token = jwtUtil.extractTokenFromHeader(authHeader);
+      Integer userId = jwtUtil.extractUserId(token);
+
+      if (userId == null) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(ApiResponse.error("Token tidak valid atau telah kedaluwarsa"));
+      }
+
+      Integer pid;
+      try {
+        pid = Integer.valueOf(propertyId);
+      } catch (NumberFormatException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error("propertyId harus berupa angka valid"));
+      }
+
       Optional<PropertyFavorite> existing =
-          propertyFavoriteRepository.findByUserIdAndPropertyId(userId, propertyId);
+          propertyFavoriteRepository.findByUserIdAndPropertyId(userId, pid);
 
       Map<String, Object> responseData = new HashMap<>();
 
@@ -116,7 +141,7 @@ public class PropertyController {
         PropertyFavorite favorite =
             PropertyFavorite.builder()
                 .userId(userId)
-                .propertyId(propertyId)
+                .propertyId(pid)
                 .createdAt(LocalDateTime.now())
                 .build();
         propertyFavoriteRepository.save(favorite);
@@ -125,14 +150,43 @@ public class PropertyController {
       }
 
       responseData.put("userId", userId);
-      responseData.put("propertyId", propertyId);
+      responseData.put("propertyId", pid);
 
       return ResponseEntity.ok(ApiResponse.success("Toggle favorite success", responseData));
 
     } catch (Exception e) {
-      log.error("❌ Gagal toggle favorite: ", e);
+      log.error("Gagal toggle favorite: ", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.error("Gagal toggle favorite: " + e.getMessage()));
+    }
+  }
+
+  @GetMapping("/favorites")
+  public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyFavorites(
+      @RequestHeader("Authorization") String authHeader) {
+
+    try {
+      String token = jwtUtil.extractTokenFromHeader(authHeader);
+      Integer userId = jwtUtil.extractUserId(token);
+
+      if (userId == null) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(ApiResponse.error("Token tidak valid atau telah kedaluwarsa"));
+      }
+      List<Map<String, Object>> favorites =
+          propertyFavoriteRepository.findFavoritesByUserId(userId);
+
+      if (favorites.isEmpty()) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error("No favorites found for current user ID " + userId));
+      }
+
+      return ResponseEntity.ok(ApiResponse.success("Favorites retrieved successfully", favorites));
+
+    } catch (Exception e) {
+      log.error("Gagal mengambil favorites user: ", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Gagal mengambil favorites: " + e.getMessage()));
     }
   }
 
@@ -624,7 +678,13 @@ public class PropertyController {
   public ResponseEntity<ApiResponse<Map<String, Object>>> getPropertyDetails(
       @PathVariable Integer id) {
     try {
-      Map<String, Object> propertyDetail = new HashMap<>(propertyService.getPropertyDetails(id));
+      Map<String, Object> raw = propertyService.getPropertyDetails(id);
+      if (raw == null || raw.isEmpty()) {
+        ApiResponse<Map<String, Object>> notFound =
+            new ApiResponse<>(false, "Property not found with id: " + id, null);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(notFound);
+      }
+      Map<String, Object> propertyDetail = new HashMap<>(raw);
 
       // --- tambahkan ini ---
       ObjectMapper mapper = new ObjectMapper();
@@ -650,6 +710,30 @@ public class PropertyController {
             mapper.readValue(
                 propertyDetail.get("locations").toString(),
                 new TypeReference<List<Map<String, Object>>>() {}));
+      }
+
+      Object buildingArea = propertyDetail.get("building_area");
+      if (buildingArea != null) {
+        propertyDetail.put("buildingArea", buildingArea);
+        propertyDetail.remove("building_area");
+      }
+
+      Object landArea = propertyDetail.get("land_area");
+      if (landArea != null) {
+        propertyDetail.put("landArea", landArea);
+        propertyDetail.remove("land_area");
+      }
+
+      Object pricePerSqm = propertyDetail.get("price_per_sqm");
+      if (pricePerSqm != null) {
+        propertyDetail.put("pricePerSqm", pricePerSqm);
+        propertyDetail.remove("price_per_sqm");
+      }
+
+      Object certificateArea = propertyDetail.get("certificate_area");
+      if (certificateArea != null) {
+        propertyDetail.put("certificateArea", certificateArea);
+        propertyDetail.remove("certificate_area");
       }
       // --- sampai sini ---
 

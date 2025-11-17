@@ -88,14 +88,6 @@ public class UserService {
   /** Get user profile by user ID */
   public UserResponse getUserProfile(Integer userId) {
     User user = validateAndGetUser(userId);
-
-    // Check if user is a developer - developers don't have UserProfile
-    if (user.getDeveloper() != null) {
-      // For developers, return user info without profile data
-      return convertToUserResponse(user, user.getRole(), null);
-    }
-
-    // For regular users, try to get their profile
     UserProfile userProfile = userProfileRepository.findByUserId(userId).orElse(null);
     return convertToUserResponse(user, user.getRole(), userProfile);
   }
@@ -110,6 +102,7 @@ public class UserService {
     logger.info("Updating user and profile with ID: {}", userId);
 
     User user = validateAndGetUser(userId);
+    request = sanitizeUpdateRequest(request);
     UserProfile profile =
         userProfileRepository
             .findByUserId(userId)
@@ -228,12 +221,10 @@ public class UserService {
       response.setRoleName(role.getName());
     }
 
-    // Check if user is a developer
     boolean isDeveloper = user.getDeveloper() != null;
     response.setDeveloper(isDeveloper);
 
-    // User profile information (only for non-developers)
-    if (!isDeveloper && userProfile != null) {
+    if (userProfile != null) {
       response.setFullName(userProfile.getFullName());
       response.setNik(userProfile.getNik());
       response.setNpwp(userProfile.getNpwp());
@@ -250,7 +241,6 @@ public class UserService {
       response.setMonthlyIncome(userProfile.getMonthlyIncome());
       response.setWorkExperience(userProfile.getWorkExperience());
     } else if (isDeveloper) {
-      // Developer information (only if developer exists)
       Developer developer = user.getDeveloper();
       if (developer != null) {
         response.setFullName(developer.getCompanyName());
@@ -339,6 +329,7 @@ public class UserService {
         .orElseThrow(() -> new RuntimeException("Default role 'USER' not found"));
   }
 
+  @Transactional
   private User createUserEntity(RegisterRequest request, Role userRole) {
     User user = new User();
     user.setUsername(request.getUsername());
@@ -357,6 +348,7 @@ public class UserService {
     return savedUser;
   }
 
+  @Transactional
   private UserProfile createUserProfile(RegisterRequest request, Integer userId) {
     UserProfile userProfile = new UserProfile();
     userProfile.setUserId(userId);
@@ -394,28 +386,73 @@ public class UserService {
 
   /** Check if request has user account fields */
   private boolean hasUserAccountFields(UpdateUserRequest request) {
-    return request.getUsername() != null
-        || request.getEmail() != null
-        || request.getPhone() != null
-        || request.getStatus() != null;
+    return (request.getUsername() != null && !request.getUsername().trim().isEmpty())
+        || (request.getEmail() != null && !request.getEmail().trim().isEmpty())
+        || (request.getPhone() != null && !request.getPhone().trim().isEmpty())
+        || (request.getStatus() != null && !request.getStatus().trim().isEmpty());
   }
 
   /** Check if request has profile fields */
   private boolean hasProfileFields(UpdateUserRequest request) {
-    return request.getFullName() != null
-        || request.getNik() != null
-        || request.getNpwp() != null
+    return (request.getFullName() != null && !request.getFullName().trim().isEmpty())
+        || (request.getNik() != null && !request.getNik().trim().isEmpty())
+        || (request.getNpwp() != null && !request.getNpwp().trim().isEmpty())
         || request.getBirthDate() != null
-        || request.getBirthPlace() != null
-        || request.getGender() != null
-        || request.getMaritalStatus() != null
-        || request.getAddress() != null
-        || request.getCity() != null
-        || request.getProvince() != null
-        || request.getPostalCode() != null
-        || request.getOccupation() != null
-        || request.getCompanyName() != null
+        || (request.getBirthPlace() != null && !request.getBirthPlace().trim().isEmpty())
+        || (request.getGender() != null && !request.getGender().trim().isEmpty())
+        || (request.getMaritalStatus() != null && !request.getMaritalStatus().trim().isEmpty())
+        || (request.getAddress() != null && !request.getAddress().trim().isEmpty())
+        || (request.getDistrict() != null && !request.getDistrict().trim().isEmpty())
+        || (request.getSubDistrict() != null && !request.getSubDistrict().trim().isEmpty())
+        || (request.getCity() != null && !request.getCity().trim().isEmpty())
+        || (request.getProvince() != null && !request.getProvince().trim().isEmpty())
+        || (request.getPostalCode() != null && !request.getPostalCode().trim().isEmpty())
+        || (request.getOccupation() != null && !request.getOccupation().trim().isEmpty())
+        || (request.getCompanyName() != null && !request.getCompanyName().trim().isEmpty())
+        || (request.getCompanyAddress() != null && !request.getCompanyAddress().trim().isEmpty())
+        || (request.getCompanyCity() != null && !request.getCompanyCity().trim().isEmpty())
+        || (request.getCompanyProvince() != null && !request.getCompanyProvince().trim().isEmpty())
+        || (request.getCompanyPostalCode() != null
+            && !request.getCompanyPostalCode().trim().isEmpty())
+        || (request.getCompanyDistrict() != null && !request.getCompanyDistrict().trim().isEmpty())
+        || (request.getCompanySubdistrict() != null
+            && !request.getCompanySubdistrict().trim().isEmpty())
         || request.getMonthlyIncome() != null
         || request.getWorkExperience() != null;
+  }
+
+  private UpdateUserRequest sanitizeUpdateRequest(UpdateUserRequest request) {
+    if (request == null) return null;
+    request.setUsername(normalize(request.getUsername()));
+    request.setEmail(normalize(request.getEmail()));
+    request.setPhone(normalize(request.getPhone()));
+    request.setStatus(normalize(request.getStatus()));
+    request.setFullName(normalize(request.getFullName()));
+    request.setNik(normalize(request.getNik()));
+    request.setNpwp(normalize(request.getNpwp()));
+    request.setBirthPlace(normalize(request.getBirthPlace()));
+    request.setGender(normalize(request.getGender()));
+    request.setMaritalStatus(normalize(request.getMaritalStatus()));
+    request.setAddress(normalize(request.getAddress()));
+    request.setDistrict(normalize(request.getDistrict()));
+    request.setSubDistrict(normalize(request.getSubDistrict()));
+    request.setCity(normalize(request.getCity()));
+    request.setProvince(normalize(request.getProvince()));
+    request.setPostalCode(normalize(request.getPostalCode()));
+    request.setOccupation(normalize(request.getOccupation()));
+    request.setCompanyName(normalize(request.getCompanyName()));
+    request.setCompanyAddress(normalize(request.getCompanyAddress()));
+    request.setCompanyCity(normalize(request.getCompanyCity()));
+    request.setCompanyProvince(normalize(request.getCompanyProvince()));
+    request.setCompanyPostalCode(normalize(request.getCompanyPostalCode()));
+    request.setCompanyDistrict(normalize(request.getCompanyDistrict()));
+    request.setCompanySubdistrict(normalize(request.getCompanySubdistrict()));
+    return request;
+  }
+
+  private String normalize(String value) {
+    if (value == null) return null;
+    String t = value.trim();
+    return t.isEmpty() ? null : t;
   }
 }

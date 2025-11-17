@@ -113,6 +113,14 @@ public class UpdateUserRequest {
   @Pattern(regexp = "^[0-9]{5,10}$", message = "Postal code must be 5-10 digits")
   private String postalCode;
 
+  @Schema(description = "District (Kecamatan)", example = "Setiabudi", maxLength = 255)
+  @Size(max = 255, message = "District must not exceed 255 characters")
+  private String district;
+
+  @Schema(description = "Subdistrict (Kelurahan)", example = "Kuningan", maxLength = 255)
+  @Size(max = 255, message = "Subdistrict must not exceed 255 characters")
+  private String subDistrict;
+
   @Schema(description = "Occupation of the user", example = "Software Engineer", maxLength = 100)
   @Size(max = 100, message = "Occupation must not exceed 100 characters")
   private String occupation;
@@ -123,6 +131,31 @@ public class UpdateUserRequest {
       maxLength = 100)
   @Size(max = 100, message = "Company name must not exceed 100 characters")
   private String companyName;
+
+  @Schema(description = "Company address", example = "Jl. Gatot Subroto No. 1", maxLength = 255)
+  @Size(max = 255, message = "Company address must not exceed 255 characters")
+  private String companyAddress;
+
+  @Schema(description = "Company city", example = "Jakarta", maxLength = 100)
+  @Size(max = 100, message = "Company city must not exceed 100 characters")
+  private String companyCity;
+
+  @Schema(description = "Company province", example = "DKI Jakarta", maxLength = 100)
+  @Size(max = 100, message = "Company province must not exceed 100 characters")
+  private String companyProvince;
+
+  @Schema(description = "Company postal code", example = "12190", maxLength = 10)
+  @Size(max = 10, message = "Company postal code must not exceed 10 characters")
+  @Pattern(regexp = "^[0-9]{5,10}$", message = "Company postal code must be 5-10 digits")
+  private String companyPostalCode;
+
+  @Schema(description = "Company district (Kecamatan)", example = "Setiabudi", maxLength = 255)
+  @Size(max = 255, message = "Company district must not exceed 255 characters")
+  private String companyDistrict;
+
+  @Schema(description = "Company subdistrict (Kelurahan)", example = "Kuningan", maxLength = 255)
+  @Size(max = 255, message = "Company subdistrict must not exceed 255 characters")
+  private String companySubdistrict;
 
   @Schema(description = "Monthly income of the user", example = "15000000.00")
   @DecimalMin(value = "0.0", message = "Monthly income must be positive")

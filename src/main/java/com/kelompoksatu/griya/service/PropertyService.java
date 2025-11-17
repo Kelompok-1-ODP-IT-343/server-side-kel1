@@ -1,5 +1,7 @@
 package com.kelompoksatu.griya.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kelompoksatu.griya.dto.*;
 import com.kelompoksatu.griya.entity.Developer;
 import com.kelompoksatu.griya.entity.Property;
@@ -27,15 +29,21 @@ public class PropertyService {
   private final PropertyRepository propertyRepository;
   private final DeveloperRepository developerRepository;
   private final PropertyImageRepository propertyImageRepository;
+  private final com.kelompoksatu.griya.repository.PropertyFeatureRepository
+      propertyFeatureRepository;
+
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Autowired
   public PropertyService(
       PropertyRepository propertyRepository,
       DeveloperRepository developerRepository,
-      PropertyImageRepository propertyImageRepository) {
+      PropertyImageRepository propertyImageRepository,
+      com.kelompoksatu.griya.repository.PropertyFeatureRepository propertyFeatureRepository) {
     this.propertyRepository = propertyRepository;
     this.developerRepository = developerRepository;
     this.propertyImageRepository = propertyImageRepository;
+    this.propertyFeatureRepository = propertyFeatureRepository;
   }
 
   // ========================================
@@ -49,6 +57,8 @@ public class PropertyService {
 
     Property property = createPropertyEntity(request, developer);
     Property savedProperty = propertyRepository.save(property);
+
+    createDefaultFeatures(savedProperty);
 
     return new PropertyResponse(savedProperty);
   }
@@ -281,12 +291,12 @@ public class PropertyService {
       BigDecimal minPrice,
       BigDecimal maxPrice,
       String propertyType,
-      int offset,
-      int limit) {
+      String description,
+      String title) {
 
     List<Map<String, Object>> rows =
         propertyRepository.findPropertiesWithFilter(
-            city, minPrice, maxPrice, propertyType, offset, limit);
+            city, minPrice, maxPrice, propertyType, description, title);
 
     return processFilterResults(rows);
   }
@@ -667,6 +677,63 @@ public class PropertyService {
     property.setFavoriteCount(request.getFavoriteCount() != null ? request.getFavoriteCount() : 0);
   }
 
+  private void createDefaultFeatures(Property p) {
+    java.util.List<com.kelompoksatu.griya.entity.PropertyFeature> features =
+        new java.util.ArrayList<>();
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.INTERIOR,
+        "bedrooms",
+        p.getBedrooms());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.INTERIOR,
+        "bathrooms",
+        p.getBathrooms());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.INTERIOR,
+        "floors",
+        p.getFloors());
+    addFeature(
+        features,
+        p,
+        com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory.EXTERIOR,
+        "garage",
+        p.getGarage());
+    if (!features.isEmpty()) {
+      propertyFeatureRepository.saveAll(features);
+    }
+  }
+
+  private void addFeature(
+      java.util.List<com.kelompoksatu.griya.entity.PropertyFeature> list,
+      Property p,
+      com.kelompoksatu.griya.entity.PropertyFeature.FeatureCategory category,
+      String name,
+      Object value) {
+    if (value == null) return;
+    String v;
+    if (value instanceof java.time.LocalDate) {
+      v = value.toString();
+    } else if (value instanceof java.lang.Enum<?> en) {
+      v = en.name();
+    } else {
+      v = String.valueOf(value);
+    }
+    com.kelompoksatu.griya.entity.PropertyFeature pf =
+        com.kelompoksatu.griya.entity.PropertyFeature.builder()
+            .featureCategory(category)
+            .featureName(name)
+            .featureValue(v)
+            .property(p)
+            .build();
+    list.add(pf);
+  }
+
   private void setPublishedDateIfAvailable(Property property, Property.PropertyStatus status) {
     if (status == Property.PropertyStatus.AVAILABLE && property.getPublishedAt() == null) {
       property.setPublishedAt(LocalDateTime.now());
@@ -689,6 +756,28 @@ public class PropertyService {
 
       Object fp = mutableRow.get("file_path");
       if (fp != null) mutableRow.put("filePath", fp);
+
+      Object la = mutableRow.get("land_area");
+      if (la != null) mutableRow.put("landArea", la);
+
+      Object ba = mutableRow.get("building_area");
+      if (ba != null) mutableRow.put("buildingArea", ba);
+
+      Object featuresJson = mutableRow.get("features_json");
+      if (featuresJson != null) {
+        try {
+          Object parsed =
+              (featuresJson instanceof String)
+                  ? objectMapper.readValue(
+                      (String) featuresJson, new TypeReference<List<Map<String, Object>>>() {})
+                  : objectMapper.readValue(
+                      featuresJson.toString(), new TypeReference<List<Map<String, Object>>>() {});
+          mutableRow.put("featuresDetail", parsed);
+        } catch (Exception ignore) {
+          mutableRow.put("featuresDetail", new ArrayList<>());
+        }
+        mutableRow.remove("features_json");
+      }
 
       processedRows.add(mutableRow);
     }
