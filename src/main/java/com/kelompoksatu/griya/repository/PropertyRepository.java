@@ -147,7 +147,6 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
   @Query(
       value =
           """
-
 SELECT
     p.id,
     p.property_code,
@@ -189,8 +188,12 @@ WHERE p.status = 'AVAILABLE'
     AND (:minPrice IS NULL OR p.price >= :minPrice)
     AND (:maxPrice IS NULL OR p.price <= :maxPrice)
     AND (:propertyType IS NULL OR LOWER(p.property_type::text) = LOWER(:propertyType))
-    AND (:description is null or p.description ilike CONCAT('%', :description, '%'))
-    and (:title is null or p.title ilike CONCAT('%', :title, '%'))
+    -- PERUBAHAN KRITIS: Ganti AND menjadi OR dan kelompokkan kondisi pencarian teks
+    AND (
+        (:description is null or p.description ilike CONCAT('%', :description, '%'))
+        OR
+        (:title is null or p.title ilike CONCAT('%', :title, '%'))
+    )
 GROUP BY p.id
 ORDER BY p.id
     """,
