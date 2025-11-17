@@ -14,7 +14,8 @@ import org.mapstruct.*;
  */
 @Mapper(
     componentModel = "spring",
-    nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE,
+    unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface UserMapper {
 
   /**
@@ -59,6 +60,8 @@ public interface UserMapper {
   @Mapping(target = "gender", source = "profile.gender")
   @Mapping(target = "maritalStatus", source = "profile.maritalStatus")
   @Mapping(target = "address", source = "profile.address")
+  @Mapping(target = "district", source = "profile.district")
+  @Mapping(target = "subDistrict", source = "profile.subDistrict")
   @Mapping(target = "city", source = "profile.city")
   @Mapping(target = "province", source = "profile.province")
   @Mapping(target = "postalCode", source = "profile.postalCode")
