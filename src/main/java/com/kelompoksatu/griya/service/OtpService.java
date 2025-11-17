@@ -58,7 +58,10 @@ public class OtpService {
           "6281298765432",
           "6285157862331",
           "6281221841102",
-          "6281299900011");
+          "6281299900011",
+          "6286789098990",
+          "6285898989009",
+          "6285713231889");
 
   private final SecureRandom secureRandom = new SecureRandom();
 
