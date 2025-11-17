@@ -172,26 +172,6 @@ public class AuthService {
             errorType,
             detail);
       }
-      // Notify login OTP status
-      try {
-        String title = otpResponse.isSuccess() ? "OTP login dikirim" : "Gagal mengirim OTP login";
-        String detail =
-            otpResponse.isSuccess()
-                ? "Silakan verifikasi OTP untuk melanjutkan login"
-                : (otpResponse.getErrorDetail() != null
-                    ? otpResponse.getErrorDetail().getMessage()
-                    : otpResponse.getMessage());
-        systemNotificationService.saveNotification(
-            SystemNotification.builder()
-                .userId(user.getId())
-                .notificationType(NotificationType.APPLICATION_UPDATE)
-                .title(title)
-                .message(detail)
-                .channel(NotificationChannel.IN_APP)
-                .build());
-      } catch (Exception ex) {
-        logger.warn("Failed to save login OTP notification: {}", ex.getMessage());
-      }
 
       return otpResponse;
 
@@ -212,19 +192,6 @@ public class AuthService {
                 session.setLastActivity(LocalDateTime.now());
                 userSessionRepository.save(session);
                 logger.info("User session revoked for token: {}", refreshToken);
-                // Notify user logout
-                try {
-                  systemNotificationService.saveNotification(
-                      SystemNotification.builder()
-                          .userId(session.getUserId())
-                          .notificationType(NotificationType.APPLICATION_UPDATE)
-                          .title("Logout berhasil")
-                          .message("Anda telah keluar dari sesi aktif")
-                          .channel(NotificationChannel.IN_APP)
-                          .build());
-                } catch (Exception ex) {
-                  logger.warn("Failed to save logout notification: {}", ex.getMessage());
-                }
               });
     } catch (Exception e) {
       logger.error("Logout failed: {}", e.getMessage());

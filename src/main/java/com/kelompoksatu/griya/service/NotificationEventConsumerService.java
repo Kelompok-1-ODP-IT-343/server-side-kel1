@@ -66,7 +66,10 @@ public class NotificationEventConsumerService {
       String message = text(node, "message");
       String channel = text(node, "channel");
 
-      if (channel == null || !"WHATSAPP".equalsIgnoreCase(channel)) {
+      if (channel == null) {
+        return;
+      }
+      if (!"WHATSAPP".equalsIgnoreCase(channel) && !"IN_APP".equalsIgnoreCase(channel)) {
         return;
       }
 
