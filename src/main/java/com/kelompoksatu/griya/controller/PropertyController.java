@@ -711,6 +711,30 @@ public class PropertyController {
                 propertyDetail.get("locations").toString(),
                 new TypeReference<List<Map<String, Object>>>() {}));
       }
+
+      Object buildingArea = propertyDetail.get("building_area");
+      if (buildingArea != null) {
+        propertyDetail.put("buildingArea", buildingArea);
+        propertyDetail.remove("building_area");
+      }
+
+      Object landArea = propertyDetail.get("land_area");
+      if (landArea != null) {
+        propertyDetail.put("landArea", landArea);
+        propertyDetail.remove("land_area");
+      }
+
+      Object pricePerSqm = propertyDetail.get("price_per_sqm");
+      if (pricePerSqm != null) {
+        propertyDetail.put("pricePerSqm", pricePerSqm);
+        propertyDetail.remove("price_per_sqm");
+      }
+
+      Object certificateArea = propertyDetail.get("certificate_area");
+      if (certificateArea != null) {
+        propertyDetail.put("certificateArea", certificateArea);
+        propertyDetail.remove("certificate_area");
+      }
       // --- sampai sini ---
 
       var developer =

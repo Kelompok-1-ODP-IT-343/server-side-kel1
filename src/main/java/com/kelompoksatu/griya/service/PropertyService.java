@@ -1,5 +1,7 @@
 package com.kelompoksatu.griya.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kelompoksatu.griya.dto.*;
 import com.kelompoksatu.griya.entity.Developer;
 import com.kelompoksatu.griya.entity.Property;
@@ -29,6 +31,8 @@ public class PropertyService {
   private final PropertyImageRepository propertyImageRepository;
   private final com.kelompoksatu.griya.repository.PropertyFeatureRepository
       propertyFeatureRepository;
+
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Autowired
   public PropertyService(
@@ -752,6 +756,28 @@ public class PropertyService {
 
       Object fp = mutableRow.get("file_path");
       if (fp != null) mutableRow.put("filePath", fp);
+
+      Object la = mutableRow.get("land_area");
+      if (la != null) mutableRow.put("landArea", la);
+
+      Object ba = mutableRow.get("building_area");
+      if (ba != null) mutableRow.put("buildingArea", ba);
+
+      Object featuresJson = mutableRow.get("features_json");
+      if (featuresJson != null) {
+        try {
+          Object parsed =
+              (featuresJson instanceof String)
+                  ? objectMapper.readValue(
+                      (String) featuresJson, new TypeReference<List<Map<String, Object>>>() {})
+                  : objectMapper.readValue(
+                      featuresJson.toString(), new TypeReference<List<Map<String, Object>>>() {});
+          mutableRow.put("featuresDetail", parsed);
+        } catch (Exception ignore) {
+          mutableRow.put("featuresDetail", new ArrayList<>());
+        }
+        mutableRow.remove("features_json");
+      }
 
       processedRows.add(mutableRow);
     }

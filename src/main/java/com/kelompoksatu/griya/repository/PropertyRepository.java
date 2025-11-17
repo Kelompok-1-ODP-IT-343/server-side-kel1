@@ -147,13 +147,14 @@ public interface PropertyRepository extends JpaRepository<Property, Integer> {
   @Query(
       value =
           """
-
 SELECT
     p.id,
     p.property_code,
     p.title,
     p.city,
     p.price,
+    p.land_area,
+    p.building_area,
     p.property_type,
     p.listing_type,
     p.description,
@@ -180,6 +181,14 @@ SELECT
          LIMIT 1)
     ) AS file_path,
     STRING_AGG(DISTINCT pf.feature_name || ' : ' || pf.feature_value, ', ') AS features,
+    COALESCE(
+        (
+          SELECT json_agg(row_to_json(pf2))
+          FROM property_features pf2
+          WHERE pf2.property_id = p.id
+        ),
+        '[]'::json
+    ) AS features_json,
     STRING_AGG(DISTINCT pl.poi_name || ' (' || pl.distance_km || ' km)', ', ') AS nearby_places
 FROM properties p
 LEFT JOIN property_features pf ON pf.property_id = p.id
