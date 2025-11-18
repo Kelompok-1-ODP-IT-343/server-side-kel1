@@ -60,6 +60,12 @@ public class KprApplicationFormRequest {
   private MultipartFile otherDocument;
 
   // ========================================
+  // OPTIONAL NOTES
+  // ========================================
+
+  private String notes;
+
+  // ========================================
   // VALIDATION METHODS
   // ========================================
 

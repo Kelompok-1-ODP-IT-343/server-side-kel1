@@ -174,6 +174,7 @@ public class KprApplicationController {
       @RequestParam(value = "salarySlip", required = false) MultipartFile salarySlipAlt,
       @RequestParam(value = "otherDocument", required = false) MultipartFile otherDocument,
       @RequestParam(value = "other", required = false) MultipartFile otherAlt,
+      @RequestParam(value = "notes", required = false) String notes,
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
 
     try {
@@ -243,6 +244,7 @@ public class KprApplicationController {
               .npwpDocument(npwpResolved)
               .salarySlipDocument(salarySlipResolved)
               .otherDocument(otherResolved)
+              .notes(notes)
               .build();
 
       // Submit application through service

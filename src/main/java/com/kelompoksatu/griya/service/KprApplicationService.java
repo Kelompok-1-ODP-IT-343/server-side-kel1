@@ -651,6 +651,7 @@ public class KprApplicationService {
         .propertyAddress(property.getAddress())
         .propertyCertificateType(convertToCertificateType(property.getCertificateType()))
         .developerName(property.getDeveloper().getCompanyName())
+        .notes(formRequest.getNotes())
         .purpose(determinePurpose(formRequest.getPersonalData()))
         .status(KprApplication.ApplicationStatus.SUBMITTED)
         .submittedAt(LocalDateTime.now())
@@ -1252,7 +1253,6 @@ public class KprApplicationService {
               .phone(application.getUser().getPhone())
               .KprApplicationCode(application.getApplicationNumber())
               .build();
-
       kprApplicants.add(kprApplicant);
     }
     return kprApplicants;
