@@ -181,6 +181,42 @@ public interface KprApplicationRepository extends JpaRepository<KprApplication, 
           + "ORDER BY k.createdAt ASC")
   List<KprInProgress> findKprApplicationsAll();
 
+  @Query(
+      "SELECT new com.kelompoksatu.griya.dto.KprInProgress("
+          + "k.id, "
+          + "k.user.username, "
+          + "k.user.email, "
+          + "k.user.phone, "
+          + "k.applicationNumber, "
+          + "k.property.title, "
+          + "k.property.address, "
+          + "k.loanAmount, "
+          + "CAST(k.createdAt AS string), "
+          + "k.kprRate.rateName, "
+          + "CAST(k.status AS string)) "
+          + "FROM KprApplication k WHERE ("
+          + "SELECT COUNT(aw) FROM ApprovalWorkflow aw WHERE aw.applicationId = k.id"
+          + ") = 1 ORDER BY k.createdAt ASC")
+  List<KprInProgress> findAdminInProgressNotAssigned();
+
+  @Query(
+      "SELECT new com.kelompoksatu.griya.dto.KprInProgress("
+          + "k.id, "
+          + "k.user.username, "
+          + "k.user.email, "
+          + "k.user.phone, "
+          + "k.applicationNumber, "
+          + "k.property.title, "
+          + "k.property.address, "
+          + "k.loanAmount, "
+          + "CAST(k.createdAt AS string), "
+          + "k.kprRate.rateName, "
+          + "CAST(k.status AS string)) "
+          + "FROM KprApplication k WHERE ("
+          + "SELECT COUNT(aw) FROM ApprovalWorkflow aw WHERE aw.applicationId = k.id"
+          + ") = 3 ORDER BY k.createdAt DESC")
+  List<KprInProgress> findAdminAssignedHistory();
+
   // Update KPR Application status
   @Modifying
   @Query("UPDATE KprApplication k SET k.status = :status WHERE k.id = :id")

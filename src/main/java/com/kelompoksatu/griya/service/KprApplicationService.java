@@ -1351,6 +1351,30 @@ public class KprApplicationService {
     return history;
   }
 
+  public List<KprInProgress> getAdminInProgressNotAssigned(Integer userID) {
+    var user =
+        userRepository
+            .findById(userID)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    if (!user.getRole().toString().equalsIgnoreCase("ADMIN")) {
+      throw new IllegalArgumentException("You are not authorized to view this application");
+    }
+    List<KprInProgress> list = kprApplicationRepository.findAdminInProgressNotAssigned();
+    return list;
+  }
+
+  public List<KprInProgress> getAdminAssignedHistory(Integer userID) {
+    var user =
+        userRepository
+            .findById(userID)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    if (!user.getRole().toString().equalsIgnoreCase("ADMIN")) {
+      throw new IllegalArgumentException("You are not authorized to view this application");
+    }
+    List<KprInProgress> list = kprApplicationRepository.findAdminAssignedHistory();
+    return list;
+  }
+
   /**
    * Get detailed KPR application information with all related entities
    *
