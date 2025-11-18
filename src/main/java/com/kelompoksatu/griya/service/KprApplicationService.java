@@ -651,6 +651,7 @@ public class KprApplicationService {
         .propertyAddress(property.getAddress())
         .propertyCertificateType(convertToCertificateType(property.getCertificateType()))
         .developerName(property.getDeveloper().getCompanyName())
+        .notes(formRequest.getNotes())
         .purpose(determinePurpose(formRequest.getPersonalData()))
         .status(KprApplication.ApplicationStatus.SUBMITTED)
         .submittedAt(LocalDateTime.now())
@@ -1252,7 +1253,6 @@ public class KprApplicationService {
               .phone(application.getUser().getPhone())
               .KprApplicationCode(application.getApplicationNumber())
               .build();
-
       kprApplicants.add(kprApplicant);
     }
     return kprApplicants;
@@ -1349,6 +1349,30 @@ public class KprApplicationService {
           "Retrieved {} KPR application history records for user ID: {}", history.size(), userID);
     }
     return history;
+  }
+
+  public List<KprInProgress> getAdminInProgressNotAssigned(Integer userID) {
+    var user =
+        userRepository
+            .findById(userID)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    if (!user.getRole().toString().equalsIgnoreCase("ADMIN")) {
+      throw new IllegalArgumentException("You are not authorized to view this application");
+    }
+    List<KprInProgress> list = kprApplicationRepository.findAdminInProgressNotAssigned();
+    return list;
+  }
+
+  public List<KprInProgress> getAdminAssignedHistory(Integer userID) {
+    var user =
+        userRepository
+            .findById(userID)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    if (!user.getRole().toString().equalsIgnoreCase("ADMIN")) {
+      throw new IllegalArgumentException("You are not authorized to view this application");
+    }
+    List<KprInProgress> list = kprApplicationRepository.findAdminAssignedHistory();
+    return list;
   }
 
   /**

@@ -32,9 +32,18 @@ import org.springframework.stereotype.Service;
 public class StatAdminService {
 
   private final StatAdminRepository repo;
+  private final RedisService redisService;
+  private static final int DASHBOARD_TTL_MINUTES = 5;
 
   public AdminStatsResponse getDashboard(String rangeStr) {
     Range range = parseRange(rangeStr);
+    String rangeKey = canonicalRangeString(range);
+
+    AdminStatsResponse cached =
+        redisService.getCache("dashboard:admin:dto:" + rangeKey, AdminStatsResponse.class);
+    if (cached != null) {
+      return cached;
+    }
     LocalDateTime end = LocalDate.now().atStartOfDay().plusDays(1);
     LocalDateTime start = computeStart(range, end);
 
@@ -89,7 +98,133 @@ public class StatAdminService {
     resp.setOutstandingLoan(ol);
     resp.setProcessingFunnel(funnel);
     resp.setUserRegistered(ur);
+    redisService.cache("dashboard:admin:dto:" + rangeKey, resp, DASHBOARD_TTL_MINUTES);
     return resp;
+  }
+
+  public java.util.Map<String, Object> getDashboardStructured(String rangeStr) {
+    Range range = parseRange(rangeStr);
+    String rangeKey = canonicalRangeString(range);
+
+    java.util.Map<String, Object> cached =
+        redisService.getCache("dashboard:admin:structured:" + rangeKey, java.util.Map.class);
+    if (cached != null) {
+      return cached;
+    }
+    LocalDateTime end = LocalDate.now().atStartOfDay().plusDays(1);
+    LocalDateTime start = computeStart(range, end);
+
+    long approved = repo.countApprovedBetween(start, end);
+    long rejected = repo.countRejectedBetween(start, end);
+    long pending = repo.countPendingBetween(start, end);
+    long customers = repo.countDistinctCustomersBetween(start, end);
+
+    LocalDateTime prevEnd = start;
+    LocalDateTime prevStart = computePreviousStart(range, start);
+    long prevApproved = repo.countApprovedBetween(prevStart, prevEnd);
+    long prevRejected = repo.countRejectedBetween(prevStart, prevEnd);
+    long prevPending = repo.countPendingBetween(prevStart, prevEnd);
+    long prevCustomers = repo.countDistinctCustomersBetween(prevStart, prevEnd);
+
+    java.util.Map<String, Object> kpi = new java.util.LinkedHashMap<>();
+    java.util.Map<String, Object> kApproved = new java.util.LinkedHashMap<>();
+    kApproved.put("total", (int) approved);
+    kApproved.put("changePercentage", percentChange(approved, prevApproved));
+    java.util.Map<String, Object> kRejected = new java.util.LinkedHashMap<>();
+    kRejected.put("total", (int) rejected);
+    kRejected.put("changePercentage", percentChange(rejected, prevRejected));
+    java.util.Map<String, Object> kPending = new java.util.LinkedHashMap<>();
+    kPending.put("total", (int) pending);
+    kPending.put("changePercentage", percentChange(pending, prevPending));
+    java.util.Map<String, Object> kCustomers = new java.util.LinkedHashMap<>();
+    kCustomers.put("total", (int) customers);
+    kCustomers.put("changePercentage", percentChange(customers, prevCustomers));
+    kpi.put("approved", kApproved);
+    kpi.put("rejected", kRejected);
+    kpi.put("pending", kPending);
+    kpi.put("customers", kCustomers);
+
+    List<KprApplication> apps = repo.findApplicationsBetween(start, end);
+
+    List<GrowthAndDemandItem> growthItems =
+        buildGrowthAndDemand(apps, start.toLocalDate(), end.toLocalDate());
+    java.util.Map<String, Object> growthAndDemand = new java.util.LinkedHashMap<>();
+    growthAndDemand.put("unit", "applications");
+    List<java.util.Map<String, Object>> growthData = new java.util.ArrayList<>();
+    for (GrowthAndDemandItem gi : growthItems) {
+      java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
+      row.put("month", gi.getMonth());
+      row.put("approval", gi.getApproval());
+      row.put("reject", gi.getReject());
+      growthData.add(row);
+    }
+    growthAndDemand.put("data", growthData);
+
+    OutstandingLoan ol = buildOutstandingLoan(apps, start.toLocalDate(), end.toLocalDate());
+    java.util.Map<String, Object> outstandingLoan = new java.util.LinkedHashMap<>();
+    outstandingLoan.put("unit", ol.getUnit());
+    List<java.util.Map<String, Object>> olData = new java.util.ArrayList<>();
+    for (OutstandingLoanItem oi : ol.getData()) {
+      java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
+      row.put("month", oi.getMonth());
+      row.put("value", oi.getValue());
+      olData.add(row);
+    }
+    outstandingLoan.put("data", olData);
+
+    java.util.Map<String, Object> processingFunnel = new java.util.LinkedHashMap<>();
+    processingFunnel.put("unit", "applications");
+    int submitted =
+        (int) apps.stream().filter(a -> a.getStatus() == ApplicationStatus.SUBMITTED).count();
+    int appraisal =
+        (int)
+            apps.stream()
+                .filter(a -> a.getStatus() == ApplicationStatus.PROPERTY_APPRAISAL)
+                .count();
+    int analysis =
+        (int) apps.stream().filter(a -> a.getStatus() == ApplicationStatus.CREDIT_ANALYSIS).count();
+    int finalApproval =
+        (int) apps.stream().filter(a -> a.getStatus() == ApplicationStatus.FINAL_APPROVAL).count();
+    List<java.util.Map<String, Object>> stages = new java.util.ArrayList<>();
+    java.util.Map<String, Object> s1 = new java.util.LinkedHashMap<>();
+    s1.put("stage", "Submitted");
+    s1.put("count", submitted);
+    stages.add(s1);
+    java.util.Map<String, Object> s2 = new java.util.LinkedHashMap<>();
+    s2.put("stage", "Property Appraisal");
+    s2.put("count", appraisal);
+    stages.add(s2);
+    java.util.Map<String, Object> s3 = new java.util.LinkedHashMap<>();
+    s3.put("stage", "Credit Analysis");
+    s3.put("count", analysis);
+    stages.add(s3);
+    java.util.Map<String, Object> s4 = new java.util.LinkedHashMap<>();
+    s4.put("stage", "Final Approval");
+    s4.put("count", finalApproval);
+    stages.add(s4);
+    processingFunnel.put("stages", stages);
+
+    List<User> users = repo.findUsersCreatedBetween(start, end);
+    UserRegistered ur = buildUserRegistered(users, start.toLocalDate(), end.toLocalDate());
+    java.util.Map<String, Object> userRegistered = new java.util.LinkedHashMap<>();
+    userRegistered.put("unit", ur.getUnit());
+    List<java.util.Map<String, Object>> urData = new java.util.ArrayList<>();
+    for (UserRegisteredItem ui : ur.getData()) {
+      java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
+      row.put("month", ui.getMonth());
+      row.put("count", ui.getCount());
+      urData.add(row);
+    }
+    userRegistered.put("data", urData);
+
+    java.util.Map<String, Object> data = new java.util.LinkedHashMap<>();
+    data.put("kpi", kpi);
+    data.put("growthAndDemand", growthAndDemand);
+    data.put("outstandingLoan", outstandingLoan);
+    data.put("processingFunnel", processingFunnel);
+    data.put("userRegistered", userRegistered);
+    redisService.cache("dashboard:admin:structured:" + rangeKey, data, DASHBOARD_TTL_MINUTES);
+    return data;
   }
 
   // =========================
@@ -313,5 +448,20 @@ public class StatAdminService {
   private String capitalize(String s) {
     if (s == null || s.isEmpty()) return s;
     return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
+  }
+
+  private String canonicalRangeString(Range range) {
+    switch (range) {
+      case SEVEN_DAYS:
+        return "7d";
+      case THIRTY_DAYS:
+        return "30d";
+      case NINETY_DAYS:
+        return "90d";
+      case YTD:
+        return "ytd";
+      default:
+        return "30d";
+    }
   }
 }

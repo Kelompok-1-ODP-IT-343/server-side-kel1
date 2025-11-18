@@ -233,6 +233,8 @@ public class UserService {
       response.setGender(userProfile.getGender());
       response.setMaritalStatus(userProfile.getMaritalStatus());
       response.setAddress(userProfile.getAddress());
+      response.setDistrict(userProfile.getDistrict());
+      response.setSubDistrict(userProfile.getSubDistrict());
       response.setCity(userProfile.getCity());
       response.setProvince(userProfile.getProvince());
       response.setPostalCode(userProfile.getPostalCode());

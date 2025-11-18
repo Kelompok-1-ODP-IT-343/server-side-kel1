@@ -174,6 +174,7 @@ public class KprApplicationController {
       @RequestParam(value = "salarySlip", required = false) MultipartFile salarySlipAlt,
       @RequestParam(value = "otherDocument", required = false) MultipartFile otherDocument,
       @RequestParam(value = "other", required = false) MultipartFile otherAlt,
+      @RequestParam(value = "notes", required = false) String notes,
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
 
     try {
@@ -243,6 +244,7 @@ public class KprApplicationController {
               .npwpDocument(npwpResolved)
               .salarySlipDocument(salarySlipResolved)
               .otherDocument(otherResolved)
+              .notes(notes)
               .build();
 
       // Submit application through service
@@ -717,7 +719,7 @@ public class KprApplicationController {
     }
   }
 
-  @GetMapping("/admin/all")
+  @GetMapping("/admin/in-progress")
   public ResponseEntity<ApiResponse<List<KprInProgress>>> getAllKprApplicationsAll(
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
     try {
@@ -735,7 +737,7 @@ public class KprApplicationController {
       }
 
       // Get all KPR applications for admin
-      List<KprInProgress> response = kprApplicationService.getAllKprApplicationsAll(userID);
+      List<KprInProgress> response = kprApplicationService.getAdminInProgressNotAssigned(userID);
 
       logger.info("All KPR applications retrieved successfully (admin)");
       return ResponseEntity.ok(
@@ -746,6 +748,28 @@ public class KprApplicationController {
 
       ApiResponse<List<KprInProgress>> response =
           new ApiResponse<>(false, "Failed to get all KPR applications: " + e.getMessage(), null);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+  @GetMapping("/admin/history")
+  public ResponseEntity<ApiResponse<List<KprInProgress>>> getAssignedKprApplicationsHistory(
+      @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
+    try {
+      var token = jwtUtil.extractTokenFromHeader(authHeader);
+      Integer userID = jwtUtil.extractUserId(token);
+      if (userID == null) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ApiResponse<>(false, "Token tidak valid", null));
+      }
+
+      List<KprInProgress> response = kprApplicationService.getAdminAssignedHistory(userID);
+      return ResponseEntity.ok(
+          new ApiResponse<List<KprInProgress>>(true, "All assigned KPR applications", response));
+    } catch (Exception e) {
+      ApiResponse<List<KprInProgress>> response =
+          new ApiResponse<>(
+              false, "Failed to get assigned KPR applications: " + e.getMessage(), null);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }

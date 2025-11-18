@@ -37,6 +37,8 @@ public class UserResponse {
   private Gender gender;
   private MaritalStatus maritalStatus;
   private String address;
+  private String district;
+  private String subDistrict;
   private String city;
   private String province;
   private String postalCode;
@@ -47,4 +49,71 @@ public class UserResponse {
 
   // Developer indicator
   private boolean developer;
+
+  /**
+   * Convenience constructor used by JPQL projections in UserRepository. This matches the SELECT new
+   * com.kelompoksatu.griya.dto.UserResponse(...) argument list and intentionally omits district and
+   * subDistrict (left as null).
+   */
+  public UserResponse(
+      Integer id,
+      String username,
+      String email,
+      String phone,
+      Integer roleId,
+      String roleName,
+      UserStatus status,
+      boolean emailVerified,
+      boolean phoneVerified,
+      LocalDateTime lastLoginAt,
+      LocalDateTime createdAt,
+      LocalDateTime updatedAt,
+      String fullName,
+      String nik,
+      String npwp,
+      LocalDate birthDate,
+      String birthPlace,
+      Gender gender,
+      MaritalStatus maritalStatus,
+      String address,
+      String city,
+      String province,
+      String postalCode,
+      String occupation,
+      String companyName,
+      java.math.BigDecimal monthlyIncome,
+      Integer workExperience,
+      boolean developer) {
+    this.id = id;
+    this.username = username;
+    this.email = email;
+    this.phone = phone;
+    this.roleId = roleId;
+    this.roleName = roleName;
+    this.status = status;
+    this.emailVerified = emailVerified;
+    this.phoneVerified = phoneVerified;
+    this.lastLoginAt = lastLoginAt;
+    this.createdAt = createdAt;
+    this.updatedAt = updatedAt;
+    this.fullName = fullName;
+    this.nik = nik;
+    this.npwp = npwp;
+    this.birthDate = birthDate;
+    this.birthPlace = birthPlace;
+    this.gender = gender;
+    this.maritalStatus = maritalStatus;
+    this.address = address;
+    // district and subDistrict are intentionally not provided by this projection
+    this.district = null;
+    this.subDistrict = null;
+    this.city = city;
+    this.province = province;
+    this.postalCode = postalCode;
+    this.occupation = occupation;
+    this.companyName = companyName;
+    this.monthlyIncome = monthlyIncome;
+    this.workExperience = workExperience;
+    this.developer = developer;
+  }
 }
