@@ -284,6 +284,8 @@ export function handleSummary(data) {
     const s4 = data.metrics.status_4xx?.values?.count || 0;
     const s5 = data.metrics.status_5xx?.values?.count || 0;
 
+    const errors = data.metrics.errors?.values?.count || 0;
+
     const text = [
         '=== Properties Load Test Summary ===\n',
         `Host       : ${HOST}${BASE_PATH}\n`,
@@ -297,9 +299,161 @@ export function handleSummary(data) {
         `p50        : ${d['p(50)']?.toFixed?.(2) || 'n/a'} ms\n`,
         `p95        : ${d['p(95)']?.toFixed?.(2) || 'n/a'} ms\n`,
         `p99        : ${d['p(99)']?.toFixed?.(2) || 'n/a'} ms\n`,
-        `Errors     : ${data.metrics.errors?.values?.count || 0}\n`,
+        `Errors     : ${errors}\n`,
         '====================================\n',
     ].join('');
 
-    return { stdout: text, 'summary.json': JSON.stringify(data, null, 2) };
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Properties Load Test Report</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 24px;
+      background: #f5f5f5;
+      color: #222;
+    }
+    h1, h2 {
+      margin-bottom: 0.4rem;
+    }
+    .card {
+      background: #fff;
+      padding: 16px 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      margin-bottom: 16px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px 24px;
+    }
+    .label {
+      font-size: 0.85rem;
+      color: #666;
+    }
+    .value {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 0.9rem;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px 10px;
+      text-align: left;
+    }
+    th {
+      background: #f0f0f0;
+    }
+    .status-ok {
+      color: #1a7f37;
+      font-weight: 600;
+    }
+    .status-bad {
+      color: #b42318;
+      font-weight: 600;
+    }
+    .mono {
+      font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Properties Load Test Report</h1>
+
+  <div class="card">
+    <h2>Test Configuration</h2>
+    <div class="grid">
+      <div>
+        <div class="label">Target Host</div>
+        <div class="value mono">${HOST}${BASE_PATH}/properties</div>
+      </div>
+      <div>
+        <div class="label">Scenario</div>
+        <div class="value">${SCENARIO}</div>
+      </div>
+      <div>
+        <div class="label">Duration</div>
+        <div class="value">${DURATION}</div>
+      </div>
+      <div>
+        <div class="label">RPS / VUs</div>
+        <div class="value">${RPS || '-'} / ${VUS}</div>
+      </div>
+      <div>
+        <div class="label">Cities</div>
+        <div class="value">${CITY_LIST.join(', ')}</div>
+      </div>
+      <div>
+        <div class="label">Types</div>
+        <div class="value">${TYPES_LIST.join(', ')}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>High-level Metrics</h2>
+    <table>
+      <tr>
+        <th>Metric</th>
+        <th>Value</th>
+      </tr>
+      <tr>
+        <td>Failed Rate (http_req_failed)</td>
+        <td class="${failedRate <= 0.01 ? 'status-ok' : 'status-bad'}">
+          ${(failedRate * 100).toFixed(2)}%
+        </td>
+      </tr>
+      <tr>
+        <td>Status Count (2xx / 4xx / 5xx)</td>
+        <td>${s2} / ${s4} / ${s5}</td>
+      </tr>
+      <tr>
+        <td>Latency p50</td>
+        <td>${d['p(50)']?.toFixed?.(2) || 'n/a'} ms</td>
+      </tr>
+      <tr>
+        <td>Latency p95</td>
+        <td>${d['p(95)']?.toFixed?.(2) || 'n/a'} ms</td>
+      </tr>
+      <tr>
+        <td>Latency p99</td>
+        <td>${d['p(99)']?.toFixed?.(2) || 'n/a'} ms</td>
+      </tr>
+      <tr>
+        <td>Total Errors (custom)</td>
+        <td>${errors}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Raw k6 Metrics Snapshot</h2>
+    <p class="label">Potongan ini hanya ringkasan, data lengkap ada di <span class="mono">summary.json</span>.</p>
+    <pre class="mono">${JSON.stringify({
+        http_req_duration: data.metrics.http_req_duration,
+        http_req_failed: data.metrics.http_req_failed,
+        checks: data.metrics.checks,
+    }, null, 2)}</pre>
+  </div>
+
+</body>
+</html>
+`;
+
+    // k6 akan generate 3 output:
+    return {
+        stdout: text,                      // tetap tampil di terminal
+        'summary.json': JSON.stringify(data, null, 2), // buat analisis lanjut
+        'report.html': html,              // ini yang kamu buka / convert ke PDF
+    };
 }
