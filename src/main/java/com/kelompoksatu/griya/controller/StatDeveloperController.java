@@ -34,21 +34,25 @@ public class StatDeveloperController {
   @GetMapping("/dashboard")
   public ResponseEntity<ApiResponse<DeveloperStatsResponse>> getDashboard(
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader,
-      HttpServletRequest request,
-      @RequestParam(name = "range", required = false) String range) {
+      @RequestParam(name = "range", required = false) String range,
+      HttpServletRequest request) {
     String token = jwtUtil.extractTokenFromHeader(authHeader);
+    String role = jwtUtil.extractUserRole(token);
+    if (role == null || !"DEVELOPER".equalsIgnoreCase(role)) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN)
+          .body(ApiResponse.error("Akses ditolak: bukan DEVELOPER", request.getRequestURI()));
+    }
+
     Integer userId = jwtUtil.extractUserId(token);
     Optional<User> userOpt = userRepository.findById(userId);
     if (userOpt.isEmpty()) {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-          .body(ApiResponse.error("Unauthorized", request.getRequestURI()));
+          .body(ApiResponse.error("Token tidak valid", request.getRequestURI()));
     }
     User user = userOpt.get();
     if (user.getDeveloper() == null || user.getDeveloper().getId() == null) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN)
-          .body(
-              ApiResponse.error(
-                  "User is not associated with a developer", request.getRequestURI()));
+          .body(ApiResponse.error("User tidak terkait dengan developer", request.getRequestURI()));
     }
     Integer developerId = user.getDeveloper().getId();
     DeveloperStatsResponse stats = statDeveloperService.getDashboard(developerId, range);
