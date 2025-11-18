@@ -1,10 +1,13 @@
 package com.kelompoksatu.griya.controller;
 
+import com.kelompoksatu.griya.dto.ApiResponse;
 import com.kelompoksatu.griya.dto.StaffStatsResponse;
 import com.kelompoksatu.griya.service.StatStaffService;
 import com.kelompoksatu.griya.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Parameter;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,14 +27,21 @@ public class StatStaffController {
   private final JwtUtil jwtUtil;
 
   @GetMapping("/dashboard")
-  public ResponseEntity<StaffStatsResponse> dashboard(
+  public ResponseEntity<ApiResponse<StaffStatsResponse>> dashboard(
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader,
-      @RequestParam("range") String range) {
+      @RequestParam(name = "range", required = false) String range,
+      HttpServletRequest httpRequest) {
 
     String token = jwtUtil.extractTokenFromHeader(authHeader);
-    Integer staffId = jwtUtil.extractUserId(token);
+    String role = jwtUtil.extractUserRole(token);
+    if (role == null || !"STAFF".equalsIgnoreCase(role)) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN)
+          .body(ApiResponse.error("Akses ditolak: bukan STAFF", httpRequest.getRequestURI()));
+    }
 
+    Integer staffId = jwtUtil.extractUserId(token);
     StaffStatsResponse resp = service.getDashboard(staffId, range);
-    return ResponseEntity.ok(resp);
+    return ResponseEntity.ok(
+        ApiResponse.success(resp, "Statistics fetched", httpRequest.getRequestURI()));
   }
 }

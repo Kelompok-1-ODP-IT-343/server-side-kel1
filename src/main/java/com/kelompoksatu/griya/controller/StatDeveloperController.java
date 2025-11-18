@@ -40,15 +40,19 @@ public class StatDeveloperController {
     Integer userId = jwtUtil.extractUserId(token);
     Optional<User> userOpt = userRepository.findById(userId);
     if (userOpt.isEmpty()) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Unauthorized"));
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(ApiResponse.error("Unauthorized", request.getRequestURI()));
     }
     User user = userOpt.get();
     if (user.getDeveloper() == null || user.getDeveloper().getId() == null) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN)
-          .body(ApiResponse.error("User is not associated with a developer"));
+          .body(
+              ApiResponse.error(
+                  "User is not associated with a developer", request.getRequestURI()));
     }
     Integer developerId = user.getDeveloper().getId();
     DeveloperStatsResponse stats = statDeveloperService.getDashboard(developerId, range);
-    return ResponseEntity.ok(ApiResponse.success("Statistics fetched", stats));
+    return ResponseEntity.ok(
+        ApiResponse.success(stats, "Statistics fetched", request.getRequestURI()));
   }
 }

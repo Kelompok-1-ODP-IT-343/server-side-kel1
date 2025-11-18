@@ -1,10 +1,10 @@
 package com.kelompoksatu.griya.controller;
 
-import com.kelompoksatu.griya.dto.AdminStatsResponse;
 import com.kelompoksatu.griya.dto.ApiResponse;
 import com.kelompoksatu.griya.service.StatAdminService;
 import com.kelompoksatu.griya.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Parameter;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,21 +25,24 @@ public class StatAdminController {
   private final JwtUtil jwtUtil;
 
   @GetMapping("/dashboard")
-  public ResponseEntity<ApiResponse<AdminStatsResponse>> dashboard(
+  public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> dashboard(
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader,
-      @RequestParam(name = "range", required = false) String range) {
+      @RequestParam(name = "range", required = false) String range,
+      HttpServletRequest httpRequest) {
     try {
       String token = jwtUtil.extractTokenFromHeader(authHeader);
       String role = jwtUtil.extractUserRole(token);
       if (role == null || !"ADMIN".equalsIgnoreCase(role)) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-            .body(ApiResponse.error("Akses ditolak: bukan ADMIN"));
+            .body(ApiResponse.error("Akses ditolak: bukan ADMIN", httpRequest.getRequestURI()));
       }
 
-      AdminStatsResponse resp = service.getDashboard(range);
-      return ResponseEntity.ok(ApiResponse.success("Statistics fetched", resp));
+      java.util.Map<String, Object> data = service.getDashboardStructured(range);
+      return ResponseEntity.ok(
+          ApiResponse.success(data, "Dashboard statistics fetched", httpRequest.getRequestURI()));
     } catch (IllegalArgumentException e) {
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .body(ApiResponse.error(e.getMessage(), httpRequest.getRequestURI()));
     }
   }
 }
