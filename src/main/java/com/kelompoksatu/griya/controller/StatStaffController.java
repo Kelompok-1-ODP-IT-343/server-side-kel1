@@ -34,7 +34,7 @@ public class StatStaffController {
 
     String token = jwtUtil.extractTokenFromHeader(authHeader);
     String role = jwtUtil.extractUserRole(token);
-    if (role == null || !"STAFF".equalsIgnoreCase(role)) {
+    if (role == null || !"APPROVER".equalsIgnoreCase(role)) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN)
           .body(ApiResponse.error("Akses ditolak: bukan STAFF", httpRequest.getRequestURI()));
     }

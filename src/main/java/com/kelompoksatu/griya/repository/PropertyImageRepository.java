@@ -8,4 +8,6 @@ import org.springframework.stereotype.Repository;
 public interface PropertyImageRepository extends JpaRepository<PropertyImage, Integer> {
   java.util.List<PropertyImage> findByPropertyIdAndFilePathIn(
       Integer propertyId, java.util.List<String> filePaths);
+
+  PropertyImage findFirstByPropertyIdOrderByIdAsc(Integer propertyId);
 }

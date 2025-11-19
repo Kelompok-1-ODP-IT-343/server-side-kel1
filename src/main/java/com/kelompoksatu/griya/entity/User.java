@@ -37,6 +37,9 @@ public class User {
   @Column(name = "phone", length = 20, unique = true, nullable = true)
   private String phone;
 
+  @Column(name = "bank_account_number", length = 30)
+  private String bankAccountNumber;
+
   @Column(name = "password_hash", length = 255, nullable = false)
   private String passwordHash;
 

@@ -4,15 +4,16 @@ import com.kelompoksatu.griya.dto.DeveloperStatsResponse;
 import com.kelompoksatu.griya.entity.KprApplication;
 import com.kelompoksatu.griya.repository.StatDeveloperRepository;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.TextStyle;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,121 +26,67 @@ public class StatDeveloperService {
 
   public DeveloperStatsResponse getDashboard(Integer developerId, String range) {
     int months = parseMonths(range);
-    LocalDate endDate = LocalDate.now().withDayOfMonth(1).plusMonths(1); // first day next month
+    LocalDate endDate = LocalDate.now().withDayOfMonth(1).plusMonths(1);
     LocalDate startDate = endDate.minusMonths(months);
 
     LocalDateTime start = startDate.atStartOfDay();
     LocalDateTime end = endDate.atStartOfDay();
 
-    // KPI current vs previous month
-    LocalDateTime currStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
-    LocalDateTime currEnd = currStart.plusMonths(1);
-    LocalDateTime prevStart = currStart.minusMonths(1);
-    LocalDateTime prevEnd = currStart;
-
-    long approvedCurr =
-        statDeveloperRepository.countApprovedByDeveloperAndCreatedBetween(
-            developerId, currStart, currEnd);
-    long approvedPrev =
-        statDeveloperRepository.countApprovedByDeveloperAndCreatedBetween(
-            developerId, prevStart, prevEnd);
-
-    long rejectedCurr =
-        statDeveloperRepository.countRejectedByDeveloperAndCreatedBetween(
-            developerId, currStart, currEnd);
-    long rejectedPrev =
-        statDeveloperRepository.countRejectedByDeveloperAndCreatedBetween(
-            developerId, prevStart, prevEnd);
-
-    long pendingCurr =
-        statDeveloperRepository.countPendingByDeveloperAndCreatedBetween(
-            developerId, currStart, currEnd);
-    long pendingPrev =
-        statDeveloperRepository.countPendingByDeveloperAndCreatedBetween(
-            developerId, prevStart, prevEnd);
-
-    long customersCurr =
+    long approved =
+        statDeveloperRepository.countApprovedByDeveloperAndCreatedBetween(developerId, start, end);
+    long rejected =
+        statDeveloperRepository.countRejectedByDeveloperAndCreatedBetween(developerId, start, end);
+    long pending =
+        statDeveloperRepository.countPendingByDeveloperAndCreatedBetween(developerId, start, end);
+    long customers =
         statDeveloperRepository.countDistinctUsersByDeveloperAndCreatedBetween(
-            developerId, currStart, currEnd);
-    long customersPrev =
+            developerId, start, end);
+
+    LocalDateTime prevStart = start.minusMonths(months);
+    LocalDateTime prevEnd = start;
+    long prevApproved =
+        statDeveloperRepository.countApprovedByDeveloperAndCreatedBetween(
+            developerId, prevStart, prevEnd);
+    long prevRejected =
+        statDeveloperRepository.countRejectedByDeveloperAndCreatedBetween(
+            developerId, prevStart, prevEnd);
+    long prevPending =
+        statDeveloperRepository.countPendingByDeveloperAndCreatedBetween(
+            developerId, prevStart, prevEnd);
+    long prevCustomers =
         statDeveloperRepository.countDistinctUsersByDeveloperAndCreatedBetween(
             developerId, prevStart, prevEnd);
 
-    DeveloperStatsResponse.Kpi kpi =
-        new DeveloperStatsResponse.Kpi(
-            new DeveloperStatsResponse.Kpi.KpiItem(
-                approvedCurr, percentageChange(approvedPrev, approvedCurr)),
-            new DeveloperStatsResponse.Kpi.KpiItem(
-                rejectedCurr, percentageChange(rejectedPrev, rejectedCurr)),
-            new DeveloperStatsResponse.Kpi.KpiItem(
-                pendingCurr, percentageChange(pendingPrev, pendingCurr)),
-            new DeveloperStatsResponse.Kpi.KpiItem(
-                customersCurr, percentageChange(customersPrev, customersCurr)));
+    DeveloperStatsResponse.Summary summary = new DeveloperStatsResponse.Summary();
+    summary.setApprovedCount((int) approved);
+    summary.setRejectedCount((int) rejected);
+    summary.setPendingCount((int) pending);
+    summary.setActiveCustomers((int) customers);
+    DeveloperStatsResponse.Summary.Growth growth = new DeveloperStatsResponse.Summary.Growth();
+    growth.setApproved(percentChange(approved, prevApproved));
+    growth.setRejected(percentChange(rejected, prevRejected));
+    growth.setPending(percentChange(pending, prevPending));
+    growth.setCustomers(percentChange(customers, prevCustomers));
+    summary.setGrowth(growth);
 
-    // Load applications for the range and aggregate
     List<KprApplication> apps =
         statDeveloperRepository.findApplicationsByDeveloperAndCreatedBetween(
             developerId, start, end);
 
-    Map<String, List<KprApplication>> byMonth =
-        apps.stream()
-            .collect(
-                Collectors.groupingBy(
-                    a ->
-                        a.getCreatedAt()
-                            .toLocalDate()
-                            .getMonth()
-                            .getDisplayName(TextStyle.SHORT, Locale.ENGLISH)));
+    List<DeveloperStatsResponse.SubmissionVsApprovedItem> subVsAppr =
+        buildSubmissionVsApproved(apps, start.toLocalDate(), end.toLocalDate());
+    List<DeveloperStatsResponse.ValueVsIncomeItem> valVsInc =
+        buildValueVsIncome(apps, start.toLocalDate(), end.toLocalDate());
+    List<DeveloperStatsResponse.FunnelItem> funnel = buildFunnelItems(apps);
+    List<DeveloperStatsResponse.SLABucketItem> sla = buildSlaBucketsFromApps(apps);
 
-    List<DeveloperStatsResponse.GrowthAndDemandEntry> growth = new ArrayList<>();
-    List<DeveloperStatsResponse.OutstandingLoanEntry> outstanding = new ArrayList<>();
-    List<DeveloperStatsResponse.UserRegisteredEntry> registered = new ArrayList<>();
-
-    // ensure chronological last N months
-    List<String> monthOrder = buildMonthOrder(months);
-
-    for (String mon : monthOrder) {
-      List<KprApplication> monthApps = byMonth.getOrDefault(mon, List.of());
-
-      long totalRequests = monthApps.size();
-      long totalApproved =
-          monthApps.stream().filter(a -> "APPROVED".equals(a.getStatus().name())).count();
-
-      BigDecimal approvedAmount =
-          monthApps.stream()
-              .filter(a -> "APPROVED".equals(a.getStatus().name()))
-              .map(a -> a.getLoanAmount() == null ? BigDecimal.ZERO : a.getLoanAmount())
-              .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-      long distinctUsers =
-          monthApps.stream()
-              .map(a -> a.getUser() == null ? null : a.getUser().getId())
-              .filter(id -> id != null)
-              .collect(Collectors.toSet())
-              .size();
-
-      growth.add(
-          new DeveloperStatsResponse.GrowthAndDemandEntry(mon, totalRequests, totalApproved));
-      outstanding.add(
-          new DeveloperStatsResponse.OutstandingLoanEntry(
-              mon, approvedAmount.divide(BigDecimal.valueOf(1_000_000_000L)).doubleValue()));
-
-      // Full month name for user_registered per sample
-      String fullMon = monthFullName(mon);
-      registered.add(new DeveloperStatsResponse.UserRegisteredEntry(fullMon, distinctUsers));
-    }
-
-    // Processing funnel within the overall range
-    Map<String, Long> funnelMap = buildFunnel(apps);
-    List<DeveloperStatsResponse.FunnelEntry> funnel =
-        List.of(
-            new DeveloperStatsResponse.FunnelEntry("Draft", funnelMap.getOrDefault("Draft", 0L)),
-            new DeveloperStatsResponse.FunnelEntry("Review", funnelMap.getOrDefault("Review", 0L)),
-            new DeveloperStatsResponse.FunnelEntry(
-                "Approval", funnelMap.getOrDefault("Approval", 0L)),
-            new DeveloperStatsResponse.FunnelEntry("Reject", funnelMap.getOrDefault("Reject", 0L)));
-
-    return DeveloperStatsResponse.ofNow(kpi, growth, outstanding, funnel, registered);
+    DeveloperStatsResponse resp = new DeveloperStatsResponse();
+    resp.setSummary(summary);
+    resp.setFunnelStatus(funnel);
+    resp.setSlaBucket(sla);
+    resp.setSubmissionVsApproved(subVsAppr);
+    resp.setValueVsIncome(valVsInc);
+    return resp;
   }
 
   private int parseMonths(String range) {
@@ -159,71 +106,124 @@ public class StatDeveloperService {
     }
   }
 
-  private double percentageChange(long previous, long current) {
-    if (previous == 0) {
-      return current == 0 ? 0.0 : 100.0;
-    }
+  private double percentChange(long current, long previous) {
+    if (previous == 0) return current > 0 ? 100.0 : 0.0;
     return ((double) (current - previous) / (double) previous) * 100.0;
   }
 
-  private List<String> buildMonthOrder(int months) {
-    List<String> order = new ArrayList<>();
-    LocalDate cursor = LocalDate.now().withDayOfMonth(1).minusMonths(months - 1);
-    for (int i = 0; i < months; i++) {
-      order.add(cursor.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
-      cursor = cursor.plusMonths(1);
+  private List<DeveloperStatsResponse.SubmissionVsApprovedItem> buildSubmissionVsApproved(
+      List<KprApplication> apps, LocalDate start, LocalDate end) {
+    Map<YearMonth, List<KprApplication>> byMonth =
+        apps.stream()
+            .filter(a -> a.getCreatedAt() != null)
+            .collect(Collectors.groupingBy(a -> YearMonth.from(a.getCreatedAt())));
+
+    List<DeveloperStatsResponse.SubmissionVsApprovedItem> out = new ArrayList<>();
+    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("LLL yy", new Locale("id", "ID"));
+    YearMonth cur = YearMonth.from(start);
+    YearMonth last = YearMonth.from(end.minusDays(1));
+    while (!cur.isAfter(last)) {
+      List<KprApplication> monthApps = byMonth.getOrDefault(cur, List.of());
+      int submitted = monthApps.size();
+      int approved =
+          (int)
+              monthApps.stream()
+                  .filter(a -> a.getStatus() == KprApplication.ApplicationStatus.APPROVED)
+                  .count();
+      DeveloperStatsResponse.SubmissionVsApprovedItem item =
+          new DeveloperStatsResponse.SubmissionVsApprovedItem();
+      item.setMonth(capitalize(cur.format(fmt)));
+      item.setSubmitted(submitted);
+      item.setApproved(approved);
+      out.add(item);
+      cur = cur.plusMonths(1);
     }
-    return order;
+    return out;
   }
 
-  private String monthFullName(String shortName) {
-    if (shortName == null || shortName.isBlank()) return "";
-    String key = shortName.substring(0, 1).toUpperCase() + shortName.substring(1).toLowerCase();
-    switch (key) {
-      case "Jan":
-        return "January";
-      case "Feb":
-        return "February";
-      case "Mar":
-        return "March";
-      case "Apr":
-        return "April";
-      case "May":
-        return "May";
-      case "Jun":
-        return "June";
-      case "Jul":
-        return "July";
-      case "Aug":
-        return "August";
-      case "Sep":
-        return "September";
-      case "Oct":
-        return "October";
-      case "Nov":
-        return "November";
-      case "Dec":
-        return "December";
-      default:
-        return key;
+  private List<DeveloperStatsResponse.ValueVsIncomeItem> buildValueVsIncome(
+      List<KprApplication> apps, LocalDate start, LocalDate end) {
+    Map<YearMonth, List<KprApplication>> byMonth =
+        apps.stream()
+            .filter(a -> a.getCreatedAt() != null)
+            .collect(Collectors.groupingBy(a -> YearMonth.from(a.getCreatedAt())));
+
+    List<DeveloperStatsResponse.ValueVsIncomeItem> out = new ArrayList<>();
+    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("LLL yy", new Locale("id", "ID"));
+    YearMonth cur = YearMonth.from(start);
+    YearMonth last = YearMonth.from(end.minusDays(1));
+    while (!cur.isAfter(last)) {
+      List<KprApplication> monthApps = byMonth.getOrDefault(cur, List.of());
+      BigDecimal submissionValue =
+          monthApps.stream()
+              .map(KprApplication::getLoanAmount)
+              .filter(Objects::nonNull)
+              .reduce(BigDecimal.ZERO, BigDecimal::add);
+      BigDecimal income =
+          monthApps.stream()
+              .map(KprApplication::getMonthlyInstallment)
+              .filter(Objects::nonNull)
+              .reduce(BigDecimal.ZERO, BigDecimal::add);
+      DeveloperStatsResponse.ValueVsIncomeItem item =
+          new DeveloperStatsResponse.ValueVsIncomeItem();
+      item.setMonth(capitalize(cur.format(fmt)));
+      item.setSubmissionValue(submissionValue);
+      item.setIncome(income);
+      out.add(item);
+      cur = cur.plusMonths(1);
     }
+    return out;
   }
 
-  private Map<String, Long> buildFunnel(List<KprApplication> apps) {
-    Map<String, Long> m = new HashMap<>();
-    Set<String> reviewStatuses = Set.of("DOCUMENT_VERIFICATION", "PROPERTY_APPRAISAL");
-    Set<String> approvalStatuses = Set.of("CREDIT_ANALYSIS", "APPROVAL_PENDING");
+  private List<DeveloperStatsResponse.FunnelItem> buildFunnelItems(List<KprApplication> apps) {
+    int appraisal =
+        (int)
+            apps.stream()
+                .filter(a -> a.getStatus() == KprApplication.ApplicationStatus.PROPERTY_APPRAISAL)
+                .count();
+    int analysis =
+        (int)
+            apps.stream()
+                .filter(a -> a.getStatus() == KprApplication.ApplicationStatus.CREDIT_ANALYSIS)
+                .count();
+    int finalApproval =
+        (int)
+            apps.stream()
+                .filter(a -> a.getStatus() == KprApplication.ApplicationStatus.APPROVAL_PENDING)
+                .count();
+    int approvedCount =
+        (int)
+            apps.stream()
+                .filter(a -> a.getStatus() == KprApplication.ApplicationStatus.APPROVED)
+                .count();
 
-    long draft = apps.stream().filter(a -> "SUBMITTED".equals(a.getStatus().name())).count();
-    long review = apps.stream().filter(a -> reviewStatuses.contains(a.getStatus().name())).count();
-    long approval =
-        apps.stream().filter(a -> approvalStatuses.contains(a.getStatus().name())).count();
-    long reject = apps.stream().filter(a -> "REJECTED".equals(a.getStatus().name())).count();
+    List<DeveloperStatsResponse.FunnelItem> out = new ArrayList<>();
+    out.add(new DeveloperStatsResponse.FunnelItem("Property Appraisal", appraisal));
+    out.add(new DeveloperStatsResponse.FunnelItem("Credit Analysis", analysis));
+    out.add(new DeveloperStatsResponse.FunnelItem("Final Approval", finalApproval));
+    out.add(new DeveloperStatsResponse.FunnelItem("Approved", approvedCount));
+    return out;
+  }
 
-    m.put("Draft", draft);
-    m.put("Review", review);
-    m.put("Approval", approval);
-    m.put("Reject", reject);
-    return m;
+  private List<DeveloperStatsResponse.SLABucketItem> buildSlaBucketsFromApps(
+      List<KprApplication> apps) {
+    int bucket0to2 = 0, bucket3to5 = 0, bucketGt5 = 0;
+    for (KprApplication a : apps) {
+      if (a.getSubmittedAt() == null || a.getApprovedAt() == null) continue;
+      long days = Duration.between(a.getSubmittedAt(), a.getApprovedAt()).toDays();
+      if (days <= 2) bucket0to2++;
+      else if (days <= 5) bucket3to5++;
+      else bucketGt5++;
+    }
+    List<DeveloperStatsResponse.SLABucketItem> out = new ArrayList<>();
+    out.add(new DeveloperStatsResponse.SLABucketItem("0-2 hari", bucket0to2));
+    out.add(new DeveloperStatsResponse.SLABucketItem("3-5 hari", bucket3to5));
+    out.add(new DeveloperStatsResponse.SLABucketItem(">5 hari", bucketGt5));
+    return out;
+  }
+
+  private String capitalize(String s) {
+    if (s == null || s.isEmpty()) return s;
+    return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
   }
 }

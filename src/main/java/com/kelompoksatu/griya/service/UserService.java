@@ -224,6 +224,8 @@ public class UserService {
     boolean isDeveloper = user.getDeveloper() != null;
     response.setDeveloper(isDeveloper);
 
+    response.setBankAccountNumber(user.getBankAccountNumber());
+
     if (userProfile != null) {
       response.setFullName(userProfile.getFullName());
       response.setNik(userProfile.getNik());

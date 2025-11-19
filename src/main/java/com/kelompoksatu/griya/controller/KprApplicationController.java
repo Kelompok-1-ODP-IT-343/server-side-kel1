@@ -174,6 +174,7 @@ public class KprApplicationController {
       @RequestParam(value = "salarySlip", required = false) MultipartFile salarySlipAlt,
       @RequestParam(value = "otherDocument", required = false) MultipartFile otherDocument,
       @RequestParam(value = "other", required = false) MultipartFile otherAlt,
+      @RequestParam("bankAccountNumber") String bankAccountNumber,
       @RequestParam(value = "notes", required = false) String notes,
       @Parameter(hidden = true) @RequestHeader("Authorization") String authHeader) {
 
@@ -205,6 +206,7 @@ public class KprApplicationController {
           KprApplicationFormRequest.builder()
               .propertyId(propertyId)
               .kprRateId(kprRateId)
+              .bankAccountNumber(bankAccountNumber)
               .simulationData(
                   SimulationData.builder()
                       .propertyValue(propertyValue)
@@ -246,6 +248,13 @@ public class KprApplicationController {
               .otherDocument(otherResolved)
               .notes(notes)
               .build();
+
+      try {
+        formRequest.validate();
+      } catch (IllegalArgumentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(new ApiResponse<>(false, ex.getMessage(), null));
+      }
 
       // Submit application through service
       KprApplicationResponse response =

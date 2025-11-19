@@ -65,6 +65,10 @@ public class KprApplicationFormRequest {
 
   private String notes;
 
+  @NotBlank(message = "Bank account number is required")
+  @Pattern(regexp = "^[0-9]{10,20}$", message = "Bank account number must be 10-20 digits")
+  private String bankAccountNumber;
+
   // ========================================
   // VALIDATION METHODS
   // ========================================
@@ -114,7 +118,14 @@ public class KprApplicationFormRequest {
     return new MultipartFile[] {ktpDocument, npwpDocument, salarySlipDocument, otherDocument};
   }
 
-  public void validate() {}
+  public void validate() {
+    if (bankAccountNumber == null || bankAccountNumber.isBlank()) {
+      throw new IllegalArgumentException("Nomor rekening wajib diisi");
+    }
+    if (!bankAccountNumber.matches("^[0-9]{10,20}$")) {
+      throw new IllegalArgumentException("Nomor rekening harus berupa 10-20 digit angka");
+    }
+  }
 
   /** Get document names for logging and processing */
   public String[] getDocumentNames() {
