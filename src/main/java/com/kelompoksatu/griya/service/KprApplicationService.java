@@ -1199,23 +1199,14 @@ public class KprApplicationService {
         fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
       }
 
-      String fileName =
-          documentType.name()
-              + "_"
-              + applicationId
-              + "_"
-              + System.currentTimeMillis()
-              + fileExtension;
-
-      // Upload file to IDCloudHost S3
-      String fileUrl = idCloudHostS3Util.uploadKprDocument(file, fileName);
+      String key = idCloudHostS3Util.uploadKprDocument(file, documentType.name());
 
       return ApplicationDocument.builder()
           .applicationId(applicationId)
           .documentType(documentType)
-          .documentName(fileName)
+          .documentName(originalFilename)
           .originalFilename(originalFilename)
-          .filePath(fileUrl)
+          .filePath(key)
           .fileSize((int) file.getSize())
           .mimeType(
               file.getContentType() != null ? file.getContentType() : "application/octet-stream")
@@ -1720,11 +1711,18 @@ public class KprApplicationService {
       verifier = userRepository.findById(document.getVerifiedBy()).orElse(null);
     }
 
+    String proxyUrl = null;
+    if (document.getFilePath() != null && !document.getFilePath().startsWith("http")) {
+      proxyUrl = idCloudHostS3Util.generateProxyUrl(document.getFilePath());
+    } else {
+      proxyUrl = document.getFilePath();
+    }
+
     return KprApplicationDetailResponse.DocumentInfo.builder()
         .documentId(document.getId())
         .documentType(document.getDocumentType())
         .documentName(document.getDocumentName())
-        .filePath(document.getFilePath())
+        .filePath(proxyUrl)
         .fileSize(document.getFileSize())
         .mimeType(document.getMimeType())
         .isVerified(document.getIsVerified())

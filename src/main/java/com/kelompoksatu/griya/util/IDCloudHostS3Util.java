@@ -17,6 +17,7 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
@@ -51,6 +52,15 @@ public class IDCloudHostS3Util {
 
   @Value("${idcloudhost.s3.endpoint:https://is3.cloudhost.id}")
   private String endpoint;
+
+  @Value("${image.proxy.base-url:http://localhost:18080/api/v1/proxy/image}")
+  private String proxyBaseUrl;
+
+  @Value("${image.proxy.expires-in:600}")
+  private Long proxyExpiresIn;
+
+  @Value("${image.proxy.secret:changeme}")
+  private String proxySecret;
 
   // --- REFACTORED: S3Client is now an instance variable ---
   /**
@@ -111,7 +121,6 @@ public class IDCloudHostS3Util {
     // Validasi file (now includes MIME type check)
     validateFile(file);
 
-    // Generate unique filename
     String fileName = generateSecureFileName(file.getOriginalFilename(), folder);
 
     try {
@@ -122,7 +131,7 @@ public class IDCloudHostS3Util {
               .key(fileName)
               .contentType(file.getContentType())
               .contentLength(file.getSize())
-              .acl(ObjectCannedACL.PUBLIC_READ) // Set public-read permission
+              .acl(ObjectCannedACL.PUBLIC_READ)
               .metadata(
                   java.util.Map.of(
                       "uploaded-at", LocalDateTime.now().toString(),
@@ -154,14 +163,82 @@ public class IDCloudHostS3Util {
 
   /** Upload file untuk dokumen KPR dengan folder khusus */
   public String uploadKprDocument(MultipartFile file, String documentType) throws IOException {
-    String folder = "kpr-documents/" + documentType;
-    return uploadFile(file, folder);
+    if (this.s3Client == null) {
+      this.s3Client = createIDCloudHostS3Client();
+    }
+    if (this.s3Client == null) {
+      throw new IllegalStateException("Object Storage (S3) is not configured.");
+    }
+    validateFile(file);
+    String ext = getFileExtension(file.getOriginalFilename()).toLowerCase();
+    String ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+    String key =
+        String.format(
+            "private/%s/%s_%s%s",
+            documentType.toLowerCase(),
+            ts,
+            java.util.UUID.randomUUID().toString().replace("-", ""),
+            ext);
+    try {
+      PutObjectRequest putObjectRequest =
+          PutObjectRequest.builder()
+              .bucket(bucketName)
+              .key(key)
+              .contentType(file.getContentType())
+              .contentLength(file.getSize())
+              .metadata(
+                  java.util.Map.of(
+                      "uploaded-at", LocalDateTime.now().toString(),
+                      "original-name", file.getOriginalFilename(),
+                      "file-size", String.valueOf(file.getSize())))
+              .build();
+      s3Client.putObject(
+          putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+      return key;
+    } catch (S3Exception e) {
+      throw new IOException("Failed to upload file to IDCloudHost: " + e.getMessage(), e);
+    } catch (Exception e) {
+      throw new IOException("Unexpected error during file upload: " + e.getMessage(), e);
+    }
   }
 
   /** Upload file untuk property images */
   public String uploadPropertyImage(MultipartFile file, String propertyId) throws IOException {
-    String folder = "property-images/" + propertyId;
-    return uploadFile(file, folder);
+    if (this.s3Client == null) {
+      this.s3Client = createIDCloudHostS3Client();
+    }
+    if (this.s3Client == null) {
+      throw new IllegalStateException("Object Storage (S3) is not configured.");
+    }
+    validateFile(file);
+    String ext = getFileExtension(file.getOriginalFilename()).toLowerCase();
+    String ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+    String key =
+        String.format(
+            "public/property/%s/%s_%s%s",
+            propertyId, ts, java.util.UUID.randomUUID().toString().replace("-", ""), ext);
+    try {
+      PutObjectRequest putObjectRequest =
+          PutObjectRequest.builder()
+              .bucket(bucketName)
+              .key(key)
+              .contentType(file.getContentType())
+              .contentLength(file.getSize())
+              .acl(ObjectCannedACL.PUBLIC_READ)
+              .metadata(
+                  java.util.Map.of(
+                      "uploaded-at", LocalDateTime.now().toString(),
+                      "original-name", file.getOriginalFilename(),
+                      "file-size", String.valueOf(file.getSize())))
+              .build();
+      s3Client.putObject(
+          putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+      return generateIDCloudHostFileUrl(key);
+    } catch (S3Exception e) {
+      throw new IOException("Failed to upload file to IDCloudHost: " + e.getMessage(), e);
+    } catch (Exception e) {
+      throw new IOException("Unexpected error during file upload: " + e.getMessage(), e);
+    }
   }
 
   /** Validasi file (compliance dengan regulasi keamanan) */
@@ -236,6 +313,28 @@ public class IDCloudHostS3Util {
       return "";
     }
     return filename.substring(filename.lastIndexOf('.'));
+  }
+
+  public String generateProxyUrl(String key) {
+    long now = java.time.Instant.now().getEpochSecond();
+    long exp = now + (proxyExpiresIn != null ? proxyExpiresIn : 600L);
+    String token =
+        org.apache.commons.codec.digest.DigestUtils.sha256Hex(key + ":" + exp + ":" + proxySecret);
+    String encodedKey;
+    try {
+      encodedKey = java.net.URLEncoder.encode(key, java.nio.charset.StandardCharsets.UTF_8);
+    } catch (Exception e) {
+      encodedKey = key;
+    }
+    return proxyBaseUrl + "?key=" + encodedKey + "&token=" + token + "&exp=" + exp;
+  }
+
+  public software.amazon.awssdk.core.ResponseInputStream<GetObjectResponse> getObjectStream(
+      String key) {
+    if (this.s3Client == null) {
+      this.s3Client = createIDCloudHostS3Client();
+    }
+    return s3Client.getObject(builder -> builder.bucket(bucketName).key(key));
   }
 
   /** Create S3 client khusus untuk IDCloudHost Object Storage */
