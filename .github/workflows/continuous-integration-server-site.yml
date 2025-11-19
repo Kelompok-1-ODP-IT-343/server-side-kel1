@@ -46,7 +46,7 @@ jobs:
 
   build_and_push_image:
     name: Build And Push Image
-    needs: [prepare_environment, code_quality]
+    needs: [prepare_environment]
     runs-on: ubuntu-latest
     permissions:
       contents: read
