@@ -14,7 +14,7 @@ env:
 jobs:
 
   prepare_environment:
-    name: Prepare Environment
+    name: Prepare Environment and Code Quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,19 +32,14 @@ jobs:
           key: maven-${{ hashFiles('pom.xml') }}
           restore-keys: maven-
 
-      - name: Install Dependencies (download libs)
+      - name: Install Dependencies
         run: mvn -q -DskipTests dependency:go-offline
 
       - name: Build Project
         run: mvn -q -DskipTests package
 
-  code_quality:
-    name: Code Quality
-    needs: prepare_environment
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: SonarSource/sonarcloud-github-action@v3
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v3
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
