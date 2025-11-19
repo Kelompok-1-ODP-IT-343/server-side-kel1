@@ -52,6 +52,7 @@ public interface UserMapper {
   @Mapping(target = "emailVerified", expression = "java(user.getEmailVerifiedAt() != null)")
   @Mapping(target = "phoneVerified", expression = "java(user.getPhoneVerifiedAt() != null)")
   @Mapping(target = "developer", expression = "java(user.getDeveloper() != null)")
+  @Mapping(target = "bankAccountNumber", source = "user.bankAccountNumber")
   @Mapping(target = "fullName", source = "profile.fullName")
   @Mapping(target = "nik", source = "profile.nik")
   @Mapping(target = "npwp", source = "profile.npwp")

@@ -21,4 +21,8 @@ public class KprApplicationRequest {
   @NotNull(message = "Loan term is required") @Min(value = 1, message = "Loan term must be at least 1 year")
   @Max(value = 30, message = "Loan term cannot exceed 30 years")
   private Integer loanTermYears;
+
+  @NotBlank(message = "Bank account number is required")
+  @Pattern(regexp = "^[0-9]{10,20}$", message = "Bank account number must be 10-20 digits")
+  private String bankAccountNumber;
 }

@@ -74,6 +74,9 @@ public class KprApplication {
   @Column(name = "developer_name", length = 255)
   private String developerName;
 
+  @Column(name = "bank_account_number", length = 30, nullable = false)
+  private String bankAccountNumber;
+
   @Enumerated(EnumType.STRING)
   @JdbcType(PostgreSQLEnumJdbcType.class)
   @Column(name = "purpose", nullable = false)

@@ -75,6 +75,8 @@ public class KprApplicationService {
       // 5. Update user profile with personal data
       updateUserProfileFromForm(
           userId, formRequest.getPersonalData(), formRequest.getEmploymentData());
+      user.setBankAccountNumber(formRequest.getBankAccountNumber());
+      userRepository.save(user);
 
       // 6. Get KPR rate
       KprRate selectedRate =

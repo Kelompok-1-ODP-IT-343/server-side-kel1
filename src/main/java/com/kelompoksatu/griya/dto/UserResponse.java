@@ -50,6 +50,8 @@ public class UserResponse {
   // Developer indicator
   private boolean developer;
 
+  private String bankAccountNumber;
+
   /**
    * Convenience constructor used by JPQL projections in UserRepository. This matches the SELECT new
    * com.kelompoksatu.griya.dto.UserResponse(...) argument list and intentionally omits district and
