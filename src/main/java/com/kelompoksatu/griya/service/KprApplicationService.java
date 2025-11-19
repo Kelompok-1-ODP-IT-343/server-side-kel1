@@ -34,6 +34,7 @@ public class KprApplicationService {
   private final UserRepository userRepository;
   private final UserProfileRepository userProfileRepository;
   private final DeveloperRepository developerRepository;
+  private final PropertyImageRepository propertyImageRepository;
   private final ApprovalLevelRepository approvalLevelRepository;
   private final ApprovalWorkflowRepository approvalWorkflowRepository;
   private final ApplicationDocumentRepository applicationDocumentRepository;
@@ -1133,20 +1134,31 @@ public class KprApplicationService {
     // Response Building Phase
     return applications.stream()
         .map(
-            application ->
-                new KprHistoryListResponse(
-                    application.getId(),
-                    application.getProperty().getTitle(),
-                    application.getStatus().toString(),
-                    String.format(
-                        "%s, %s, %s",
-                        application.getProperty().getDistrict(),
-                        application.getProperty().getCity(),
-                        application.getProperty().getProvince()),
-                    application.getApplicationNumber(),
-                    application.getLoanAmount(),
-                    application.getCreatedAt().toString(),
-                    ""))
+            application -> {
+              String foto = "";
+              try {
+                var img =
+                    propertyImageRepository.findFirstByPropertyIdOrderByIdAsc(
+                        application.getPropertyId());
+                if (img != null && img.getFilePath() != null) {
+                  foto = img.getFilePath();
+                }
+              } catch (Exception ignored) {
+              }
+              return new KprHistoryListResponse(
+                  application.getId(),
+                  application.getProperty().getTitle(),
+                  application.getStatus().toString(),
+                  String.format(
+                      "%s, %s, %s",
+                      application.getProperty().getDistrict(),
+                      application.getProperty().getCity(),
+                      application.getProperty().getProvince()),
+                  application.getApplicationNumber(),
+                  application.getLoanAmount(),
+                  application.getCreatedAt().toString(),
+                  foto);
+            })
         .collect(Collectors.toList());
   }
 
