@@ -18,6 +18,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+    
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: maven-${{ hashFiles('pom.xml') }}
+          restore-keys: maven-
+
+      - name: Install Dependencies
+        run: mvn -q -DskipTests dependency:go-offline
+
+      - name: Build Project
+        run: mvn -q -DskipTests package
 
   code_quality:
     name: Code Quality
