@@ -107,6 +107,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     // Skip JWT validation for public endpoints
     return path.equals("/api/v1/auth/register")
         || path.equals("/api/v1/auth/login")
+        || path.equals("/api/v1/auth/forgot-password/phone/send-otp")
+        || path.equals("/api/v1/auth/forgot-password/phone/verify-otp")
+        || path.equals("/api/v1/auth/forgot-password/phone/set-password")
+        || path.equals("/api/v1/proxy/image")
         || path.startsWith("/api/v1/features")
         || path.startsWith("/api/v1/properties")
         || path.equals("/api/v1/auth/verify-otp")
