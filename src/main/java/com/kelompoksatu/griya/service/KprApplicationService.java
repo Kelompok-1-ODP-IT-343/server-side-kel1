@@ -1452,6 +1452,9 @@ public class KprApplicationService {
         // Basic application info
         .applicationId(application.getId())
         .applicationNumber(application.getApplicationNumber())
+        .userId(application.getUserId())
+        .propertyId(application.getPropertyId())
+        .kprRateId(application.getKprRateId())
         .status(application.getStatus())
 
         // User information with profile
@@ -1573,6 +1576,7 @@ public class KprApplicationService {
         .certificateNumber(property.getCertificateNumber())
         .pbbValue(property.getPbbValue())
         .status(property.getStatus())
+        .isKprEligible(property.getIsKprEligible())
         .minDownPaymentPercent(property.getMinDownPaymentPercent())
         .maxLoanTermYears(property.getMaxLoanTermYears())
         .build();
@@ -1614,6 +1618,7 @@ public class KprApplicationService {
     if (kprRate == null) return null;
 
     return KprApplicationDetailResponse.KprRateInfo.builder()
+        .kprRateId(kprRate.getId())
         .rateName(kprRate.getRateName())
         .rateType(kprRate.getRateType().name())
         .propertyType(kprRate.getPropertyType().name())
@@ -1734,6 +1739,7 @@ public class KprApplicationService {
         .documentId(document.getId())
         .documentType(document.getDocumentType())
         .documentName(document.getDocumentName())
+        .originalFilename(document.getOriginalFilename())
         .filePath(proxyUrl)
         .fileSize(document.getFileSize())
         .mimeType(document.getMimeType())
