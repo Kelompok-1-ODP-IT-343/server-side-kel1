@@ -78,28 +78,91 @@ public class AuthController {
     } catch (RuntimeException e) {
       log.error("Runtime error during registration: {}", e.getMessage());
 
+      // Build full message from exception + cause chain to detect DB unique constraint errors
+      String fullMessage = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+      Throwable cause = e;
+      while (cause.getCause() != null) {
+        cause = cause.getCause();
+        if (cause.getMessage() != null) fullMessage += " " + cause.getMessage().toLowerCase();
+      }
+
+      // Prefer duplicate-key detection (email/username/phone) before phone/otp checks
+      if (fullMessage.contains("duplicate key")
+          || fullMessage.contains("unique constraint")
+          || fullMessage.contains("duplicate key value")
+          || fullMessage.contains("could not execute statement")
+          || fullMessage.contains("constraint [users_")) {
+
+        String field = "email"; // default
+
+        // detect username key
+        if (fullMessage.contains("users_username_key")
+            || fullMessage.contains("key (username")
+            || fullMessage.contains("username already exists")
+            || fullMessage.contains("key (username)")) {
+          field = "username";
+        }
+
+        // detect phone key
+        if (fullMessage.contains("users_phone_key")
+            || fullMessage.contains("key (phone")
+            || fullMessage.contains("phone already exists")
+            || fullMessage.contains("key (phone)")) {
+          field = "phone";
+        }
+
+        String userMessage;
+        if ("username".equals(field)) {
+          userMessage = "Username sudah terdaftar";
+        } else if ("phone".equals(field)) {
+          userMessage = "Nomor telepon sudah terdaftar";
+        } else {
+          userMessage = "Email sudah terdaftar";
+        }
+
+        OtpResponse otpResponse =
+            OtpResponse.error(OtpErrorType.DUPLICATE_USER, userMessage + ": " + e.getMessage());
+        ApiResponse<OtpResponse> response =
+            ApiResponse.error("Registrasi gagal: " + userMessage, httpRequest.getRequestURI());
+        response.setData(otpResponse);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+      }
+
       OtpResponse otpResponse;
-      if (e.getMessage().contains("phone")) {
+      ApiResponse<OtpResponse> response;
+
+      if (fullMessage.contains("phone")) {
         otpResponse =
             OtpResponse.error(
                 OtpErrorType.INVALID_PHONE_NUMBER,
                 "Phone number validation failed: " + e.getMessage());
-      } else if (e.getMessage().contains("OTP") || e.getMessage().contains("WhatsApp")) {
+        response =
+            ApiResponse.error(
+                "Registrasi gagal: " + otpResponse.getErrorDetail().getMessage(),
+                httpRequest.getRequestURI());
+        response.setData(otpResponse);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+      } else if (fullMessage.contains("otp") || fullMessage.contains("whatsapp")) {
         otpResponse =
             OtpResponse.error(
                 OtpErrorType.OTP_SERVICE_ERROR, "OTP service error: " + e.getMessage());
+        response =
+            ApiResponse.error(
+                "Registrasi gagal: " + otpResponse.getErrorDetail().getMessage(),
+                httpRequest.getRequestURI());
+        response.setData(otpResponse);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
       } else {
         otpResponse =
             OtpResponse.error(
                 OtpErrorType.SYSTEM_ERROR, "System error during registration: " + e.getMessage());
+        response =
+            ApiResponse.error(
+                "Registrasi gagal: " + otpResponse.getErrorDetail().getMessage(),
+                httpRequest.getRequestURI());
+        response.setData(otpResponse);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
       }
-
-      ApiResponse<OtpResponse> response =
-          ApiResponse.error(
-              "Registrasi gagal: " + otpResponse.getErrorDetail().getMessage(),
-              httpRequest.getRequestURI());
-      response.setData(otpResponse);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 
     } catch (Exception e) {
       log.error("Unexpected error during registration: {}", e.getMessage(), e);
@@ -315,36 +378,68 @@ public class AuthController {
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
 
     } catch (RuntimeException e) {
-      log.error("Runtime error during login: {}", e.getMessage());
+      log.error("Runtime error during registration: {}", e.getMessage());
+
+      // Look for duplicate key / unique constraint violations (e.g. duplicate email)
+      String fullMessage = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+      Throwable cause = e;
+      while (cause.getCause() != null) {
+        cause = cause.getCause();
+        if (cause.getMessage() != null) fullMessage += " " + cause.getMessage().toLowerCase();
+      }
 
       OtpResponse otpResponse;
-      if (e.getMessage().contains("locked")) {
+      ApiResponse<OtpResponse> response;
+
+      if (fullMessage.contains("duplicate key")
+          || fullMessage.contains("unique constraint")
+          || fullMessage.contains("users_email_key")
+          || fullMessage.contains("duplicate key value")) {
+        // Map duplicate key on email to DUPLICATE_USER error with 400 Bad Request
+        String detail = "Email telah terdaftar";
         otpResponse =
             OtpResponse.error(
-                OtpErrorType.ACCOUNT_LOCKED, "Account security issue: " + e.getMessage());
-      } else if (e.getMessage().contains("rate limit") || e.getMessage().contains("too many")) {
+                OtpErrorType.DUPLICATE_USER,
+                "Email sudah terdaftar: " + detail + " - " + e.getMessage());
+        response =
+            ApiResponse.error(
+                "Registrasi gagal: Email sudah terdaftar", httpRequest.getRequestURI());
+        response.setData(otpResponse);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+      }
+
+      if (fullMessage.contains("phone")) {
         otpResponse =
             OtpResponse.error(
-                OtpErrorType.RATE_LIMIT_EXCEEDED, "Rate limit exceeded: " + e.getMessage());
-      } else if (e.getMessage().contains("phone")) {
-        otpResponse =
-            OtpResponse.error(OtpErrorType.INVALID_PHONE_NUMBER, "Phone issue: " + e.getMessage());
-      } else if (e.getMessage().contains("OTP") || e.getMessage().contains("WhatsApp")) {
+                OtpErrorType.INVALID_PHONE_NUMBER,
+                "Phone number validation failed: " + e.getMessage());
+        response =
+            ApiResponse.error(
+                "Registrasi gagal: " + otpResponse.getErrorDetail().getMessage(),
+                httpRequest.getRequestURI());
+        response.setData(otpResponse);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+      } else if (fullMessage.contains("otp") || fullMessage.contains("whatsapp")) {
         otpResponse =
             OtpResponse.error(
                 OtpErrorType.OTP_SERVICE_ERROR, "OTP service error: " + e.getMessage());
+        response =
+            ApiResponse.error(
+                "Registrasi gagal: " + otpResponse.getErrorDetail().getMessage(),
+                httpRequest.getRequestURI());
+        response.setData(otpResponse);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
       } else {
         otpResponse =
             OtpResponse.error(
-                OtpErrorType.SYSTEM_ERROR, "System error during login: " + e.getMessage());
+                OtpErrorType.SYSTEM_ERROR, "System error during registration: " + e.getMessage());
+        response =
+            ApiResponse.error(
+                "Registrasi gagal: " + otpResponse.getErrorDetail().getMessage(),
+                httpRequest.getRequestURI());
+        response.setData(otpResponse);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
       }
-
-      ApiResponse<OtpResponse> response =
-          ApiResponse.error(
-              "Login gagal: " + otpResponse.getErrorDetail().getMessage(),
-              httpRequest.getRequestURI());
-      response.setData(otpResponse);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 
     } catch (Exception e) {
       log.error("Unexpected error during login: {}", e.getMessage(), e);
