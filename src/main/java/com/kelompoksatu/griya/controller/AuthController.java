@@ -450,6 +450,94 @@ public class AuthController {
     return ResponseEntity.ok("Password has been reset successfully.");
   }
 
+  @PostMapping("/forgot-password/phone/send-otp")
+  public ResponseEntity<ApiResponse<OtpResponse>> sendOtpForgotPassword(
+      @RequestBody Map<String, String> request, HttpServletRequest httpRequest) {
+    String phone = request.get("phone");
+    if (phone == null || phone.trim().isEmpty()) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .body(ApiResponse.error("Nomor telepon wajib diisi", httpRequest.getRequestURI()));
+    }
+    if (!authService.isPhoneRegistered(phone)) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .body(ApiResponse.error("Nomor telepon tidak terdaftar", httpRequest.getRequestURI()));
+    }
+    OtpResponse otp = otpService.sendOtp(phone, "reset_password");
+    if (otp.isSuccess()) {
+      return ResponseEntity.ok(
+          ApiResponse.success(otp, "OTP terkirim", httpRequest.getRequestURI()));
+    }
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(
+            ApiResponse.error(
+                otp.getErrorDetail() != null ? otp.getErrorDetail().getMessage() : otp.getMessage(),
+                httpRequest.getRequestURI()));
+  }
+
+  @PostMapping("/forgot-password/phone/verify-otp")
+  public ResponseEntity<ApiResponse<Map<String, Object>>> verifyOtpForgotPassword(
+      @RequestBody Map<String, String> request, HttpServletRequest httpRequest) {
+    String phone = request.get("phone");
+    String otp = request.get("otp");
+    if (phone == null || otp == null || phone.trim().isEmpty() || otp.trim().isEmpty()) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .body(ApiResponse.error("Phone dan OTP wajib diisi", httpRequest.getRequestURI()));
+    }
+    if (!authService.isPhoneRegistered(phone)) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .body(ApiResponse.error("Nomor telepon tidak terdaftar", httpRequest.getRequestURI()));
+    }
+    boolean ok = otpService.verifyOtp(phone, otp, "reset_password");
+    if (!ok) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .body(ApiResponse.error("OTP tidak valid atau kedaluwarsa", httpRequest.getRequestURI()));
+    }
+    String resetToken = java.util.UUID.randomUUID().toString().replace("-", "");
+    String normalized = otpService.normalizePhoneNumber(phone);
+    redisService.set("pwd_reset:" + resetToken, normalized, 600);
+    Map<String, Object> data = new java.util.HashMap<>();
+    data.put("resetToken", resetToken);
+    data.put("expiresIn", 600);
+    return ResponseEntity.ok(ApiResponse.success(data, "OTP valid", httpRequest.getRequestURI()));
+  }
+
+  @PostMapping("/forgot-password/phone/set-password")
+  public ResponseEntity<ApiResponse<Boolean>> setNewPasswordPhone(
+      @RequestBody Map<String, String> request, HttpServletRequest httpRequest) {
+    String token = request.get("resetToken");
+    String newPassword = request.get("newPassword");
+    if (token == null
+        || newPassword == null
+        || token.trim().isEmpty()
+        || newPassword.trim().isEmpty()) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .body(
+              ApiResponse.error(
+                  "resetToken dan newPassword wajib diisi", httpRequest.getRequestURI()));
+    }
+    String phone = redisService.get("pwd_reset:" + token, String.class);
+    if (phone == null || phone.isEmpty()) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .body(
+              ApiResponse.error(
+                  "Reset token tidak valid atau kedaluwarsa", httpRequest.getRequestURI()));
+    }
+    try {
+      authService.setNewPasswordByPhone(phone, newPassword);
+      redisService.delete("pwd_reset:" + token);
+      return ResponseEntity.ok(
+          ApiResponse.success(true, "Password berhasil direset", httpRequest.getRequestURI()));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .body(ApiResponse.error(e.getMessage(), httpRequest.getRequestURI()));
+    } catch (Exception e) {
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(
+              ApiResponse.error(
+                  "Gagal mengubah password: " + e.getMessage(), httpRequest.getRequestURI()));
+    }
+  }
+
   /** Verify OTP code POST /api/v1/auth/verify-otp */
   @Operation(
       summary = "Verify OTP code",

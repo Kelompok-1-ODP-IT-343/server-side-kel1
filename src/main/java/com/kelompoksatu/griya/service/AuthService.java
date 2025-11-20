@@ -362,6 +362,41 @@ public class AuthService {
     }
   }
 
+  public boolean isPhoneRegistered(String phone) {
+    try {
+      String normalized = otpService.normalizePhoneNumber(phone);
+      return userRepo.existsByPhone(normalized);
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  @Transactional
+  public void setNewPasswordByPhone(String phone, String newPassword) {
+    String normalized = otpService.normalizePhoneNumber(phone);
+    User user =
+        userRepo
+            .findByPhone(normalized)
+            .orElseThrow(() -> new IllegalArgumentException("User tidak ditemukan"));
+    if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+      throw new IllegalArgumentException("Password baru tidak boleh sama dengan yang lama");
+    }
+    user.setPasswordHash(passwordEncoder.encode(newPassword));
+    userRepo.save(user);
+    try {
+      systemNotificationService.saveNotification(
+          SystemNotification.builder()
+              .userId(user.getId())
+              .notificationType(NotificationType.APPLICATION_UPDATE)
+              .title("Password berhasil direset")
+              .message("Silakan gunakan password baru Anda untuk login")
+              .channel(NotificationChannel.IN_APP)
+              .build());
+    } catch (Exception ex) {
+      logger.warn("Failed to save password reset notification: {}", ex.getMessage());
+    }
+  }
+
   // ========================================
   // USER PROFILE OPERATIONS
   // ========================================
