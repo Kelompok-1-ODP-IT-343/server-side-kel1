@@ -10,6 +10,7 @@ import com.kelompoksatu.griya.entity.User;
 import com.kelompoksatu.griya.repository.ApprovalWorkflowRepository;
 import com.kelompoksatu.griya.repository.DeveloperRepository;
 import com.kelompoksatu.griya.repository.KprApplicationRepository;
+import com.kelompoksatu.griya.repository.PropertyRepository;
 import com.kelompoksatu.griya.repository.UserRepository;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class ApprovalWorkflowService {
   private final DeveloperRepository developerRepository;
   private final UserRepository userRepository;
   private final KprApplicationRepository kprApplicationRepository;
+  private final PropertyRepository propertyRepository;
   private final SystemNotificationService systemNotificationService;
 
   public boolean approveOrRejectWorkflowDeveloper(ApprovalConfirmation request, Integer userID) {
@@ -96,6 +98,43 @@ public class ApprovalWorkflowService {
             userID, request.getApplicationId(), now, reason);
     approvalWorkflowRepository.updateStatusKPRApplication(
         request.getApplicationId(), ApplicationStatus.REJECTED, now);
+
+    // If the application was tied to a reserved property, release it back to AVAILABLE
+    try {
+      var optApp = kprApplicationRepository.findById(request.getApplicationId());
+      if (optApp.isPresent()) {
+        var app = optApp.get();
+        Integer propertyId = app.getPropertyId();
+        if (propertyId != null) {
+          propertyRepository
+              .findById(propertyId)
+              .ifPresent(
+                  p -> {
+                    try {
+                      if (p.getStatus() != null && p.getStatus().name().equals("RESERVED")) {
+                        p.setStatus(
+                            com.kelompoksatu.griya.entity.Property.PropertyStatus.AVAILABLE);
+                        propertyRepository.save(p);
+                        log.info(
+                            "Property {} released from RESERVED to AVAILABLE due to rejection of application {}",
+                            propertyId,
+                            request.getApplicationId());
+                      }
+                    } catch (Exception e) {
+                      log.warn(
+                          "Failed to update property status for property {}: {}",
+                          propertyId,
+                          e.getMessage());
+                    }
+                  });
+        }
+      }
+    } catch (Exception e) {
+      log.warn(
+          "Error while attempting to release reserved property for application {}: {}",
+          request.getApplicationId(),
+          e.getMessage());
+    }
 
     // Notifications: actor and applicant for rejection
     try {
@@ -230,6 +269,43 @@ public class ApprovalWorkflowService {
             userID, request.getApplicationId(), now, reason);
     approvalWorkflowRepository.updateStatusKPRApplication(
         request.getApplicationId(), ApplicationStatus.REJECTED, now);
+
+    // Release reserved property if applicable
+    try {
+      var optApp = kprApplicationRepository.findById(request.getApplicationId());
+      if (optApp.isPresent()) {
+        var app = optApp.get();
+        Integer propertyId = app.getPropertyId();
+        if (propertyId != null) {
+          propertyRepository
+              .findById(propertyId)
+              .ifPresent(
+                  p -> {
+                    try {
+                      if (p.getStatus() != null && p.getStatus().name().equals("RESERVED")) {
+                        p.setStatus(
+                            com.kelompoksatu.griya.entity.Property.PropertyStatus.AVAILABLE);
+                        propertyRepository.save(p);
+                        log.info(
+                            "Property {} released from RESERVED to AVAILABLE due to rejection of application {}",
+                            propertyId,
+                            request.getApplicationId());
+                      }
+                    } catch (Exception e) {
+                      log.warn(
+                          "Failed to update property status for property {}: {}",
+                          propertyId,
+                          e.getMessage());
+                    }
+                  });
+        }
+      }
+    } catch (Exception e) {
+      log.warn(
+          "Error while attempting to release reserved property for application {}: {}",
+          request.getApplicationId(),
+          e.getMessage());
+    }
 
     // Notifications: actor and applicant for rejection
     try {
