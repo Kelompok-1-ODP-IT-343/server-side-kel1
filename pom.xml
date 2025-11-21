@@ -15,17 +15,18 @@
 	<name>griya</name>
 	<description>Demo project for Spring Boot with JWT and Oracle DB</description>
 
-	<properties>
-		<java.version>21</java.version>
-		<aws.sdk.version>2.25.46</aws.sdk.version>
-		<!-- Properti untuk versi JJWT agar mudah dikelola -->
-		<jjwt.version>0.12.5</jjwt.version>
-		<!-- MapStruct version -->
-		<mapstruct.version>1.5.5.Final</mapstruct.version>
-	</properties>
+  <properties>
+    <java.version>21</java.version>
+    <aws.sdk.version>2.25.46</aws.sdk.version>
+    <!-- Properti untuk versi JJWT agar mudah dikelola -->
+    <jjwt.version>0.12.5</jjwt.version>
+    <!-- MapStruct version -->
+    <mapstruct.version>1.5.5.Final</mapstruct.version>
+    <lombok.version>1.18.32</lombok.version>
+  </properties>
 
 	<dependencyManagement>
-		<dependencies>
+    <dependencies>
 			<dependency>
 				<groupId>software.amazon.awssdk</groupId>
 				<artifactId>bom</artifactId>
@@ -38,10 +39,15 @@
 
 	<dependencies>
 		<!-- CORE: Untuk membuat REST API -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
-		</dependency>
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-annotations</artifactId>
+      </dependency>
 
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
