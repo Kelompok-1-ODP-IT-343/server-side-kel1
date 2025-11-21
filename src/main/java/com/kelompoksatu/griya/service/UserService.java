@@ -103,10 +103,9 @@ public class UserService {
 
     User user = validateAndGetUser(userId);
     request = sanitizeUpdateRequest(request);
-    UserProfile profile =
-        userProfileRepository
-            .findByUserId(userId)
-            .orElseGet(() -> new UserProfile(userId)); // if profile doesn’t exist yet
+    java.util.Optional<UserProfile> existingProfileOpt = userProfileRepository.findByUserId(userId);
+    UserProfile profile = existingProfileOpt.orElse(null);
+    boolean creatingProfile = false;
 
     // 1️⃣ Apply user account updates (if fields are present)
     if (hasUserAccountFields(request)) {
@@ -118,18 +117,32 @@ public class UserService {
 
     // 2️⃣ Apply profile updates (if fields are present)
     if (hasProfileFields(request)) {
+      if (profile == null) {
+        if (!hasMinimalRequiredProfileFields(request)) {
+          throw new jakarta.validation.ValidationException(
+              "Profil belum ada. Lengkapi field wajib: fullName, birthDate, birthPlace, monthlyIncome");
+        }
+        profile = new com.kelompoksatu.griya.entity.UserProfile(userId);
+        creatingProfile = true;
+      }
       userMapper.updateUserProfileFromRequest(request, profile);
       updateProfileEnumFields(request, profile);
     }
 
     // 3️⃣ Save only what’s modified
     userRepository.save(user);
-    userProfileRepository.save(profile);
+    if (profile != null) {
+      userProfileRepository.save(profile);
+    }
 
     logger.info("User & profile updated successfully with ID: {}", userId);
 
     // 4️⃣ Return unified response
-    return userMapper.toResponse(user, profile);
+    if (profile != null) {
+      return userMapper.toResponse(user, profile);
+    } else {
+      return convertToUserResponse(user, user.getRole(), null);
+    }
   }
 
   // ========================================
@@ -382,6 +395,13 @@ public class UserService {
     if (request.getGenderEnum() != null) {
       existingProfile.setGender(request.getGenderEnum());
     }
+  }
+
+  private boolean hasMinimalRequiredProfileFields(UpdateUserRequest request) {
+    return (request.getFullName() != null && !request.getFullName().trim().isEmpty())
+        && request.getBirthDate() != null
+        && (request.getBirthPlace() != null && !request.getBirthPlace().trim().isEmpty())
+        && request.getMonthlyIncome() != null;
   }
 
   // ========================================

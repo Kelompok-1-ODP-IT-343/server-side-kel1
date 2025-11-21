@@ -1,5 +1,6 @@
 package com.kelompoksatu.griya.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.kelompoksatu.griya.entity.Gender;
 import com.kelompoksatu.griya.entity.MaritalStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -88,12 +89,14 @@ public class UpdateUserRequest {
       description = "Gender of the user",
       example = "MALE",
       allowableValues = {"MALE", "FEMALE"})
+  @JsonAlias({"gender", "jenis_kelamin"})
   private String gender;
 
   @Schema(
       description = "Marital status of the user",
       example = "SINGLE",
       allowableValues = {"SINGLE", "MARRIED", "DIVORCED", "WIDOWED"})
+  @JsonAlias({"maritalStatus", "marital_status", "status_pernikahan"})
   private String maritalStatus;
 
   @Schema(description = "Address of the user", example = "Jl. Sudirman No. 123, Jakarta Selatan")
