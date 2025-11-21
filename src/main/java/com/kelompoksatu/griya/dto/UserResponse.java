@@ -44,6 +44,12 @@ public class UserResponse {
   private String postalCode;
   private String occupation;
   private String companyName;
+  private String companyAddress;
+  private String companyCity;
+  private String companyProvince;
+  private String companyPostalCode;
+  private String companyDistrict;
+  private String companySubdistrict;
   private BigDecimal monthlyIncome;
   private Integer workExperience;
 

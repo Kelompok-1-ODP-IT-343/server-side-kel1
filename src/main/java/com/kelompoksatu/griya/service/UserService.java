@@ -255,6 +255,12 @@ public class UserService {
       response.setPostalCode(userProfile.getPostalCode());
       response.setOccupation(userProfile.getOccupation());
       response.setCompanyName(userProfile.getCompanyName());
+      response.setCompanyAddress(userProfile.getCompanyAddress());
+      response.setCompanyCity(userProfile.getCompanyCity());
+      response.setCompanyProvince(userProfile.getCompanyProvince());
+      response.setCompanyPostalCode(userProfile.getCompanyPostalCode());
+      response.setCompanyDistrict(userProfile.getCompanyDistrict());
+      response.setCompanySubdistrict(userProfile.getCompanySubdistrict());
       response.setMonthlyIncome(userProfile.getMonthlyIncome());
       response.setWorkExperience(userProfile.getWorkExperience());
     } else if (isDeveloper) {
