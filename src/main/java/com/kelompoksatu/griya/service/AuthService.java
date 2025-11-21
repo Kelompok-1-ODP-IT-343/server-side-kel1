@@ -440,6 +440,12 @@ public class AuthService {
         throw new RuntimeException("OTP tidak valid atau sudah kedaluwarsa");
       }
 
+      if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
+        user.setStatus(UserStatus.ACTIVE);
+        user.setPhoneVerifiedAt(LocalDateTime.now());
+        userRepo.save(user);
+      }
+
       // Generate tokens and create session
       String refreshToken =
           jwtUtil.generateRefreshToken(user.getUsername(), user.getId(), user.getRole().getName());
