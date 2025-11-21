@@ -1413,7 +1413,6 @@ public class KprApplicationService {
     boolean isStaff =
         currentUser.getRole() != null
             && (currentUser.getRole().getName().contains("ADMIN")
-                || currentUser.getRole().getName().contains("DEVELOPER")
                 || currentUser.getRole().getName().contains("APPROVER"));
 
     boolean isDeveloper =
