@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1
 
+
 # ---- Build stage: use Temurin JDK 21 and Maven for build ----
 FROM maven:3.9.6-eclipse-temurin-21 AS build
 
