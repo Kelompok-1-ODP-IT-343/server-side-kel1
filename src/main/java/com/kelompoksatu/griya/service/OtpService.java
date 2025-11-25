@@ -48,7 +48,7 @@ public class OtpService {
   private static final String OTP_RATE_LIMIT_PREFIX = "otp_rate_limit:";
   private static final Set<String> PHONE_ALLOWED_TO_BYPASS_OTP =
       Set.of(
-          "6285678900990", "6285727771009", "6281388899900", "6287884396829", "6285157862331"
+          // "6285678900990", "6285727771009", "6281388899900", "6287884396829", "6285157862331"
           // "6285704384348",
           // "628211334456",
           // "6281234567890",
