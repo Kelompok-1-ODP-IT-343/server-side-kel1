@@ -1176,7 +1176,6 @@ public class KprApplicationService {
       default -> throw new IllegalArgumentException("Unsupported property type: " + propertyType);
     };
   }
-
   private Property.CertificateType convertToCertificateType(
       Property.CertificateType certificateType) {
     return switch (certificateType) {
